@@ -1,0 +1,577 @@
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>多渠道接入 · kefu 管理后台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+.ch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.ch-card{background:var(--color-card);border-radius:10px;padding:18px;border:1px solid var(--color-border);position:relative;transition:all .2s}
+.ch-card:hover{box-shadow:0 4px 16px rgba(14,165,233,.08);transform:translateY(-1px)}
+.ch-card .ch-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;flex-shrink:0}
+.ch-card .ch-icon.wechat{background:#07C160}
+.ch-card .ch-icon.weapp{background:#10AEFF}
+.ch-card .ch-icon.channel{background:#FA8C16}
+.ch-card .ch-icon.douyin{background:linear-gradient(135deg,#FE2C55 0%,#000 100%)}
+.ch-card .ch-icon.email{background:#3B82F6}
+.ch-card .ch-icon.weibo{background:#E6162D}
+.ch-card .ch-icon.app{background:#8B5CF6}
+.ch-card .ch-icon.h5{background:#06B6D4}
+.ch-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.ch-name{font-size:15px;font-weight:600;color:var(--color-text)}
+.ch-desc{font-size:12px;color:var(--color-text-3);line-height:1.5;margin-bottom:12px}
+.ch-meta{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px dashed var(--color-border);font-size:12px;color:var(--color-text-3)}
+.switch{position:relative;display:inline-block;width:36px;height:20px}
+.switch input{display:none}
+.switch .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#CBD5E1;border-radius:20px;transition:.2s}
+.switch .slider:before{position:absolute;content:"";height:14px;width:14px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.2s}
+.switch input:checked + .slider{background:var(--color-primary)}
+.switch input:checked + .slider:before{transform:translateX(16px)}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:500}
+.badge-green{background:#DCFCE7;color:#166534}
+.badge-gray{background:#E5E7EB;color:#6B7280}
+.badge-red{background:#FEE2E2;color:#991B1B}
+.badge-blue{background:#DBEAFE;color:#1E40AF}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.form-row.full{grid-template-columns:1fr}
+@media (max-width:768px){.form-row{grid-template-columns:1fr}}
+.form-item label{display:block;font-size:12px;color:var(--color-text-2);margin-bottom:4px;font-weight:500}
+.form-item input,.form-item select,.form-item textarea{width:100%;padding:8px 10px;border:1px solid var(--color-border);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box}
+.form-item input:focus{border-color:var(--color-primary)}
+.copy-btn{padding:4px 8px;background:var(--color-primary);color:white;border-radius:4px;font-size:11px;cursor:pointer;border:none;margin-left:6px}
+.code-block{background:#1E293B;color:#94A3B8;padding:10px;border-radius:6px;font-family:'Fira Code',monospace;font-size:12px;word-break:break-all;line-height:1.6}
+.section-title{font-size:14px;font-weight:600;color:var(--color-text);margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--color-border)}
+.k-tab{padding:8px 16px;border-radius:8px 8px 0 0;font-size:13px;cursor:pointer;border:1px solid transparent;border-bottom:0;color:var(--color-text-3)}
+.k-tab.active{background:var(--color-card);border-color:var(--color-border);color:var(--color-text);font-weight:600}
+.k-tab:hover{color:var(--color-text)}
+.k-tabs{display:flex;gap:4px;margin-bottom:-1px}
+.kf-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#F8FAFC;border-radius:6px;margin-bottom:6px;font-size:13px}
+.kf-row code{font-family:'Fira Code',monospace;font-size:12px;color:#475569}
+.kf-empty{color:var(--color-text-3);text-align:center;padding:16px;font-size:13px}
+.kv-box{display:flex;gap:8px;align-items:center}
+.kv-box input{flex:1}
+</style>
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="card">
+  <div class="card-title">
+    <span style="display:inline-flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary)"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      多渠道接入（在线接入风格 · APP / 公众号 / 视频号 / 抖音 / 微博 / 邮件）
+    </span>
+    <div class="extra" style="font-size:12px;color:var(--color-text-3)">
+      接入顺序：① 创建账号 → ② 复制 webhook 配置到开放平台 → ③ 点击验通
+    </div>
+  </div>
+  <div id="ch-grid" class="ch-grid k-loading">加载中…</div>
+</div>
+
+<!-- 渠道详情（账号管理） -->
+<div id="acc-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px">
+  <div style="background:white;border-radius:12px;max-width:980px;width:100%;max-height:90vh;overflow:auto">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center">
+      <h3 id="acc-title" style="margin:0;font-size:16px">渠道详情</h3>
+      <button onclick="closeAccModal()" style="border:0;background:transparent;font-size:22px;cursor:pointer;color:var(--color-text-3)">×</button>
+    </div>
+    <div id="acc-body" style="padding:22px"></div>
+  </div>
+</div>
+
+<!-- 编辑账号 -->
+<div id="edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center;padding:20px">
+  <div style="background:white;border-radius:12px;max-width:780px;width:100%;max-height:90vh;overflow:auto">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center">
+      <h3 id="edit-title" style="margin:0;font-size:16px">新增账号</h3>
+      <button onclick="closeEditModal()" style="border:0;background:transparent;font-size:22px;cursor:pointer;color:var(--color-text-3)">×</button>
+    </div>
+    <div id="edit-body" style="padding:22px"></div>
+  </div>
+</div>
+
+<!-- 客服账号管理 Modal -->
+<div id="kf-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1200;align-items:center;justify-content:center;padding:20px">
+  <div style="background:white;border-radius:12px;max-width:880px;width:100%;max-height:90vh;overflow:auto">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center">
+      <h3 style="margin:0;font-size:16px">客服账号管理（微信 kfaccount / 微信客服）</h3>
+      <button onclick="closeKfModal()" style="border:0;background:transparent;font-size:22px;cursor:pointer;color:var(--color-text-3)">×</button>
+    </div>
+    <div id="kf-body" style="padding:22px"></div>
+  </div>
+</div>
+
+<!-- 主动发消息 Modal -->
+<div id="send-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1300;align-items:center;justify-content:center;padding:20px">
+  <div style="background:white;border-radius:12px;max-width:620px;width:100%">
+    <div style="padding:18px 22px;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center">
+      <h3 style="margin:0;font-size:16px">主动发送客服消息（48 小时窗口）</h3>
+      <button onclick="closeSendModal()" style="border:0;background:transparent;font-size:22px;cursor:pointer;color:var(--color-text-3)">×</button>
+    </div>
+    <div id="send-body" style="padding:22px"></div>
+  </div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+
+let channels = [];
+let curChannel = null;
+let curAccount = null;
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => A.toast('已复制', 'success'), () => A.toast('复制失败', 'error'));
+}
+
+async function load() {
+  const r = await A.api('GET', '/api/admin/channel-mgmt/list');
+  const box = document.getElementById('ch-grid');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败：' + r.msg + '</div>'; return; }
+  channels = (r.data && r.data.list) || [];
+  render();
+}
+
+function render() {
+  const box = document.getElementById('ch-grid');
+  if (channels.length === 0) {
+    box.innerHTML = '<div class="k-empty">暂未配置渠道</div>';
+    return;
+  }
+  box.innerHTML = channels.map(c => {
+    const iconCls = (c.channel_code || '').includes('wechat') ? 'wechat'
+                   : (c.channel_code || '').includes('weapp') ? 'weapp'
+                   : (c.channel_code || '').includes('channel') ? 'channel'
+                   : c.channel_code || 'h5';
+    return `
+      <div class="ch-card">
+        <div class="ch-head">
+          <div class="ch-icon ${iconCls}">${escapeHtml((c.channel_name || c.channel_code).substring(0,1))}</div>
+          <div style="flex:1;min-width:0">
+            <div class="ch-name">${escapeHtml(c.channel_name)}</div>
+            <span class="badge ${c.enabled==1?'badge-green':'badge-gray'}">${c.enabled==1?'已启用':'已禁用'}</span>
+            <span class="badge badge-blue" style="margin-left:4px">${c.account_count||0} 个账号</span>
+          </div>
+          <label class="switch"><input type="checkbox" ${c.enabled==1?'checked':''} onchange="toggle(${c.id}, this.checked)" /><span class="slider"></span></label>
+        </div>
+        <div class="ch-desc">${escapeHtml(c.description || '')}</div>
+        <div class="ch-meta">
+          <span>渠道编号：<code>${escapeHtml(c.channel_code)}</code></span>
+          <button class="k-btn k-btn-mini k-btn-primary" onclick="openChannel(${c.id})">配置账号</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function toggle(id, enabled) {
+  const r = await A.api('POST', '/api/admin/channel-mgmt/account/toggle', { id, status: enabled ? 1 : 0 });
+  if (r.code !== 0) A.toast('失败：' + r.msg, 'error');
+  load();
+}
+
+async function openChannel(id) {
+  curChannel = channels.find(c => c.id == id);
+  if (!curChannel) return;
+  const r = await A.api('GET', '/api/admin/channel-mgmt/detail?id=' + id);
+  if (r.code !== 0) { A.toast('加载失败', 'error'); return; }
+  const { channel, accounts } = r.data;
+  document.getElementById('acc-title').textContent = `${channel.channel_name} · 账号管理`;
+  const code = channel.channel_code;
+
+  // 顶部操作栏（按渠道类型展示）
+  let toolbar = '';
+  if (code === 'wechatmp' || code === 'channel_wechat') {
+    toolbar = `
+      <div class="section-title">微信客服账号（kfaccount）</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="k-btn k-btn-mini" onclick="listKfAccounts()">↻ 同步微信侧客服列表</button>
+        <button class="k-btn k-btn-mini k-btn-primary" onclick="openKfAdd()">+ 添加客服账号</button>
+        <button class="k-btn k-btn-mini" onclick="refreshAccessToken()">↻ 刷新 access_token</button>
+      </div>`;
+  } else if (code === 'weapp') {
+    toolbar = `
+      <div class="section-title">小程序微信客服（新版 2025 · /customservice/work/*）</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="k-btn k-btn-mini" onclick="getKfWork()">查询绑定</button>
+        <button class="k-btn k-btn-mini k-btn-primary" onclick="openKfWorkBind()">绑定微信客服</button>
+        <button class="k-btn k-btn-mini" onclick="refreshAccessToken()">↻ 刷新 access_token</button>
+      </div>`;
+  }
+
+  document.getElementById('acc-body').innerHTML = `
+    <div style="margin-bottom:14px;color:var(--color-text-2);font-size:13px">${escapeHtml(channel.description || '')}</div>
+    ${toolbar}
+
+    <div class="section-title">已绑定账号（${accounts.length}）</div>
+    <table class="k-table">
+      <thead><tr><th>ID</th><th>别名</th><th>AppID / ClientID</th><th>状态</th><th>验通时间</th><th>最近错误</th><th style="text-align:right">操作</th></tr></thead>
+      <tbody>
+        ${accounts.length === 0 ? '<tr><td colspan="7" style="text-align:center;color:var(--color-text-3);padding:20px">尚未绑定账号，点击「+ 新增账号」开始</td></tr>' :
+          accounts.map(a => `
+            <tr>
+              <td>${a.id}</td>
+              <td><b>${escapeHtml(a.account_name)}</b></td>
+              <td><code style="font-size:12px">${escapeHtml(a.app_id || '-')}</code></td>
+              <td><span class="badge ${a.status==1?'badge-green':'badge-gray'}">${a.status==1?'已启用':'已禁用'}</span></td>
+              <td>${A.fmtDate ? A.fmtDate(a.verified_at) : (a.verified_at || '尚未验通')}</td>
+              <td style="color:#EF4444;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.last_error || '-')}</td>
+              <td style="text-align:right;white-space:nowrap">
+                <button class="k-btn-text" onclick="openEdit(${a.id}, ${id})">编辑</button>
+                <button class="k-btn-text" onclick="openSend(${a.id})">发消息</button>
+                <button class="k-btn-text" onclick="verify(${a.id})">验通</button>
+                <button class="k-btn-text" onclick="rotate(${a.id})">重置密钥</button>
+                <button class="k-btn-text danger" onclick="delAcc(${a.id})">删除</button>
+              </td>
+            </tr>
+          `).join('')
+        }
+      </tbody>
+    </table>
+    <div style="margin-top:14px">
+      <button class="k-btn k-btn-primary" onclick="openEdit(0, ${id})">+ 新增账号</button>
+    </div>
+  `;
+  document.getElementById('acc-modal').style.display = 'flex';
+}
+
+function closeAccModal() { document.getElementById('acc-modal').style.display = 'none'; }
+
+async function openEdit(id, channelId) {
+  let data = {
+    id: id, channel_id: channelId,
+    account_name: '', app_id: '', app_secret: '', token: '', encoding_aes_key: '',
+    app_key: '', api_key: '', api_secret: '', client_id: '', client_secret: '',
+    imap_host: '', imap_port: 993, imap_user: '', imap_pass: '', imap_ssl: 1,
+    smtp_host: '', smtp_port: 465, smtp_user: '', smtp_pass: '',
+    webhook_url: '', webhook_secret: '', status: 1,
+  };
+  if (id > 0) {
+    const r = await A.api('GET', '/api/admin/channel-mgmt/detail?id=' + channelId);
+    const a = (r.data.accounts || []).find(x => x.id == id);
+    if (a) Object.assign(data, a);
+  }
+  document.getElementById('edit-title').textContent = id > 0 ? '编辑账号' : '新增账号';
+  const code = curChannel ? curChannel.channel_code : '';
+  const showWechat = ['wechatmp','weapp','channel_wechat','wechat_official','wechat_mini','wechat_channel'].includes(code);
+  const showDouyin = code === 'douyin';
+  const showEmail = code === 'email';
+  const showWeibo = code === 'weibo';
+  const showApp = code === 'app' || code === 'h5';
+  const showApi = code === 'api';
+
+  // 已有账号时展示 webhook URL 自动生成的回填
+  let webhookNote = '';
+  if (id > 0) {
+    webhookNote = '<div style="font-size:11px;color:var(--color-text-3);margin-top:4px">保存后系统会自动生成 <code>/api/channel/{code}/{account_id}</code> 形式的回调 URL</div>';
+  }
+
+  document.getElementById('edit-body').innerHTML = `
+    <div class="form-row"><div class="form-item"><label>账号别名 *</label><input name="account_name" value="${escapeHtml(data.account_name)}" placeholder="例如：客服公众号主号" /></div>
+      <div class="form-item"><label>状态</label><select name="status"><option value="1" ${data.status==1?'selected':''}>启用</option><option value="0" ${data.status==0?'selected':''}>禁用</option></select></div></div>
+
+    ${showWechat ? `
+      <div class="form-row"><div class="form-item"><label>AppID</label><input name="app_id" value="${escapeHtml(data.app_id||'')}" placeholder="wx...（小程序） / gh_xxx（公众号）" /></div>
+        <div class="form-item"><label>AppSecret ${id>0?'<span style="color:var(--color-text-3);font-weight:normal">（留空保留原值）</span>':''}</label><input name="app_secret" value="" placeholder="${id>0?'留空保留原值':'点击保存自动生成'}"/></div></div>
+      <div class="form-row"><div class="form-item"><label>Token（消息校验）</label><div class="kv-box"><input name="token" value="${escapeHtml(data.token||'')}" /><button class="copy-btn" onclick="copyText(document.querySelector('input[name=token]').value)">复制</button></div></div>
+        <div class="form-item"><label>EncodingAESKey（消息加解密）</label><div class="kv-box"><input name="encoding_aes_key" value="${escapeHtml(data.encoding_aes_key||'')}" /><button class="copy-btn" onclick="copyText(document.querySelector('input[name=encoding_aes_key]').value)">复制</button></div></div></div>
+    ` : ''}
+
+    ${showDouyin ? `
+      <div class="form-row"><div class="form-item"><label>Client ID</label><input name="client_id" value="${escapeHtml(data.client_id||'')}" /></div>
+        <div class="form-item"><label>Client Secret ${id>0?'<span style="color:var(--color-text-3);font-weight:normal">（留空保留原值）</span>':''}</label><input name="client_secret" value="" placeholder="${id>0?'留空保留原值':'自动生成'}" /></div></div>
+    ` : ''}
+
+    ${showEmail ? `
+      <div class="form-row"><div class="form-item"><label>IMAP 主机</label><input name="imap_host" value="${escapeHtml(data.imap_host||'')}" placeholder="imap.qq.com" /></div>
+        <div class="form-item"><label>IMAP 端口</label><input name="imap_port" type="number" value="${data.imap_port||993}" /></div></div>
+      <div class="form-row"><div class="form-item"><label>IMAP 用户</label><input name="imap_user" value="${escapeHtml(data.imap_user||'')}" /></div>
+        <div class="form-item"><label>IMAP 密码 / 授权码 ${id>0?'<span style="color:var(--color-text-3);font-weight:normal">（留空保留原值）</span>':''}</label><input name="imap_pass" value="" placeholder="${id>0?'留空保留原值':''}" /></div></div>
+      <div class="form-row"><div class="form-item"><label>启用 SSL</label><select name="imap_ssl"><option value="1" selected>是</option><option value="0">否</option></select></div></div>
+      <div class="form-row"><div class="form-item"><label>SMTP 主机（用于回信）</label><input name="smtp_host" value="${escapeHtml(data.smtp_host||'')}" placeholder="smtp.qq.com" /></div>
+        <div class="form-item"><label>SMTP 端口</label><input name="smtp_port" type="number" value="${data.smtp_port||465}" /></div></div>
+      <div class="form-row"><div class="form-item"><label>SMTP 用户</label><input name="smtp_user" value="${escapeHtml(data.smtp_user||'')}" /></div>
+        <div class="form-item"><label>SMTP 密码 ${id>0?'<span style="color:var(--color-text-3);font-weight:normal">（留空保留原值）</span>':''}</label><input name="smtp_pass" value="" placeholder="${id>0?'留空保留原值':''}" /></div></div>
+    ` : ''}
+
+    ${showApi ? `
+      <div class="section-title">API 渠道鉴权与配置</div>
+      <div class="form-row"><div class="form-item"><label>API Key ${id>0?'<span style="color:var(--color-text-3);font-weight:normal">（留空保留原值）</span>':''}</label><input name="api_key" value="${escapeHtml(data.api_key||'')}" placeholder="${id>0?'留空保留原值':'点击保存时自动生成'}" /></div>
+        <div class="form-item"><label>API Secret ${id>0?'<span style="color:var(--color-text-3);font-weight:normal">（留空保留原值）</span>':''}</label><input name="api_secret" value="" placeholder="${id>0?'留空保留原值':'自动生成'}" /></div></div>
+      <div class="form-row"><div class="form-item"><label>回调 URL（可选，接收 webhook 推送）</label><input name="webhook_url" value="${escapeHtml(data.webhook_url||'')}" placeholder="https://your-server/webhook" /></div>
+        <div class="form-item"><label>访客默认头像 URL（可选）</label><input name="account_id" value="${escapeHtml(data.account_id||'')}" placeholder="https://..." /></div></div>
+      <div style="background:#FEF3C7;padding:10px 12px;border-radius:6px;font-size:12px;color:#92400E;margin-bottom:10px;line-height:1.6">
+        💡 <strong>API 模式说明：</strong>外部应用通过 HTTP POST 提交访客消息到本系统，自动分配客服并投递。<br>
+        <strong>Endpoint：</strong> <code>POST /api/channel/api/{account_id}</code><br>
+        <strong>鉴权 Header：</strong> <code>X-API-Key: {api_key}</code> 或 <code>Authorization: Bearer {api_key}</code><br>
+        <strong>请求体（JSON）：</strong> <code style="font-size:11px">visitor_id, content, name?, avatar?, session_id?, message_id?, custom_fields?</code>
+      </div>
+    ` : ''}
+
+    ${showWeibo ? `
+      <div class="form-row"><div class="form-item"><label>App Key</label><input name="app_key" value="${escapeHtml(data.app_key||'')}" /></div>
+        <div class="form-item"><label>App Secret ${id>0?'<span style="color:var(--color-text-3);font-weight:normal">（留空保留原值）</span>':''}</label><input name="client_secret" value="" placeholder="${id>0?'留空保留原值':'自动生成'}" /></div></div>
+    ` : ''}
+
+    ${showApp ? `
+      <div class="form-row"><div class="form-item"><label>AppKey（客户端风控）</label><input name="app_key" value="${escapeHtml(data.app_key||'')}" placeholder="留空自动生成" /></div>
+        <div class="form-item"><label>API Key / Secret</label><input name="api_key" value="${escapeHtml(data.api_key||'')}" placeholder="留空自动生成" /></div></div>
+    ` : ''}
+
+    <div class="form-row full"><div class="form-item"><label>Webhook URL（回调地址）</label>
+      <input name="webhook_url" value="${escapeHtml(data.webhook_url||'')}" placeholder="留空则使用默认 /api/channel/{code}/{account_id}" />${webhookNote}</div></div>
+    <div class="form-row full"><div class="form-item"><label>Webhook 签名密钥（可选）</label>
+      <input name="webhook_secret" value="${escapeHtml(data.webhook_secret||'')}" placeholder="用于 HMAC 校验 x-kefu-signature 头" /></div></div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:18px;border-top:1px dashed var(--color-border)">
+      <button class="k-btn" onclick="closeEditModal()">取消</button>
+      <button class="k-btn k-btn-primary" onclick="submitAcc(${id}, ${channelId})">保存</button>
+    </div>
+  `;
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
+
+async function submitAcc(id, channelId) {
+  const inputs = document.querySelectorAll('#edit-body input, #edit-body select, #edit-body textarea');
+  const data = { id: id, channel_id: channelId };
+  inputs.forEach(el => { if (el.name) data[el.name] = el.value; });
+  const r = await A.api('POST', id > 0 ? '/api/admin/channel-mgmt/account/update' : '/api/admin/channel-mgmt/account/create', data);
+  if (r.code === 0) {
+    A.toast('已保存', 'success');
+    closeEditModal();
+    if (r.data && (r.data.webhook_url || r.data.token || r.data.encoding_aes_key)) {
+      A.toast('已自动生成 webhook URL 和密钥', 'success');
+    }
+    openChannel(channelId);
+  } else {
+    A.toast('失败：' + r.msg, 'error');
+  }
+}
+
+async function verify(id) {
+  A.toast('正在验通…', 'info');
+  const r = await A.api('POST', '/api/admin/channel-mgmt/verify-account', { id });
+  if (r.code === 0) {
+    A.toast('验通通过', 'success');
+  } else {
+    A.toast('验通失败：' + r.msg, 'error');
+  }
+  openChannel(curChannel.id);
+}
+
+async function rotate(id) {
+  if (!confirm('重置后 AppSecret / Token 会立即失效，请同步更新对接的客户端！')) return;
+  const r = await A.api('POST', '/api/admin/channel-mgmt/rotate-secret', { id });
+  if (r.code === 0) {
+    A.toast('已重置，新密钥：' + (r.data && r.data.app_secret ? r.data.app_secret.substring(0,12) + '...' : '查看列表'), 'success');
+  } else A.toast('失败：' + r.msg, 'error');
+  openChannel(curChannel.id);
+}
+
+async function delAcc(id) {
+  if (!confirm('确认删除该账号？')) return;
+  const r = await A.api('POST', '/api/admin/channel-mgmt/account/delete', { id });
+  A.toast(r.code === 0 ? '已删除' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+  openChannel(curChannel.id);
+}
+
+// ===================== 客服账号（kfaccount）=====================
+async function listKfAccounts() {
+  if (!curAccount) { A.toast('请先在列表选择一个账号', 'info'); return; }
+  const r = await A.api('GET', '/api/admin/channel-mgmt/kfaccount/list?id=' + curAccount.id);
+  if (r.code !== 0) { A.toast('拉取失败：' + r.msg, 'error'); return; }
+  const { local, remote, errors } = r.data;
+  const kfList = (remote.kf_list && remote.kf_list.kf_list) || [];
+  const online = (remote.kf_online_list && remote.kf_online_list.kf_online_list) || [];
+
+  document.getElementById('kf-body').innerHTML = `
+    <div class="section-title">远程微信侧客服账号（${kfList.length}）</div>
+    ${kfList.length === 0 ? '<div class="kf-empty">微信侧暂无客服账号</div>' :
+      kfList.map(k => `
+        <div class="kf-row">
+          <div>
+            <code>${escapeHtml(k.kf_account)}</code>
+            <span style="margin-left:8px;color:var(--color-text-2)">${escapeHtml(k.kf_nick || '')}</span>
+            <span class="badge ${k.status==1?'badge-green':'badge-gray'}" style="margin-left:8px">${k.status==1?'在线':'离线'}</span>
+          </div>
+          <button class="k-btn-text danger" onclick="delKf('${escapeHtml(k.kf_account)}')">删除</button>
+        </div>
+      `).join('')
+    }
+
+    <div class="section-title">本系统本地客服账号（${(local||[]).length}）</div>
+    ${(!local || local.length === 0) ? '<div class="kf-empty">本系统未保存客服账号</div>' :
+      local.map(l => `
+        <div class="kf-row">
+          <div>
+            <code>${escapeHtml(l.kf_account)}</code>
+            <span style="margin-left:8px;color:var(--color-text-2)">${escapeHtml(l.kf_nick || '')}</span>
+            <span class="badge ${l.invite_status=='accepted'?'badge-green':'badge-blue'}" style="margin-left:8px">${escapeHtml(l.invite_status||'waiting')}</span>
+          </div>
+        </div>
+      `).join('')
+    }
+
+    ${errors && errors.length ? `<div class="section-title">错误信息</div><div class="code-block">${escapeHtml(errors.join('\\n'))}</div>` : ''}
+  `;
+  document.getElementById('kf-modal').style.display = 'flex';
+}
+
+function openKfAdd() {
+  if (!curAccount) { A.toast('请先在列表选择一个账号', 'info'); return; }
+  document.getElementById('kf-body').innerHTML = `
+    <div class="form-row full"><div class="form-item"><label>客服账号（test1@kftest 格式）</label>
+      <input name="kf_account" value="test1@${escapeHtml(curAccount.app_id || 'kftest')}" /></div></div>
+    <div class="form-row"><div class="form-item"><label>客服昵称</label><input name="kf_nick" value="客服" /></div>
+      <div class="form-item"><label>登录密码（微信侧需要 md5）</label><input name="password" type="password" value="" /></div></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:18px;border-top:1px dashed var(--color-border)">
+      <button class="k-btn" onclick="closeKfModal()">取消</button>
+      <button class="k-btn k-btn-primary" onclick="submitKfAdd()">添加</button>
+    </div>
+  `;
+  document.getElementById('kf-modal').style.display = 'flex';
+}
+
+async function submitKfAdd() {
+  const get = n => (document.querySelector(`#kf-body input[name="${n}"]`)||{}).value || '';
+  const r = await A.api('POST', '/api/admin/channel-mgmt/kfaccount/add', {
+    id: curAccount.id,
+    kf_account: get('kf_account'),
+    kf_nick: get('kf_nick'),
+    password: get('password'),
+  });
+  if (r.code === 0) {
+    A.toast('已添加', 'success');
+    closeKfModal();
+    listKfAccounts();
+  } else {
+    A.toast('失败：' + r.msg, 'error');
+  }
+}
+
+async function delKf(kfAccount) {
+  if (!confirm(`确认删除客服 ${kfAccount} ？`)) return;
+  const r = await A.api('POST', '/api/admin/channel-mgmt/kfaccount/del', { id: curAccount.id, kf_account: kfAccount });
+  if (r.code === 0) {
+    A.toast('已删除', 'success');
+    listKfAccounts();
+  } else {
+    A.toast('失败：' + r.msg, 'error');
+  }
+}
+
+function closeKfModal() { document.getElementById('kf-modal').style.display = 'none'; }
+
+// ===================== access_token 刷新 =====================
+async function refreshAccessToken() {
+  if (!curAccount) { A.toast('请先选择账号', 'info'); return; }
+  A.toast('正在刷新…', 'info');
+  const r = await A.api('GET', '/api/admin/channel-mgmt/access-token/refresh?id=' + curAccount.id);
+  if (r.code === 0) {
+    A.toast('已刷新，过期时间：' + r.data.expires_at + '（' + r.data.expires_in + 's）', 'success');
+  } else {
+    A.toast('失败：' + r.msg, 'error');
+  }
+}
+
+// ===================== 小程序微信客服（kfwork 新版 2025）=====================
+async function getKfWork() {
+  if (!curAccount) { A.toast('请先选择账号', 'info'); return; }
+  const r = await A.api('GET', '/api/admin/channel-mgmt/kfwork/get?id=' + curAccount.id);
+  document.getElementById('kf-body').innerHTML = `
+    <div class="section-title">小程序微信客服绑定状态</div>
+    <div class="code-block">${escapeHtml(JSON.stringify(r.data || r, null, 2))}</div>
+  `;
+  document.getElementById('kf-modal').style.display = 'flex';
+}
+
+function openKfWorkBind() {
+  if (!curAccount) { A.toast('请先选择账号', 'info'); return; }
+  document.getElementById('kf-body').innerHTML = `
+    <div class="form-row full"><div class="form-item"><label>企业 corpID（微信客服企业 ID）</label>
+      <input name="corpid" value="" placeholder="wwabcdef0123456789" /></div></div>
+    <div style="background:#FEF3C7;padding:10px;border-radius:6px;font-size:12px;color:#92400E;margin-bottom:14px">
+      注意：绑定后该小程序将关联到企业微信客服体系；目前仅支持非个人主体小程序。
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:18px;border-top:1px dashed var(--color-border)">
+      <button class="k-btn" onclick="closeKfModal()">取消</button>
+      <button class="k-btn k-btn-primary" onclick="submitKfWorkBind()">绑定</button>
+    </div>
+  `;
+  document.getElementById('kf-modal').style.display = 'flex';
+}
+
+async function submitKfWorkBind() {
+  const corpid = (document.querySelector('#kf-body input[name="corpid"]')||{}).value || '';
+  const r = await A.api('POST', '/api/admin/channel-mgmt/kfwork/bind', { id: curAccount.id, corpid });
+  if (r.code === 0) {
+    A.toast('已绑定', 'success');
+    closeKfModal();
+  } else {
+    A.toast('失败：' + r.msg, 'error');
+  }
+}
+
+// ===================== 主动发消息（customSend）=====================
+function openSend(id) {
+  curAccount = (curChannel && channels.find(c => c.id == curChannel.id)) || null;
+  // 通过详情接口找到对应 account
+  A.api('GET', '/api/admin/channel-mgmt/detail?id=' + curChannel.id).then(r => {
+    const acc = (r.data.accounts || []).find(x => x.id == id);
+    if (!acc) { A.toast('账号不存在', 'error'); return; }
+    curAccount = acc;
+    document.getElementById('send-body').innerHTML = `
+      <div style="background:#F0F9FF;padding:10px;border-radius:6px;font-size:12px;color:#075985;margin-bottom:14px">
+        账号：<code>${escapeHtml(acc.app_id||'')}</code><br>
+        仅在用户触发过会话的 48 小时内可主动发消息。
+      </div>
+      <div class="form-row full"><div class="form-item"><label>接收者 OpenID</label>
+        <input name="openid" value="" placeholder="oFakeUser_001" /></div></div>
+      <div class="form-row"><div class="form-item"><label>消息类型</label>
+        <select name="msg_type"><option value="text">文本</option></select></div>
+        <div class="form-item"><label>指定客服（可选 test1@kftest）</label>
+        <input name="kf_account" value="" /></div></div>
+      <div class="form-row full"><div class="form-item"><label>消息内容</label>
+        <textarea name="content" rows="4" placeholder="您好，客服小李为您服务～"></textarea></div></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:18px;border-top:1px dashed var(--color-border)">
+        <button class="k-btn" onclick="closeSendModal()">取消</button>
+        <button class="k-btn k-btn-primary" onclick="submitSend()">发送</button>
+      </div>
+    `;
+    document.getElementById('send-modal').style.display = 'flex';
+  });
+}
+
+async function submitSend() {
+  const get = n => (document.querySelector(`#send-body input[name="${n}"], #send-body textarea[name="${n}"], #send-body select[name="${n}"]`)||{}).value || '';
+  const r = await A.api('POST', '/api/admin/channel-mgmt/custom/send', {
+    id: curAccount.id,
+    openid: get('openid'),
+    msg_type: get('msg_type'),
+    content: get('content'),
+    kf_account: get('kf_account'),
+  });
+  if (r.code === 0) {
+    A.toast('已发送', 'success');
+    closeSendModal();
+  } else {
+    A.toast('发送失败：' + r.msg, 'error');
+  }
+}
+
+function closeSendModal() { document.getElementById('send-modal').style.display = 'none'; }
+
+load();
+</script>
+</body>
+</html>

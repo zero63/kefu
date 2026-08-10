@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>满意度调研 · kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+</head>
+<body style="background:var(--color-bg);padding:24px;">
+
+<div class="k-toolbar">
+  <div style="font-size:18px;font-weight:600;">📋 满意度调研</div>
+  <div class="spacer"></div>
+  <button class="k-btn k-btn-primary" onclick="openCreate()">+ 新建调研</button>
+</div>
+
+<div class="k-card">
+  <div class="k-card-title">调研列表</div>
+  <table class="k-table">
+    <thead><tr><th>标题</th><th>状态</th><th>目标</th><th>回复</th><th>回复率</th><th>创建时间</th><th style="text-align:right;">操作</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script src="/admin/common.js"></script>
+<script src="/ui.js"></script>
+<script>
+if (!KefuAdmin.token) KefuAdmin.token = localStorage.getItem('kefu_token');
+if (!UI.token) UI.token = localStorage.getItem('kefu_token');
+
+const STATUS = {
+  draft:     '<span class="k-tag k-tag-gray">草稿</span>',
+  published: '<span class="k-tag k-tag-blue">已发布</span>',
+  closed:    '<span class="k-tag k-tag-green">已关闭</span>',
+};
+
+async function loadList() {
+  const j = await UI.api('GET', '/api/admin/survey/list');
+  const list = (j.data && j.data.list) || [];
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = list.length ? list.map(s => {
+    const rate = s.target_count > 0 ? Math.round(s.response_count / s.target_count * 100) : 0;
+    return `<tr>
+      <td><b>${UI.escapeHtml(s.title)}</b><br><span class="text-muted">${UI.escapeHtml((s.description || '').slice(0, 50))}</span></td>
+      <td>${STATUS[s.status]}</td>
+      <td>${s.target_count || 0}</td>
+      <td>${s.response_count || 0}</td>
+      <td>${rate}%</td>
+      <td class="text-muted">${UI.fmtDate(s.created_at)}</td>
+      <td style="text-align:right;">
+        ${s.status === 'draft' ? `<button class="k-btn-text" onclick="publishS(${s.id})">发布</button>` : ''}
+        ${s.status === 'published' ? `<button class="k-btn-text" onclick="closeS(${s.id})">关闭</button>` : ''}
+        <button class="k-btn-text" onclick="previewS(${s.id})">预览</button>
+      </td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="7" class="k-empty">暂无调研</td></tr>';
+}
+
+function openCreate() {
+  UI.modal('新建调研',
+    `<div class="k-form-row">
+      <div class="item"><label>标题</label><input id="s-t" class="k-input" placeholder="本次服务评价"></div>
+    </div>
+    <div class="k-form-label">说明</div>
+    <textarea id="s-d" class="k-textarea" rows="2" placeholder="感谢您的反馈..."></textarea>
+    <div class="k-form-label">问题定义（JSON 数组）</div>
+    <textarea id="s-q" class="k-textarea" rows="8" placeholder='[{"type":"rating","title":"整体满意度","max":5},{"type":"text","title":"您的建议"}]'></textarea>`,
+    async ok => {
+      if (!ok) return false;
+      let questions = [];
+      try { questions = JSON.parse(document.getElementById('s-q').value || '[]'); }
+      catch (e) { UI.error('问题 JSON 格式错误'); return false; }
+      const data = {
+        title: document.getElementById('s-t').value,
+        description: document.getElementById('s-d').value,
+        questions,
+      };
+      const j = await UI.api('POST', '/api/admin/survey/create', data);
+      if (j.code !== 0) { UI.error(j.msg); return false; }
+      UI.success('已创建');
+      loadList();
+    }
+  );
+}
+
+async function publishS(id) {
+  const j = await UI.api('POST', '/api/admin/survey/publish', { id });
+  if (j.code !== 0) return UI.error(j.msg);
+  UI.success('已发布');
+  loadList();
+}
+
+async function closeS(id) {
+  const j = await UI.api('POST', '/api/admin/survey/close', { id });
+  if (j.code !== 0) return UI.error(j.msg);
+  UI.success('已关闭');
+  loadList();
+}
+
+async function previewS(id) {
+  const url = '/api/survey/submit?survey_id=' + id;
+  UI.modal('客户提交调研示例',
+    `<p>客户提交答案的 API：</p>
+    <code style="display:block;padding:12px;background:var(--color-bg);border-radius:8px;">POST ${url}</code>
+    <p style="margin-top:12px;">Body：</p>
+    <pre style="background:var(--color-bg);padding:12px;border-radius:8px;font-size:12px;">{
+  "customer_id": "c001",
+  "answers": [
+    { "qid": 1, "score": 5 },
+    { "qid": 2, "text": "很好" }
+  ]
+}</pre>`,
+    () => false
+  );
+}
+
+loadList();
+</script>
+</body>
+</html>

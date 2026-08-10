@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>客户评价 · kefu 客服工作台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+  body { margin: 0; padding: 24px; background: #F8FAFC; font-family: -apple-system, "PingFang SC", sans-serif; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .head h1 { font-size: 22px; margin: 0; font-weight: 700; color: #0F172A; }
+  .filters { background: white; padding: 14px 20px; border-radius: 12px; display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end; box-shadow: 0 2px 8px rgba(15,23,42,.04); margin-bottom: 16px; }
+  .filters .item label { display: block; font-size: 11px; color: #64748B; margin-bottom: 6px; font-weight: 500; }
+  .filters .item input,
+  .filters .item select { width: 100%; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; background: white; }
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .summary .card { background: white; padding: 16px 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(15,23,42,.04); }
+  .summary .card .label { color: #64748B; font-size: 12px; margin-bottom: 6px; }
+  .summary .card .value { font-size: 22px; font-weight: 700; color: #0F172A; }
+  .summary .card.green .value { color: #10B981; }
+  .summary .card.orange .value { color: #F59E0B; }
+  .summary .card.red .value { color: #EF4444; }
+  .list { background: white; padding: 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(15,23,42,.04); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #F8FAFC; padding: 12px 14px; text-align: left; color: #475569; font-weight: 600; font-size: 12px; border-bottom: 1px solid #E2E8F0; }
+  td { padding: 12px 14px; border-bottom: 1px solid #F1F5F9; color: #334155; vertical-align: middle; }
+  tr:hover td { background: #FAFAFA; }
+  .star { color: #F59E0B; }
+  .star.empty { color: #CBD5E1; }
+  .level-pill { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
+  .level-pill.satisfied { background: #D1FAE5; color: #047857; }
+  .level-pill.unsatisfied { background: #FEE2E2; color: #B91C1C; }
+  .level-pill.neutral { background: #E0E7FF; color: #3730A3; }
+  .empty-state { padding: 60px 20px; text-align: center; color: #94A3B8; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="head"><h1>⭐ 客户评价</h1></div>
+
+  <div class="summary">
+    <div class="card"><div class="label">总评价数</div><div class="value" id="s_total">-</div></div>
+    <div class="card green"><div class="label">满意度</div><div class="value" id="s_rate">-</div></div>
+    <div class="card orange"><div class="label">不满意</div><div class="value" id="s_bad">-</div></div>
+    <div class="card"><div class="label">平均星级</div><div class="value" id="s_avg">-</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="item"><label>开始日期</label><input id="from" type="date" /></div>
+    <div class="item"><label>结束日期</label><input id="to" type="date" /></div>
+    <div class="item"><label>评价类型</label><select id="level"><option value="">全部</option><option value="satisfied">满意</option><option value="neutral">一般</option><option value="unsatisfied">不满意</option></select></div>
+    <button class="k-btn k-btn-primary" onclick="loadList()">查询</button>
+  </div>
+
+  <div class="list">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 60px;">星级</th>
+          <th>客户</th>
+          <th>客服</th>
+          <th>评分</th>
+          <th>评语</th>
+          <th style="width: 130px;">时间</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"><tr><td colspan="6" class="empty-state">加载中...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="/agent/common.js?v=2026"></script>
+<script>
+if (!KefuAgent.requireLogin()) throw new Error('not logged in');
+const A = KefuAgent;
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function starsHtml(score) {
+  score = +score || 0;
+  let h = '';
+  for (let i = 1; i <= 5; i++) h += '<span class="star' + (i <= score ? '' : ' empty') + '">★</span>';
+  return h;
+}
+function levelText(level) {
+  return { satisfied: '满意', neutral: '一般', unsatisfied: '不满意' }[level] || level || '-';
+}
+
+async function loadList() {
+  const params = new URLSearchParams({
+    from: document.getElementById('from').value,
+    to:   document.getElementById('to').value,
+    level: document.getElementById('level').value,
+  });
+  const r = await A.api('GET', '/api/admin/evaluate/list?' + params.toString());
+  const tbody = document.getElementById('tbody');
+  if (r.code !== 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">加载失败：' + (r.msg || '未知') + '</td></tr>'; return; }
+  const list = (r.data && (r.data.list || r.data)) || [];
+  if (!Array.isArray(list) || !list.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无评价</td></tr>';
+    document.getElementById('s_total').textContent = 0;
+    document.getElementById('s_rate').textContent = '0%';
+    document.getElementById('s_bad').textContent = 0;
+    document.getElementById('s_avg').textContent = '0.0';
+    return;
+  }
+  // 概览
+  const total = list.length;
+  const sat = list.filter(x => x.level === 'satisfied').length;
+  const bad = list.filter(x => x.level === 'unsatisfied').length;
+  const avg = (list.reduce((s, x) => s + (+x.score || 0), 0) / total).toFixed(1);
+  document.getElementById('s_total').textContent = total;
+  document.getElementById('s_rate').textContent = ((sat / total) * 100).toFixed(0) + '%';
+  document.getElementById('s_bad').textContent = bad;
+  document.getElementById('s_avg').textContent = avg;
+  // 列表
+  tbody.innerHTML = list.map(r => {
+    const lv = r.level || '';
+    return '<tr>' +
+      '<td>' + starsHtml(r.score) + '</td>' +
+      '<td>' + esc(r.customer_name || r.customer_id || '-') + '</td>' +
+      '<td>' + esc(r.agent_name || '-') + '</td>' +
+      '<td><span class="level-pill ' + esc(lv) + '">' + esc(levelText(lv)) + ' ' + (+r.score || 0) + '</span></td>' +
+      '<td>' + esc((r.comment || '').slice(0, 60)) + '</td>' +
+      '<td>' + (r.created_at ? A.fmtDate(r.created_at) : '-') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+loadList();
+</script>
+</body>
+</html>

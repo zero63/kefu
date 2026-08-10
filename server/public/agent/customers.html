@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>客户档案</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+body { margin: 0; padding: 24px; }
+.cust-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.cust-toolbar .k-input, .cust-toolbar .k-select { max-width: 200px; }
+.cust-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.cust-card { background: var(--color-card); border-radius: var(--r-md); padding: 14px 16px; box-shadow: var(--shadow-card); cursor: pointer; transition: all var(--t-fast); }
+.cust-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+.cust-card .head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.cust-card .avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #EC4899, #BE185D); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; flex-shrink: 0; overflow: hidden; }
+.cust-card .avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cust-card .info .name { font-weight: 600; font-size: 14px; }
+.cust-card .info .cid { font-size: 11px; color: var(--color-text-3); font-family: 'Fira Code', monospace; }
+.cust-card .meta { display: flex; gap: 12px; font-size: 12px; color: var(--color-text-2); }
+.cust-card .meta span b { color: var(--color-primary); }
+.cust-card .last { font-size: 11px; color: var(--color-text-3); margin-top: 6px; }
+.cust-card .tag { display: inline-block; padding: 1px 6px; border-radius: var(--r-pill); font-size: 10px; margin-right: 4px; }
+.cust-card .blacklist { color: #DC2626; font-weight: 600; }
+
+/* 详情弹窗 */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 13px; }
+.detail-grid .key { color: var(--color-text-3); }
+.detail-grid .val { word-break: break-all; }
+.detail-section { margin-bottom: 16px; }
+.detail-section .section-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--color-muted); }
+.k-tag { display: inline-block; padding: 2px 8px; border-radius: var(--r-pill); font-size: 11px; margin-right: 6px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div class="k-card">
+  <div class="k-card-title">👤 客户档案
+    <span class="extra">
+      <span class="k-text-muted" id="stat-info" style="font-size:12px;margin-right:8px;">加载中…</span>
+    </span>
+  </div>
+
+  <div class="cust-toolbar">
+    <input id="kw" class="k-input" placeholder="搜索 customer_id / 昵称 / 邮箱 / 手机" style="flex:1;min-width:200px;" />
+    <select id="tag-filter" class="k-select"><option value="">全部标签</option></select>
+    <button class="k-btn k-btn-primary" onclick="loadList(1)">查询</button>
+    <button class="k-btn k-btn-secondary" onclick="resetSearch()">重置</button>
+  </div>
+
+  <div id="list-box" class="cust-grid"></div>
+
+  <div id="pager" style="margin-top:16px;display:flex;justify-content:center;gap:6px;"></div>
+</div>
+
+<!-- 详情弹窗 -->
+<div id="detail-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:9000;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="background:var(--color-card);border-radius:var(--r-md);box-shadow:0 24px 60px rgba(0,0,0,0.25);width:640px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--color-muted);font-weight:600;font-size:15px;display:flex;justify-content:space-between;align-items:center;">
+      <span id="d-title">客户详情</span>
+      <button onclick="closeDetail()" style="background:transparent;border:0;font-size:22px;color:var(--color-text-3);cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div id="d-body" style="padding:20px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<script src="/agent/common.js?v=2026"></script>
+<script>
+if (!KefuAgent.requireLogin()) throw new Error('not logged in');
+const A = KefuAgent;
+let _tags = [], _page = 1, _size = 12, _total = 0, _kw = '', _tagId = '';
+
+document.getElementById('kw').addEventListener('keydown', e => { if (e.key === 'Enter') loadList(1); });
+
+(async () => {
+  await loadTags();
+  await loadList(1);
+})();
+
+async function loadTags() {
+  const r = await A.api('GET', '/api/agent/customer/tags');
+  _tags = (r.data && r.data.list) || [];
+  const sel = document.getElementById('tag-filter');
+  _tags.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.tag_name;
+    sel.appendChild(opt);
+  });
+}
+
+async function loadList(page) {
+  _page = page || _page;
+  _kw = document.getElementById('kw').value.trim();
+  _tagId = document.getElementById('tag-filter').value;
+  const params = new URLSearchParams({ page: _page, size: _size });
+  if (_kw) params.set('keyword', _kw);
+  if (_tagId) params.set('tag_id', _tagId);
+  const box = document.getElementById('list-box');
+  box.innerHTML = '<div class="k-empty">加载中…</div>';
+  const r = await A.api('GET', '/api/agent/customer/list?' + params);
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  const list = (r.data && r.data.list) || [];
+  _total = (r.data && r.data.total) || 0;
+  document.getElementById('stat-info').textContent = '共 ' + _total + ' 个客户（仅显示我接待过的）';
+  if (!list.length) { box.innerHTML = '<div class="k-empty">' + (_kw || _tagId ? '无匹配结果' : '暂无接待客户') + '</div>'; renderPager(); return; }
+  box.innerHTML = list.map(c => {
+    const initial = (c.nickname || c.customer_id || '?').slice(0, 1);
+    const avHtml = c.avatar ? '<img src="' + A.escapeHtml(c.avatar) + '" onerror="this.style.display=\'none\';this.parentNode.textContent=\'' + A.escapeHtml(initial) + '\'"/>' : initial;
+    return '<div class="cust-card" onclick="openDetail(\'' + A.escapeHtml(c.customer_id) + '\')">' +
+      '<div class="head">' +
+        '<div class="avatar">' + avHtml + '</div>' +
+        '<div class="info">' +
+          '<div class="name">' + A.escapeHtml(c.nickname || '-') + (+c.status === 0 ? ' <span class="blacklist">已禁用</span>' : '') + '</div>' +
+          '<div class="cid">' + A.escapeHtml(c.customer_id || '') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="meta">' +
+        '<span>💬 <b>' + (c.total_sessions || 0) + '</b> 会话</span>' +
+        '<span>📨 <b>' + (c.total_messages || 0) + '</b> 消息</span>' +
+        '<span>📡 ' + A.escapeHtml(c.channel || '-') + '</span>' +
+      '</div>' +
+      '<div class="last">最近会话：' + (c.last_session_at ? A.fmtDate(c.last_session_at) : '无') + '</div>' +
+    '</div>';
+  }).join('');
+  renderPager();
+}
+
+function renderPager() {
+  const totalPages = Math.max(1, Math.ceil(_total / _size));
+  if (totalPages <= 1) { document.getElementById('pager').innerHTML = ''; return; }
+  let html = '';
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= _page - 2 && i <= _page + 2)) {
+      html += '<button class="k-btn k-btn-mini ' + (i === _page ? 'k-btn-primary' : 'k-btn-secondary') + '" onclick="loadList(' + i + ')" style="min-width:32px;">' + i + '</button>';
+    } else if (i === _page - 3 || i === _page + 3) {
+      html += '<span class="k-text-muted">…</span>';
+    }
+  }
+  document.getElementById('pager').innerHTML = html;
+}
+
+function resetSearch() {
+  document.getElementById('kw').value = '';
+  document.getElementById('tag-filter').value = '';
+  loadList(1);
+}
+
+async function openDetail(cid) {
+  const modal = document.getElementById('detail-modal');
+  modal.style.display = 'flex';
+  document.getElementById('d-title').textContent = '客户详情：' + cid;
+  document.getElementById('d-body').innerHTML = '<div class="k-loading">加载中…</div>';
+  const r = await A.api('GET', '/api/agent/customer/detail?customer_id=' + encodeURIComponent(cid));
+  if (r.code !== 0) {
+    document.getElementById('d-body').innerHTML = '<div class="k-empty">' + (r.msg || '客户不存在') + '</div>';
+    return;
+  }
+  const c = r.data.customer || {};
+  const sessions = r.data.sessions || [];
+  const tags = r.data.tags || [];
+  document.getElementById('d-body').innerHTML =
+    '<div class="detail-section">' +
+      '<div class="section-title">📋 基本信息</div>' +
+      '<div class="detail-grid">' +
+        '<div class="key">Customer ID</div><div class="val"><code>' + A.escapeHtml(c.customer_id || '-') + '</code></div>' +
+        '<div class="key">昵称</div><div class="val">' + A.escapeHtml(c.nickname || '-') + '</div>' +
+        '<div class="key">手机</div><div class="val">' + A.escapeHtml(c.phone || '-') + '</div>' +
+        '<div class="key">邮箱</div><div class="val">' + A.escapeHtml(c.email || '-') + '</div>' +
+        '<div class="key">渠道</div><div class="val">' + A.escapeHtml(c.channel || '-') + '</div>' +
+        '<div class="key">状态</div><div class="val">' + (+c.status === 0 ? '<span style="color:#DC2626;font-weight:600;">🚫 已禁用</span>' : '<span style="color:#10B981;">✓ 正常</span>') + '</div>' +
+        '<div class="key">注册时间</div><div class="val">' + A.fmtDate(c.register_time) + '</div>' +
+        '<div class="key">最后活跃</div><div class="val">' + A.fmtDate(c.last_active_time) + '</div>' +
+        '<div class="key">累计会话</div><div class="val"><b>' + (c.session_count || 0) + '</b></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="detail-section">' +
+      '<div class="section-title">🏷 标签</div>' +
+      (tags.length ? tags.map(t => '<span class="k-tag" style="background:' + A.escapeHtml(t.tag_color || '#EEF2FF') + ';color:#1E1B4B;">' + A.escapeHtml(t.tag_name) + '</span>').join('') : '<div class="k-text-muted" style="font-size:12px;">无标签</div>') +
+    '</div>' +
+    '<div class="detail-section">' +
+      '<div class="section-title">💬 最近会话</div>' +
+      (sessions.length ? '<table class="k-table"><thead><tr><th>会话ID</th><th>客服</th><th>状态</th><th>消息</th><th>时长</th><th>开始</th></tr></thead><tbody>' +
+        sessions.map(s => '<tr>' +
+          '<td><code class="k-mono" style="font-size:11px;">' + (s.session_id||'').slice(0,18) + '…</code></td>' +
+          '<td>' + (s.agent_name || '-') + '</td>' +
+          '<td>' + (s.status || '-') + (s.close_reason ? ' (' + s.close_reason + ')' : '') + '</td>' +
+          '<td>' + (s.message_count || 0) + '</td>' +
+          '<td>' + (s.duration || '-') + 's</td>' +
+          '<td>' + A.fmtDate(s.created_at) + '</td>' +
+        '</tr>').join('') +
+      '</tbody></table>' : '<div class="k-text-muted" style="font-size:12px;">暂无会话</div>') +
+    '</div>';
+}
+
+function closeDetail() { document.getElementById('detail-modal').style.display = 'none'; }
+
+// ESC 关闭
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+// 点遮罩关闭
+document.getElementById('detail-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('detail-modal')) closeDetail();
+});
+</script>
+</body>
+</html>

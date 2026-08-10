@@ -1,0 +1,88 @@
+# ===== 运行时文件（绝对不能提交）=====
+server/runtime/
+server/public/uploads/
+*.log
+*.tmp
+*.swp
+
+# ===== 敏感配置（绝对不能提交）=====
+.env
+.env.local
+.env.production
+*.ini
+!.user.ini.example
+
+# ===== 依赖（自动生成，不需要提交）=====
+server/vendor/
+server/webman/
+node_modules/
+
+# ===== IDE 配置 =====
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+.trae/
+.tmp_uipro/
+
+# ===== 测试文件 / 临时脚本（不留存到开源仓库）=====
+test_*.php
+*_test.php
+debug_*.php
+diag_*.php
+diag_*.sh
+diag_*.bat
+api_check.php
+check_*.php
+inspect_*.php
+verify_*.php
+test_*.html
+test_*.json
+
+# ===== 自动生成的部署文件（如果用 Docker 部署时再加入）=====
+# deploy/nginx.conf
+# deploy/docker-compose.yml
+
+# ===== 文档编译产物（保留 .md 源文件）=====
+docs/.cache/
+docs/node_modules/
+
+# ===== 数据库备份（敏感）=====
+*.sql
+*.sql.gz
+*.dump
+*.bak
+
+# ===== 操作系统文件 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== 二进制 / 媒体文件 =====
+*.zip
+*.rar
+*.7z
+*.tar.gz
+!docs/screenshots/*.png
+*.jpg
+*.jpeg
+*.gif
+!docs/screenshots/*.png
+!docs/donate-*.png
+
+# ===== 敏感信息文件 =====
+admin_token.json
+*.token
+credentials.json
+secrets.json
+
+# ===== 自动生成的文件 =====
+package-lock.json
+yarn.lock
+composer.lock
+!composer.lock  # 保留 composer.lock 用于依赖锁定
+
+# ===== 测试覆盖率 =====
+coverage/
+.nyc_output/

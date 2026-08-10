@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>历史数据 · kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+.qf-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--color-muted); margin-bottom: 16px; }
+.qf-tabs .tab { padding: 10px 20px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--color-text-2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.qf-tabs .tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.qf-tabs .tab:hover { color: var(--color-primary); }
+.qf-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.qf-summary { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.qf-summary .item { padding: 10px 18px; border-radius: var(--r-md); background: linear-gradient(135deg, var(--color-primary-bg), #F5F3FF); min-width: 130px; }
+.qf-summary .item .label { font-size: 11px; color: var(--color-text-2); }
+.qf-summary .item .value { font-size: 20px; font-weight: 700; color: var(--color-primary); }
+.qf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.qf-table th { background: #F8FAFC; color: var(--color-text-2); font-weight: 600; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--color-muted); }
+.qf-table td { padding: 8px 10px; border-bottom: 1px solid var(--color-muted); }
+.qf-table tr:hover { background: var(--color-primary-bg); }
+.qf-page { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--color-muted); font-size: 13px; color: var(--color-text-2); }
+.qf-col-pick { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 9000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.qf-col-pick-box { background: var(--color-card); border-radius: var(--r-md); box-shadow: 0 24px 60px rgba(0,0,0,0.25); width: 520px; max-width: 92vw; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+.qf-col-pick-header { padding: 14px 18px; border-bottom: 1px solid var(--color-muted); font-weight: 600; }
+.qf-col-pick-body { padding: 16px 18px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 14px; }
+.qf-col-pick-footer { padding: 10px 18px; border-top: 1px solid var(--color-muted); display: flex; justify-content: flex-end; gap: 8px; }
+.qf-col-item { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 8px; border-radius: var(--r-sm); }
+.qf-col-item:hover { background: var(--color-primary-bg); }
+.qf-sort-cursor { cursor: pointer; user-select: none; }
+.qf-sort-cursor:hover { color: var(--color-primary); }
+</style>
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="card">
+  <div class="card-title">📊 历史数据报表
+    <span class="extra">
+      <button class="k-btn k-btn-mini" onclick="openColPicker()">⚙ 自定义列</button>
+      <button class="k-btn k-btn-mini" onclick="exportCsv()">📥 导出 CSV</button>
+    </span>
+  </div>
+
+  <!-- 历史数据 Tabs -->
+  <div class="qf-tabs">
+    <div class="tab active" data-tab="volume" onclick="switchTab('volume')">📈 会话量</div>
+    <div class="tab" data-tab="workload" onclick="switchTab('workload')">📋 工作量</div>
+    <div class="tab" data-tab="quality" onclick="switchTab('quality')">🎯 工作质量</div>
+    <div class="tab" data-tab="response" onclick="switchTab('response')">⏱ 响应时长</div>
+    <div class="tab" data-tab="custom" onclick="switchTab('custom')">🛠 自定义报表</div>
+  </div>
+
+  <!-- 时间工具条 -->
+  <div class="qf-toolbar">
+    <input id="fromDate" type="date" class="k-input" style="width:140px" />
+    <span class="k-text-muted">~</span>
+    <input id="toDate" type="date" class="k-input" style="width:140px" />
+    <select id="preset" class="k-select" style="width:120px" onchange="onPresetChange()">
+      <option value="">— 选预设 —</option>
+      <option value="0">今日</option>
+      <option value="1">昨日</option>
+      <option value="3">最近 3 天</option>
+      <option value="7">最近 7 天</option>
+      <option value="14">最近 14 天</option>
+      <option value="30">最近 30 天</option>
+    </select>
+    <select id="granularity" class="k-select" style="width:100px">
+      <option value="day" selected>按天</option>
+      <option value="week">按周</option>
+      <option value="month">按月</option>
+    </select>
+    <select id="groupBy" class="k-select" style="width:120px">
+      <option value="total">全部汇总</option>
+      <option value="channel">按渠道</option>
+      <option value="agent">按坐席</option>
+    </select>
+    <button class="k-btn k-btn-primary" onclick="loadCurrent()">查询</button>
+  </div>
+
+  <!-- 摘要区 -->
+  <div class="qf-summary" id="summary"></div>
+
+  <!-- 表头（自定义列） -->
+  <div id="table-box" style="overflow-x:auto;"></div>
+
+  <div class="qf-page">
+    <span id="page-info">共 0 条</span>
+    <span>
+      每页显示
+      <select id="page-size" class="k-select" style="width:80px;display:inline-block" onchange="loadCurrent()">
+        <option>10</option>
+        <option selected>20</option>
+        <option>50</option>
+        <option>100</option>
+      </select>
+      <button class="k-btn k-btn-mini" onclick="changePage(-1)">上一页</button>
+      <button class="k-btn k-btn-mini" onclick="changePage(1)">下一页</button>
+    </span>
+  </div>
+</div>
+
+<!-- 自定义报表 tab 主体 -->
+<div id="custom-area" style="display:none;margin-top:16px;" class="card">
+  <div class="card-title">🛠 自定义报表
+    <span class="extra">
+      <button class="k-btn k-btn-mini" onclick="openSaveDialog()">+ 保存当前为报表</button>
+      <button class="k-btn k-btn-secondary k-btn-mini" onclick="generateDaily()">📅 立即生成今日日报</button>
+    </span>
+  </div>
+  <div id="custom-list"></div>
+  <div class="card-title" style="margin-top:18px;">📅 日报（自动生成）</div>
+  <div id="daily-list"></div>
+</div>
+
+<!-- 列选择弹窗 -->
+<div id="col-modal" class="qf-col-pick" style="display:none;">
+  <div class="qf-col-pick-box">
+    <div class="qf-col-pick-header">
+      选择需要展示的数据项
+      <button onclick="closeColPicker()" style="float:right;background:transparent;border:0;font-size:22px;color:var(--color-text-3);cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div id="col-pick-body" class="qf-col-pick-body"></div>
+    <div class="qf-col-pick-footer">
+      <button class="k-btn k-btn-mini k-btn-secondary" onclick="selectAllCols()">全选</button>
+      <button class="k-btn k-btn-mini k-btn-secondary" onclick="resetColDefault()">默认</button>
+      <button class="k-btn k-btn-mini k-btn-primary" onclick="applyColPicker()">应用</button>
+      <button class="k-btn k-btn-mini" onclick="closeColPicker()">取消</button>
+    </div>
+  </div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+
+// ===== 列定义（每个 tab 不同） =====
+const COL_DEFS = {
+  volume: {
+    label: '会话量',
+    metrics: [
+      { key: 'date',          label: '日期',     type: 'date', default: true },
+      { key: 'total_sessions',label: '会话总量', type: 'num', default: true },
+      { key: 'new_sessions',  label: '接入会话量', type: 'num', default: true },
+      { key: 'closed_sessions', label: '结束会话量', type: 'num' },
+      { key: 'msg_count',     label: '消息总量', type: 'num', default: true },
+      { key: 'msg_per_session', label: '单次会话消息数', type: 'num' },
+      { key: 'visitor_count', label: '访客数', type: 'num', default: true },
+      { key: 'ai_sessions',   label: 'AI 接待量', type: 'num' },
+      { key: 'human_sessions',label: '人工接待量', type: 'num', default: true },
+      { key: 'transfer_in',   label: '转入会话量', type: 'num' },
+      { key: 'transfer_out',  label: '转出会话量', type: 'num' },
+      { key: 'blacklist_count', label: '拉黑客户数', type: 'num' },
+    ],
+  },
+  workload: {
+    label: '工作量',
+    metrics: [
+      { key: 'date',           label: '日期',     type: 'date' },
+      { key: 'name',           label: '坐席名称', type: 'name', default: true },
+      { key: 'session_count',  label: '会话总量', type: 'num', default: true },
+      { key: 'msg_count',      label: '消息总量', type: 'num', default: true },
+      { key: 'avg_session_duration', label: '平均会话时长', type: 'sec', default: true },
+      { key: 'online_duration',label: '在线时长', type: 'sec', default: true },
+      { key: 'active_time',    label: '有效工时', type: 'sec' },
+      { key: 'busy_pct',       label: '繁忙率',   type: 'pct' },
+      { key: 'work_status',    label: '出勤状态', type: 'tag' },
+    ],
+  },
+  quality: {
+    label: '工作质量',
+    metrics: [
+      { key: 'date',            label: '日期', type: 'date' },
+      { key: 'name',            label: '坐席', type: 'name', default: true },
+      { key: 'satisfaction_rate', label: '满意度', type: 'pct', default: true },
+      { key: 'satisfied_count', label: '好评数', type: 'num' },
+      { key: 'neutral_count',   label: '中评数', type: 'num' },
+      { key: 'bad_count',       label: '差评数', type: 'num' },
+      { key: 'resolve_rate',    label: '问题解决率', type: 'pct' },
+      { key: 'one_problem_rate',label: '一次解决率', type: 'pct' },
+      { key: 'transfer_rate',   label: '转接率', type: 'pct' },
+      { key: 'review_score',    label: '质检平均分', type: 'num' },
+      { key: 'review_count',    label: '抽检数', type: 'num' },
+      { key: 'review_pass',     label: '抽检通过数', type: 'num' },
+    ],
+  },
+  response: {
+    label: '响应时长',
+    metrics: [
+      { key: 'date',            label: '日期', type: 'date' },
+      { key: 'name',            label: '坐席', type: 'name', default: true },
+      { key: 'avg_first_response', label: '平均首次响应时长', type: 'sec', default: true },
+      { key: 'avg_response',    label: '平均响应时长', type: 'sec', default: true },
+      { key: 'max_first_response', label: '最长首次响应', type: 'sec' },
+      { key: 'p30_first_response', label: '30秒应答率', type: 'pct', default: true },
+      { key: 'p60_first_response', label: '60秒应答率', type: 'pct' },
+      { key: 'fast_response_count', label: '快响应次数', type: 'num' },
+      { key: 'slow_response_count', label: '慢响应次数', type: 'num' },
+      { key: 'avg_message_count', label: '平均会话消息数', type: 'num' },
+      { key: 'avg_duration',    label: '平均会话时长', type: 'sec' },
+      { key: 'busy_rate',       label: '繁忙率', type: 'pct' },
+    ],
+  },
+};
+
+let _activeTab = 'volume';
+let _page = 1, _pageSize = 20, _sortBy = null, _sortDir = 'desc';
+let _visibleCols = {};  // 各 tab 默认显示的列
+
+function getDefaultVisible(tab) {
+  const def = {};
+  COL_DEFS[tab].metrics.forEach(m => { if (m.default) def[m.key] = true; });
+  return def;
+}
+
+function onPresetChange() {
+  const v = document.getElementById('preset').value;
+  if (v === '') return;
+  const days = parseInt(v, 10);
+  let start, end;
+  if (days === 0) { start = end = A.today(); }
+  else if (days === 1) { start = end = A.daysAgo(1); }
+  else { start = A.daysAgo(days - 1); end = A.today(); }
+  document.getElementById('fromDate').value = start;
+  document.getElementById('toDate').value = end;
+  loadCurrent();
+}
+
+function switchTab(tab) {
+  _activeTab = tab;
+  _page = 1;
+  document.querySelectorAll('.qf-tabs .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('custom-area').style.display = tab === 'custom' ? '' : 'none';
+  if (tab === 'custom') { loadCustomList(); loadDailyList(); return; }
+  if (!_visibleCols[tab]) _visibleCols[tab] = getDefaultVisible(tab);
+  loadCurrent();
+}
+
+// ===== 列选择 =====
+function openColPicker() {
+  const def = COL_DEFS[_activeTab];
+  if (!def) return;
+  const body = document.getElementById('col-pick-body');
+  body.innerHTML = def.metrics.map(m => {
+    const checked = _visibleCols[_activeTab][m.key] ? 'checked' : '';
+    return '<label class="qf-col-item"><input type="checkbox" data-key="' + m.key + '" ' + checked + '/> ' + m.label + '</label>';
+  }).join('');
+  document.getElementById('col-modal').style.display = 'flex';
+}
+function closeColPicker() { document.getElementById('col-modal').style.display = 'none'; }
+function selectAllCols() {
+  document.querySelectorAll('#col-pick-body input[type=checkbox]').forEach(c => c.checked = true);
+}
+function resetColDefault() {
+  const def = getDefaultVisible(_activeTab);
+  document.querySelectorAll('#col-pick-body input[type=checkbox]').forEach(c => { c.checked = !!def[c.dataset.key]; });
+}
+function applyColPicker() {
+  const map = {};
+  document.querySelectorAll('#col-pick-body input[type=checkbox]').forEach(c => { map[c.dataset.key] = c.checked; });
+  _visibleCols[_activeTab] = map;
+  closeColPicker();
+  loadCurrent();
+}
+
+// ===== 加载数据 =====
+let _allRows = [];
+
+function loadCurrent() {
+  _page = 1;
+  if (_activeTab === 'custom') { loadCustomList(); loadDailyList(); return; }
+  const start = document.getElementById('fromDate').value;
+  const end = document.getElementById('toDate').value;
+  const groupBy = document.getElementById('groupBy').value;
+  const granularity = document.getElementById('granularity').value;
+  _pageSize = parseInt(document.getElementById('page-size').value, 10);
+  if (!start || !end) { A.toast('请选择时间范围', 'error'); return; }
+  loadTableData(start, end, groupBy, granularity);
+}
+
+async function loadTableData(start, end, groupBy, granularity) {
+  // 修复：不同 Tab 调不同接口（原全部调 agent-rank 导致列字段对不上、表格无数据）
+  if (_activeTab === 'volume') {
+    // 会话量：按天汇总（专用接口）
+    const r = await A.api('GET', '/api/admin/report/daily-volume?start_date=' + start + '&end_date=' + end);
+    if (r.code !== 0) { document.getElementById('table-box').innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+    _allRows = ((r.data && r.data.list) || []).map(r => ({
+      ...r,
+      // 衍生指标：单次会话消息数
+      msg_per_session: +r.total_sessions > 0 ? (+r.msg_count / +r.total_sessions).toFixed(1) : 0,
+      transfer_in: r.transfer_count,
+      transfer_out: r.transfer_count,
+    }));
+    if (groupBy === 'total') _allRows = aggregateBy(_allRows, ['date']);
+    renderTable();
+    return;
+  }
+  // 工作量 / 工作质量 / 响应时长：坐席维度（agent-rank 接口 + 字段映射）
+  const r = await A.api('GET', '/api/admin/report/agent-rank?start_date=' + start + '&end_date=' + end + '&granularity=' + granularity);
+  if (r.code !== 0) { document.getElementById('table-box').innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  _allRows = ((r.data && r.data.list) || []).map(r => ({
+    ...r,
+    name: r.real_name || r.username || ('#' + r.id),          // 坐席名称（显示人名）
+    msg_count: +(r.message_count || 0),                        // 消息总量
+    bad_count: +(r.dissatisfied_count || 0),                   // 差评数
+    avg_first_response: +(r.avg_first_sec || 0),               // 平均首次响应
+    avg_response: +(r.avg_first_sec || 0),                     // 平均响应（暂无独立字段，复用首响）
+    avg_duration: +(r.avg_session_duration || 0),              // 平均会话时长
+    transfer_rate: +r.session_count > 0 ? (+(r.transfer_count || 0) / +r.session_count * 100).toFixed(1) : 0,
+  }));
+  renderTable();
+}
+
+function aggregateBy(rows, keys) {
+  const map = {};
+  rows.forEach(r => {
+    const k = keys.map(x => r[x] || '').join('|');
+    if (!map[k]) map[k] = { ...r };
+    else map[k].session_count = (+map[k].session_count || 0) + (+r.session_count || 0);
+  });
+  return Object.values(map);
+}
+
+function renderTable() {
+  // 应用排序
+  if (_sortBy) {
+    _allRows.sort((a, b) => {
+      const va = a[_sortBy], vb = b[_sortBy];
+      const cmp = (va > vb ? 1 : va < vb ? -1 : 0);
+      return _sortDir === 'asc' ? cmp : -cmp;
+    });
+  }
+  // 分页
+  const total = _allRows.length;
+  const totalPages = Math.max(1, Math.ceil(total / _pageSize));
+  if (_page > totalPages) _page = totalPages;
+  const pageRows = _allRows.slice((_page - 1) * _pageSize, _page * _pageSize);
+  document.getElementById('page-info').textContent = '共 ' + total + ' 条 · 第 ' + _page + '/' + totalPages + ' 页';
+
+  // 摘要
+  const sumSess = _allRows.reduce((a, r) => a + (+r.session_count || 0), 0);
+  const sumMsg  = _allRows.reduce((a, r) => a + (+r.message_count || 0), 0);
+  document.getElementById('summary').innerHTML =
+    '<div class="item"><div class="label">会话总量</div><div class="value">' + sumSess + '</div></div>' +
+    '<div class="item"><div class="label">消息总量</div><div class="value">' + sumMsg + '</div></div>' +
+    '<div class="item"><div class="label">数据条数</div><div class="value">' + total + '</div></div>';
+
+  const def = COL_DEFS[_activeTab];
+  const visible = Object.keys(_visibleCols[_activeTab] || {}).filter(k => _visibleCols[_activeTab][k]);
+  const colDefs = def.metrics.filter(m => visible.includes(m.key));
+
+  if (!pageRows.length) {
+    document.getElementById('table-box').innerHTML = '<div class="k-empty">该范围暂无数据</div>';
+    return;
+  }
+
+  // 渲染表头
+  const thead = '<tr>' + colDefs.map(m => {
+    let label = m.label;
+    if (_sortBy === m.key) label += ' ' + (_sortDir === 'asc' ? '↑' : '↓');
+    return '<th class="qf-sort-cursor" onclick="sortBy(\'' + m.key + '\')">' + label + '</th>';
+  }).join('') + '</tr>';
+
+  // 渲染表格行
+  const tbody = pageRows.map(r => '<tr>' + colDefs.map(m => {
+    return '<td>' + formatCell(m, r[m.key]) + '</td>';
+  }).join('') + '</tr>').join('');
+
+  document.getElementById('table-box').innerHTML = '<table class="qf-table">' + thead + tbody + '</table>';
+}
+
+function formatCell(col, val) {
+  if (val === null || val === undefined || val === '') return '-';
+  if (col.type === 'sec') return Math.round(+val) + 's';
+  if (col.type === 'pct') return (+val).toFixed(1) + '%';
+  if (col.type === 'tag') {
+    const map = { online: '🟢 在线', busy: '🟡 繁忙', away: '⚪ 离开', offline: '⚫ 离线' };
+    return '<span style="padding:2px 8px;border-radius:12px;background:#D1FAE5;color:#065F46;font-size:11px;">' + (map[val] || val) + '</span>';
+  }
+  if (col.type === 'name') return '<strong>' + val + '</strong>';
+  return val;
+}
+
+function sortBy(key) {
+  if (_sortBy === key) _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+  else { _sortBy = key; _sortDir = 'desc'; }
+  renderTable();
+}
+
+function changePage(delta) {
+  const totalPages = Math.max(1, Math.ceil(_allRows.length / _pageSize));
+  _page = Math.max(1, Math.min(totalPages, _page + delta));
+  renderTable();
+}
+
+function exportCsv() {
+  if (!_allRows.length) { A.toast('请先查询数据', 'warning'); return; }
+  const def = COL_DEFS[_activeTab];
+  const visible = Object.keys(_visibleCols[_activeTab] || {}).filter(k => _visibleCols[_activeTab][k]);
+  const colDefs = def.metrics.filter(m => visible.includes(m.key));
+  const lines = ['\uFEFF' + colDefs.map(c => c.label).join(',')];
+  _allRows.forEach(r => lines.push(colDefs.map(c => r[c.key] ?? '').join(',')));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = _activeTab + '_' + (document.getElementById('fromDate').value || '') + '_' + (document.getElementById('toDate').value || '') + '.csv';
+  a.click();
+  A.toast('已导出 CSV', 'success');
+}
+
+// ===== 自定义报表 =====
+async function loadCustomList() {
+  const r = await A.api('GET', '/api/admin/report/custom/list');
+  const box = document.getElementById('custom-list');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  const rows = (r.data && r.data.list) || [];
+  if (!rows.length) { box.innerHTML = '<div class="k-empty">暂无自定义报表</div>'; return; }
+  box.innerHTML = '<table class="qf-table"><thead><tr><th>名称</th><th>指标</th><th>时间范围</th><th>说明</th><th>保存时间</th><th>操作</th></tr></thead><tbody>'
+    + rows.map(x => {
+        const cfg = (() => { try { return JSON.parse(x.metric_config || '{}'); } catch (e) { return {}; } })();
+        return '<tr>' +
+          '<td><strong>' + (x.name || '-') + '</strong></td>' +
+          '<td><code>' + (cfg.metric || '-') + '</code></td>' +
+          '<td><code>' + (cfg.from || '-') + ' ~ ' + (cfg.to || '-') + '</code></td>' +
+          '<td>' + (x.description || '-') + '</td>' +
+          '<td>' + (A.fmtDate ? A.fmtDate(x.updated_at || x.created_at) : (x.updated_at || x.created_at)) + '</td>' +
+          '<td><button class="k-btn k-btn-mini k-btn-primary" onclick="runCustom(' + x.id + ')">立即生成</button> <button class="k-btn k-btn-mini k-btn-danger" onclick="deleteCustom(' + x.id + ')">删除</button></td>' +
+          '</tr>';
+      }).join('') + '</tbody></table>';
+}
+
+async function runCustom(id) {
+  const r = await A.api('POST', '/api/admin/report/custom/run', { id });
+  A.toast(r.code === 0 ? '已生成：' + JSON.stringify(r.data || {}).slice(0, 200) : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+}
+
+async function deleteCustom(id) {
+  if (!confirm('确定删除？')) return;
+  const r = await A.api('POST', '/api/admin/report/custom/delete', { id });
+  A.toast(r.code === 0 ? '已删除' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+  if (r.code === 0) loadCustomList();
+}
+
+function openSaveDialog() {
+  const name = prompt('报表名称：', '我的报表_' + (A.today ? A.today() : ''));
+  if (!name) return;
+  A.api('POST', '/api/admin/report/custom/save', {
+    name,
+    description: '从报表分析保存',
+    metric_config: {
+      from: document.getElementById('fromDate').value,
+      to: document.getElementById('toDate').value,
+      metric: 'sessions',
+      granularity: document.getElementById('granularity').value,
+    },
+    is_public: 0,
+  }).then(r => {
+    A.toast(r.code === 0 ? '已保存' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+    loadCustomList();
+  });
+}
+
+async function generateDaily() {
+  const r = await A.api('POST', '/api/admin/report/daily', { date: A.today ? A.today() : '' });
+  A.toast(r.code === 0 ? '日报已生成' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+  if (r.code === 0) loadDailyList();
+}
+
+async function loadDailyList() {
+  const start = (A.daysAgo ? A.daysAgo(29) : '');
+  const end = (A.today ? A.today() : '');
+  const r = await A.api('GET', '/api/admin/report/daily/list?start_date=' + start + '&end_date=' + end);
+  const box = document.getElementById('daily-list');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  const rows = (r.data && r.data.list) || [];
+  if (!rows.length) { box.innerHTML = '<div class="k-empty">暂无日报，点击"立即生成今日日报"创建</div>'; return; }
+  box.innerHTML = '<table class="qf-table"><thead><tr><th>日期</th><th>总会话</th><th>已解决</th><th>总消息</th><th>平均响应</th><th>平均时长</th><th>满意度</th><th>在线客服</th></tr></thead><tbody>' + rows.map(x => '<tr>' +
+    '<td><strong>' + (x.report_date || '-') + '</strong></td>' +
+    '<td>' + (x.total_sessions || 0) + '</td>' +
+    '<td>' + (x.resolved_sessions || 0) + '</td>' +
+    '<td>' + (x.total_messages || 0) + '</td>' +
+    '<td>' + Math.round(x.avg_response_time || 0) + 's</td>' +
+    '<td>' + Math.round((x.avg_session_duration || 0)/60) + 'min</td>' +
+    '<td>' + ((x.satisfaction_rate || 0)) + '%</td>' +
+    '<td>' + (x.online_agents || 0) + '</td>' +
+    '</tr>').join('') + '</tbody></table>';
+}
+
+// init
+document.getElementById('fromDate').value = A.daysAgo ? A.daysAgo(29) : '';
+document.getElementById('toDate').value = A.today ? A.today() : '';
+_visibleCols[_activeTab] = getDefaultVisible(_activeTab);
+loadCurrent();
+</script>
+</body>
+</html>

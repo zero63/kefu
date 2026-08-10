@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>登录 · kefu 客服工作台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+body {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(8, 145, 178, 0.15), transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(124, 58, 237, 0.12), transparent 50%),
+    linear-gradient(180deg, var(--color-bg) 0%, #F5F3FF 100%);
+  padding: 32px 16px;
+}
+.login-box {
+  width: 420px;
+  background: var(--color-card);
+  border-radius: var(--r-xl);
+  padding: 40px 36px;
+  box-shadow: 0 24px 64px rgba(30, 27, 75, 0.18);
+  border: 1px solid var(--color-border);
+}
+.brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+.brand .logo-mark { width: 40px; height: 40px; border-radius: 10px;
+  background: linear-gradient(135deg, #0891B2, #155E75);
+  color: white; font-size: 20px;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.brand h1 { margin: 0; font-size: 22px; font-weight: 700; }
+.brand .sub { font-size: 12px; color: var(--color-text-3); }
+h2 { font-size: 24px; margin: 0 0 8px; }
+.desc { font-size: 13px; color: var(--color-text-3); margin-bottom: 24px; }
+.k-form-item { margin-bottom: 16px; }
+.k-form-item label { display: block; font-size: 13px; font-weight: 500; color: var(--color-text-2); margin-bottom: 6px; }
+.k-form-item input { width: 100%; padding: 11px 14px; }
+.btn-row { margin-top: 8px; }
+.btn-row .k-btn-accent { width: 100%; justify-content: center; padding: 12px; font-size: 15px; font-weight: 600; }
+.demo-tip {
+  margin-top: 24px; padding: 14px 16px;
+  background: var(--color-human-bg); border-radius: var(--r-md);
+  font-size: 12px; color: var(--color-text-2); line-height: 1.7;
+}
+.demo-tip b { color: var(--color-accent); }
+.demo-tip code { background: white; color: var(--color-accent); padding: 2px 6px; border-radius: 3px; font-family: 'Fira Code', monospace; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="login-box k-reveal">
+  <div class="brand">
+    <span class="logo-mark">K</span>
+    <div>
+      <h1>kefu</h1>
+      <div class="sub">客服工作台</div>
+    </div>
+  </div>
+  <h2>客服登录 💼</h2>
+  <p class="desc">使用客服账号登录接待工作台</p>
+
+  <div class="k-form-item"><label>用户名</label><input id="u" class="k-input" /></div>
+  <div class="k-form-item"><label>密码</label><input id="p" type="password" class="k-input" /></div>
+  <div class="k-form-item"><label>租户 code</label><input id="t" class="k-input" value="demo" /></div>
+
+  <div class="btn-row">
+    <button class="k-btn k-btn-accent" onclick="doLogin()">登 录</button>
+  </div>
+
+  <div class="demo-tip">
+    <b>🧪 测试账号</b><br/>
+    <code>agent01 / agent123</code><br/>
+    <code>agent02 / agent123</code>
+  </div>
+</div>
+
+<script src="/ui.js"></script>
+<script>
+document.getElementById('p').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+async function doLogin() {
+  const u = document.getElementById('u').value.trim();
+  const p = document.getElementById('p').value;
+  const t = document.getElementById('t').value.trim() || 'demo';
+  if (!u || !p) { UI.toast('请填写', 'warning'); return; }
+  try {
+    const j = await fetch('/api/common/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p, tenant_code: t }),
+    }).then(r => r.json());
+    if (j.code !== 0) { UI.toast('登录失败：' + j.msg, 'error'); return; }
+    const user = j.data.user;
+    const tk = j.data.token;
+    localStorage.setItem('kefu_token', tk);
+    localStorage.setItem('kefu_user', JSON.stringify(user));
+    const role = parseInt(user.role_id || 0);
+    if (role <= 2) {
+      localStorage.setItem('kefu_token', tk);
+      localStorage.setItem('kefu_user', JSON.stringify(user));
+      location.href = '/admin/index.html';
+    } else {
+      location.href = '/agent/index.html';
+    }
+  } catch (e) { UI.toast('登录失败：' + e.message, 'error'); }
+}
+</script>
+</body>
+</html>

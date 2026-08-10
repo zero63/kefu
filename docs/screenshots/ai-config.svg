@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+  <defs>
+    <linearGradient id="gradB" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5B5BF0"/>
+      <stop offset="50%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="#F4F6FB"/>
+  <rect x="0" y="0" width="220" height="720" fill="white"/>
+  <rect x="0" y="0" width="220" height="56" fill="white"/>
+  <rect x="16" y="16" width="28" height="28" rx="7" fill="url(#gradB)"/>
+  <text x="54" y="35" font-size="15" font-weight="700" fill="#0F172A">kefu 管理后台</text>
+  <g transform="translate(16,80)" font-size="12" fill="#334155">
+    <text x="32" y="20" fill="#64748B">实时数据看板</text>
+    <text x="32" y="50" fill="#64748B">会话管理</text>
+    <text x="32" y="80" fill="#64748B">数据报表</text>
+    <text x="32" y="110" fill="#64748B">员工列表</text>
+    <text x="32" y="140" fill="#64748B">工单系统</text>
+    <rect x="0" y="158" width="188" height="32" rx="8" fill="url(#gradB)" fill-opacity="0.08"/>
+    <text x="30" y="178" font-weight="600" fill="#5B5BF0">AI 智能体</text>
+    <text x="32" y="208" fill="#64748B">知识库</text>
+    <text x="32" y="238" fill="#64748B">敏感词</text>
+    <text x="32" y="268" fill="#64748B">系统设置</text>
+  </g>
+  <!-- Top bar -->
+  <rect x="220" y="0" width="980" height="56" fill="white"/>
+  <line x1="220" y1="56" x2="1200" y2="56" stroke="#EEF2F7"/>
+  <text x="244" y="35" font-size="18" font-weight="700" fill="#0F172A">AI 智能体配置</text>
+  <rect x="1060" y="14" width="120" height="32" rx="8" fill="url(#gradB)"/>
+  <text x="1086" y="34" font-size="12" fill="white" font-weight="600">测试 AI</text>
+  <!-- Form -->
+  <g transform="translate(244,80)">
+    <rect x="0" y="0" width="932" height="600" rx="10" fill="white"/>
+    <text x="24" y="32" font-size="14" font-weight="600" fill="#0F172A">百度千帆 App 智能体</text>
+    <text x="24" y="52" font-size="11" fill="#94A3B8">配置 AI 接待行为、提示词和转人工规则</text>
+    <line x1="0" y1="68" x2="932" y2="68" stroke="#EEF2F7"/>
+    <!-- Status switch -->
+    <text x="24" y="100" font-size="12" font-weight="600" fill="#334155">启用 AI 智能体</text>
+    <rect x="780" y="86" width="44" height="22" rx="11" fill="#5B5BF0"/>
+    <circle cx="813" cy="97" r="9" fill="white"/>
+    <text x="24" y="124" font-size="10" fill="#94A3B8">关闭后，访客消息将由人工客服直接接待</text>
+    <!-- API Key -->
+    <text x="24" y="160" font-size="12" font-weight="600" fill="#334155">API Key (Bearer Token)</text>
+    <rect x="24" y="170" width="884" height="40" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="40" y="194" font-size="12" fill="#64748B">bce-v3/ALTAK-rMI6XsDAAb1WmSeOt***********************</text>
+    <!-- App ID -->
+    <text x="24" y="234" font-size="12" font-weight="600" fill="#334155">App ID</text>
+    <rect x="24" y="244" width="884" height="40" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="40" y="268" font-size="12" fill="#64748B">d3870a46-edcc-4aaa-9047-23a9b0d269b1</text>
+    <!-- Endpoint -->
+    <text x="24" y="308" font-size="12" font-weight="600" fill="#334155">API Endpoint</text>
+    <rect x="24" y="318" width="884" height="40" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="40" y="342" font-size="12" fill="#64748B">https://qianfan.baidubce.com/v2/app/conversation/runs</text>
+    <!-- System prompt -->
+    <text x="24" y="382" font-size="12" font-weight="600" fill="#334155">系统提示词（人设）</text>
+    <rect x="24" y="392" width="884" height="80" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="40" y="414" font-size="11" fill="#64748B">你是 kefu 智能客服小 e，专属 AI 助手。</text>
+    <text x="40" y="432" font-size="11" fill="#64748B">回答风格：友好、专业、简洁。</text>
+    <text x="40" y="450" font-size="11" fill="#64748B">当用户表达想要人工服务或问题超出能力时，请引导转人工。</text>
+    <!-- Keywords -->
+    <text x="24" y="498" font-size="12" font-weight="600" fill="#334155">转人工关键词（数组）</text>
+    <g transform="translate(24,510)">
+      <rect x="0" y="0" width="60" height="26" rx="13" fill="#5B5BF0" fill-opacity="0.08"/>
+      <text x="14" y="18" font-size="11" fill="#5B5BF0" font-weight="600">人工</text>
+      <rect x="68" y="0" width="60" height="26" rx="13" fill="#5B5BF0" fill-opacity="0.08"/>
+      <text x="82" y="18" font-size="11" fill="#5B5BF0" font-weight="600">客服</text>
+      <rect x="136" y="0" width="60" height="26" rx="13" fill="#5B5BF0" fill-opacity="0.08"/>
+      <text x="150" y="18" font-size="11" fill="#5B5BF0" font-weight="600">投诉</text>
+      <rect x="204" y="0" width="60" height="26" rx="13" fill="#5B5BF0" fill-opacity="0.08"/>
+      <text x="218" y="18" font-size="11" fill="#5B5BF0" font-weight="600">退款</text>
+      <rect x="272" y="0" width="60" height="26" rx="13" fill="#5B5BF0" fill-opacity="0.08"/>
+      <text x="286" y="18" font-size="11" fill="#5B5BF0" font-weight="600">转人工</text>
+      <rect x="340" y="0" width="60" height="26" rx="13" fill="#F8FAFC" stroke="#CBD5E1" stroke-dasharray="3 2"/>
+      <text x="354" y="18" font-size="11" fill="#94A3B8">+ 添加</text>
+    </g>
+    <!-- Stats -->
+    <line x1="0" y1="556" x2="932" y2="556" stroke="#EEF2F7"/>
+    <g transform="translate(24,572)">
+      <text x="0" y="14" font-size="11" fill="#94A3B8">本月 AI 接待</text>
+      <text x="0" y="36" font-size="20" font-weight="700" fill="#0F172A">8,432</text>
+      <text x="200" y="14" font-size="11" fill="#94A3B8">已解决</text>
+      <text x="200" y="36" font-size="20" font-weight="700" fill="#0F172A">7,762</text>
+      <text x="380" y="14" font-size="11" fill="#94A3B8">转人工率</text>
+      <text x="380" y="36" font-size="20" font-weight="700" fill="#0F172A">12.6%</text>
+      <text x="560" y="14" font-size="11" fill="#94A3B8">平均耗时</text>
+      <text x="560" y="36" font-size="20" font-weight="700" fill="#0F172A">0.8s</text>
+    </g>
+  </g>
+</svg>

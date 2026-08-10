@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>SLA 报表 · kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+.sla-bar { height: 8px; background: var(--color-muted); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.sla-bar .seg { height: 100%; float: left; }
+.sla-legend { display: flex; gap: 14px; font-size: 12px; margin-top: 8px; }
+.sla-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+</style>
+</head>
+<body style="background:var(--color-bg);padding:24px;">
+
+<div class="k-toolbar">
+  <div style="font-size:18px;font-weight:600;">📊 工单 SLA 报表</div>
+  <div class="spacer"></div>
+  <a class="k-btn k-btn-secondary k-btn-mini" href="/admin/worksheet.html">→ 工单列表</a>
+</div>
+
+<!-- 概览 -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+  <div class="k-metric"><div class="label">总工单数</div><div class="value" id="m-total">-</div></div>
+  <div class="k-metric"><div class="label"><span class="k-dot k-dot-online" style="margin-right:6px;"></span>已完成</div><div class="value text-success" id="m-done">-</div></div>
+  <div class="k-metric"><div class="label"><span class="k-dot" style="background:#F59E0B;margin-right:6px;"></span>预警</div><div class="value text-warning" id="m-warn">-</div></div>
+  <div class="k-metric"><div class="label"><span class="k-dot" style="background:#EF4444;margin-right:6px;"></span>已超时</div><div class="value text-danger" id="m-breach">-</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;">
+  <!-- SLA 达成率趋势 -->
+  <div class="k-card">
+    <div class="k-card-title">SLA 达成率趋势 · 近 14 天</div>
+    <canvas id="trend-chart" height="200"></canvas>
+    <div id="trend-list"></div>
+  </div>
+
+  <!-- 员工排行 -->
+  <div class="k-card">
+    <div class="k-card-title">员工 SLA 排行</div>
+    <div id="agent-list"></div>
+  </div>
+</div>
+
+<!-- 状态分布 -->
+<div class="k-card" style="margin-top:16px;">
+  <div class="k-card-title">状态分布</div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
+    <div>
+      <div class="text-muted" style="font-size:12px;">普通（< 2h）</div>
+      <div style="font-size:24px;font-weight:700;color:var(--color-success);" id="d-normal">-</div>
+    </div>
+    <div>
+      <div class="text-muted" style="font-size:12px;">预警（2-4h）</div>
+      <div style="font-size:24px;font-weight:700;color:var(--color-warning);" id="d-warn">-</div>
+    </div>
+    <div>
+      <div class="text-muted" style="font-size:12px;">超时（> 4h）</div>
+      <div style="font-size:24px;font-weight:700;color:var(--color-danger);" id="d-breach">-</div>
+    </div>
+    <div>
+      <div class="text-muted" style="font-size:12px;">已完成</div>
+      <div style="font-size:24px;font-weight:700;color:var(--color-text-2);" id="d-done">-</div>
+    </div>
+  </div>
+  <div class="sla-bar" id="d-bar" style="margin-top:12px;"></div>
+  <div class="sla-legend">
+    <span><i style="background:var(--color-success);"></i>普通</span>
+    <span><i style="background:var(--color-warning);"></i>预警</span>
+    <span><i style="background:var(--color-danger);"></i>超时</span>
+    <span><i style="background:var(--color-text-3);"></i>已完成</span>
+  </div>
+</div>
+
+<script src="/admin/common.js"></script>
+<script src="/ui.js"></script>
+<script>
+if (!KefuAdmin.token) KefuAdmin.token = localStorage.getItem('kefu_token');
+if (!UI.token) UI.token = localStorage.getItem('kefu_token');
+
+async function loadReport() {
+  const j = await UI.api('GET', '/api/admin/worksheet/sla-report');
+  if (j.code !== 0) return UI.error(j.msg);
+  const d = j.data;
+  const s = d.summary || {};
+  document.getElementById('m-total').textContent = s.total || 0;
+  document.getElementById('m-done').textContent = s.completed || 0;
+  document.getElementById('m-warn').textContent = s.warning || 0;
+  document.getElementById('m-breach').textContent = s.breach || 0;
+  document.getElementById('d-normal').textContent = s.normal || 0;
+  document.getElementById('d-warn').textContent = s.warning || 0;
+  document.getElementById('d-breach').textContent = s.breach || 0;
+  document.getElementById('d-done').textContent = s.completed || 0;
+  // 占比条
+  const total = (s.normal || 0) + (s.warning || 0) + (s.breach || 0) + (s.completed || 0);
+  const pct = (n) => total > 0 ? (n / total * 100).toFixed(1) : 0;
+  document.getElementById('d-bar').innerHTML =
+    `<div class="seg" style="width:${pct(s.normal)}%;background:var(--color-success);"></div>` +
+    `<div class="seg" style="width:${pct(s.warning)}%;background:var(--color-warning);"></div>` +
+    `<div class="seg" style="width:${pct(s.breach)}%;background:var(--color-danger);"></div>` +
+    `<div class="seg" style="width:${pct(s.completed)}%;background:var(--color-text-3);"></div>`;
+
+  // 趋势（极简条形）
+  const trend = d.trend || [];
+  const maxTotal = Math.max(...trend.map(t => t.total), 1);
+  document.getElementById('trend-list').innerHTML = trend.length ? trend.map(t => {
+    const rate = t.total > 0 ? Math.round(t.within_sla / t.total * 100) : 0;
+    return `<div style="display:flex;align-items:center;margin:6px 0;font-size:12px;">
+      <div style="width:80px;color:var(--color-text-3);">${t.d}</div>
+      <div style="flex:1;height:18px;background:var(--color-muted);border-radius:4px;overflow:hidden;position:relative;">
+        <div style="position:absolute;left:0;top:0;height:100%;width:${t.total/maxTotal*100}%;background:var(--color-primary);opacity:.8;"></div>
+      </div>
+      <div style="width:100px;text-align:right;">
+        <b>${t.total}</b> 单 · <span style="color:var(--color-success);">${rate}% 达成</span>
+      </div>
+    </div>`;
+  }).join('') : '<div class="k-empty">暂无趋势数据</div>';
+
+  // 员工排行
+  const agents = d.agent_rank || [];
+  document.getElementById('agent-list').innerHTML = agents.length ? agents.map((a, i) => {
+    const breachRate = a.total > 0 ? Math.round(a.breach / a.total * 100) : 0;
+    return `<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--color-muted);">
+      <div style="width:24px;color:var(--color-text-3);font-size:12px;">#${i+1}</div>
+      <div class="k-avatar">${(a.real_name || a.username || '?').slice(0,1)}</div>
+      <div style="flex:1;margin-left:10px;">
+        <div style="font-weight:500;">${UI.escapeHtml(a.real_name || a.username)}</div>
+        <div style="font-size:11px;color:var(--color-text-3);">${a.total} 工单 · 平均 ${a.avg_min || 0} 分钟</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="k-tag ${a.breach > 0 ? 'k-tag-danger' : 'k-tag-success'}">${a.breach} 超时</span>
+      </div>
+    </div>`;
+  }).join('') : '<div class="k-empty">暂无排行</div>';
+}
+
+loadReport();
+setInterval(loadReport, 60000);
+</script>
+</body>
+</html>

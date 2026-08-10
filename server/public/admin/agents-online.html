@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>在线坐席 · kefu 管理后台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+  body { margin: 0; padding: 0; }
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .status-tag .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .status-online { background: #D1FAE5; color: #047857; }
+  .status-online .dot { background: #10B981; animation: pulse 1.5s infinite; }
+  .status-busy { background: #FEF3C7; color: #B45309; }
+  .status-busy .dot { background: #F59E0B; }
+  .status-away { background: #DBEAFE; color: #1D4ED8; }
+  .status-away .dot { background: #3B82F6; }
+  .status-offline { background: #F1F5F9; color: #64748B; }
+  .status-offline .dot { background: #94A3B8; }
+  .status-disabled { background: #FEE2E2; color: #B91C1C; }
+  .status-disabled .dot { background: #EF4444; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, .5); }
+    70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  }
+  .agent-card { display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--color-border-light); align-items: center; }
+  .agent-card:hover { background: var(--color-bg-2); }
+  .agent-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #0EA5E9, #10B981); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; }
+  .agent-name { font-size: 14px; font-weight: 600; color: var(--color-text); }
+  .agent-meta { font-size: 12px; color: var(--color-text-3); margin-top: 2px; }
+  .agent-stat { display: flex; gap: 16px; margin-top: 14px; }
+  .stat-mini { background: #fff; border-radius: 10px; padding: 16px 20px; flex: 1; border: 1px solid var(--color-border); display: flex; align-items: center; gap: 14px; }
+  .stat-mini .v { font-size: 24px; font-weight: 700; color: var(--color-text); }
+  .stat-mini .l { font-size: 12px; color: var(--color-text-3); }
+  .stat-mini .ico { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .refresh-tip { font-size: 11px; color: var(--color-text-3); margin-left: 10px; }
+  .blink { animation: fadein .4s ease; }
+  @keyframes fadein { from { opacity: .4; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-title">
+    <span style="display:inline-flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#10B981"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="#10B981"/></svg>
+      在线坐席实时监控
+    </span>
+    <div class="extra">
+      <span class="refresh-tip" id="refresh-tip">每 5 秒自动刷新</span>
+      <button class="k-btn k-btn-mini" onclick="loadAll()">🔄 立即刷新</button>
+    </div>
+  </div>
+
+  <div class="agent-stat" id="agent-stat">
+    <div class="stat-mini"><div class="ico" style="background:#D1FAE5;color:#10B981">🟢</div><div><div class="v" id="stat-online">-</div><div class="l">在线客服</div></div></div>
+    <div class="stat-mini"><div class="ico" style="background:#FEF3C7;color:#F59E0B">⏰</div><div><div class="v" id="stat-busy">-</div><div class="l">忙碌</div></div></div>
+    <div class="stat-mini"><div class="ico" style="background:#DBEAFE;color:#3B82F6">🌙</div><div><div class="v" id="stat-away">-</div><div class="l">离开</div></div></div>
+    <div class="stat-mini"><div class="ico" style="background:#F1F5F9;color:#64748B">⚫</div><div><div class="v" id="stat-offline">-</div><div class="l">离线</div></div></div>
+    <div class="stat-mini"><div class="ico" style="background:#FEE2E2;color:#EF4444">⛔</div><div><div class="v" id="stat-disabled">-</div><div class="l">已禁用</div></div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <span>坐席列表 <span id="filter-label" style="margin-left:8px;"></span></span>
+    <div class="extra">
+      <select id="filter" class="k-select" onchange="loadList()">
+        <option value="">全部</option>
+        <option value="online">🟢 在线</option>
+        <option value="busy">⏰ 忙碌</option>
+        <option value="away">🌙 离开</option>
+        <option value="offline">⚫ 离线</option>
+        <option value="disabled">⛔ 禁用</option>
+      </select>
+    </div>
+  </div>
+  <div id="agent-list" class="k-loading">加载中…</div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+
+const STATUS_LABEL = {
+  online:  { cls: 'status-online',  text: '在线',   dot: '🟢' },
+  busy:    { cls: 'status-busy',    text: '忙碌',   dot: '🟡' },
+  away:    { cls: 'status-away',    text: '离开',   dot: '🔵' },
+  offline: { cls: 'status-offline', text: '离线',   dot: '⚫' },
+};
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function computeStatus(e) {
+  // e.online 表示是否实际连接了 WS，e.work_status 是工作状态，e.enabled 表示账号是否启用
+  if (parseInt(e.enabled) === 0) return 'disabled';
+  if (!e.online) return 'offline';
+  // work_status 是客服在控制台主动设置的状态。
+  // 如果已连接但 work_status 是 offline（默认值），视为"刚登录/待命"
+  if (e.work_status === 'offline') return 'online';
+  return e.work_status || 'online';
+}
+
+function statusTag(s) {
+  if (s === 'disabled') return '<span class="status-tag status-disabled"><span class="dot"></span>已禁用</span>';
+  const c = STATUS_LABEL[s] || STATUS_LABEL.offline;
+  return '<span class="status-tag ' + c.cls + '"><span class="dot"></span>' + c.text + '</span>';
+}
+
+let lastData = [];
+
+async function loadAll() {
+  // 调专门的 online-status 接口（轻量、实时）
+  const r = await A.api('GET', '/api/admin/employee/online-status');
+  if (r.code !== 0) {
+    A.toast('加载失败：' + r.msg, 'error');
+    return;
+  }
+  lastData = (r.data && r.data.list) || [];
+  renderStats(lastData);
+  renderList(lastData);
+  // 显示刷新时间
+  document.getElementById('refresh-tip').textContent = '已刷新 ' + new Date().toLocaleTimeString() + ' · 每 5 秒自动刷新';
+}
+
+function renderStats(list) {
+  const cnt = { online: 0, busy: 0, away: 0, offline: 0, disabled: 0 };
+  list.forEach(e => { cnt[computeStatus(e)]++; });
+  ['online', 'busy', 'away', 'offline', 'disabled'].forEach(k => {
+    const el = document.getElementById('stat-' + k);
+    el.textContent = cnt[k];
+    el.classList.add('blink');
+    setTimeout(() => el.classList.remove('blink'), 400);
+  });
+}
+
+function renderList(list) {
+  const filter = document.getElementById('filter').value;
+  const filtered = filter ? list.filter(e => computeStatus(e) === filter) : list;
+  const box = document.getElementById('agent-list');
+  box.classList.remove('k-loading');
+  if (!filtered.length) {
+    box.innerHTML = '<div style="padding:60px 20px;text-align:center;color:var(--color-text-3)">暂无坐席</div>';
+    return;
+  }
+  box.innerHTML = filtered.map(e => {
+    const s = computeStatus(e);
+    const initial = (e.real_name || e.username || 'A').slice(0, 1).toUpperCase();
+    const meta = [];
+    meta.push('角色: ' + ({ 1: '超管', 2: '主管', 3: '客服' }[e.role_id] || '客服'));
+    if (e.last_login_at) meta.push('最近登录: ' + (A.fmtDate ? A.fmtDate(e.last_login_at) : e.last_login_at));
+    if (s === 'offline') meta.push('未连接');
+    return `
+      <div class="agent-card">
+        <div class="agent-avatar">${escapeHtml(initial)}</div>
+        <div>
+          <div class="agent-name">${escapeHtml(e.real_name || e.username)} <span style="font-size:12px;color:var(--color-text-3);font-weight:normal">@${escapeHtml(e.username)}</span></div>
+          <div class="agent-meta">${meta.map(escapeHtml).join(' · ')}</div>
+        </div>
+        <div>${statusTag(s)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+(async () => {
+  await loadAll();
+  // 5 秒轮询
+  setInterval(loadAll, 5000);
+})();
+</script>
+</body>
+</html>

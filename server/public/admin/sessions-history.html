@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>历史会话</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>body { margin: 0; padding: 24px; }</style>
+</head>
+<body>
+
+<div class="k-card k-reveal">
+  <div class="k-card-title">📋 历史会话</div>
+
+  <div class="k-toolbar">
+    <select id="status" class="k-select" onchange="loadList(1)">
+      <option value="">全部状态</option>
+      <option value="closed">已关闭</option>
+      <option value="transferred">已转接</option>
+    </select>
+    <input id="kw" class="k-input" placeholder="搜索..." onkeydown="if(event.key==='Enter')loadList(1)" />
+  </div>
+
+  <div id="list" class="k-loading">加载中…</div>
+  <div id="pager"></div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.requireLogin()) throw new Error('not logged in');
+const A = KefuAdmin;
+let curPage = 1;
+
+async function copyText(text, btn) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    if (btn) {
+      const old = btn.innerHTML;
+      btn.innerHTML = '✅';
+      setTimeout(() => btn.innerHTML = old, 1500);
+    }
+    A.toast && A.toast('已复制会话ID', 'success');
+  } catch (e) {
+    A.toast && A.toast('复制失败', 'error');
+  }
+}
+
+async function loadList(p) {
+  curPage = p || curPage;
+  const params = new URLSearchParams({
+    size: 30, page: curPage,
+    status: document.getElementById('status').value,
+    keyword: document.getElementById('kw').value,
+  });
+  const r = await A.api('GET', '/api/agent/session/list?' + params);
+  const box = document.getElementById('list');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  const rows = (r.data && r.data.list) || [];
+  if (!rows.length) { box.innerHTML = '<div class="k-empty">暂无历史会话</div>'; return; }
+  box.innerHTML = '<table class="k-table"><thead><tr><th>会话ID</th><th>客户</th><th>客服</th><th>渠道</th><th>状态</th><th>消息</th><th>开始</th><th>关闭</th><th>关闭原因</th><th>操作</th></tr></thead><tbody>' +
+    rows.map(s => '<tr>' +
+      '<td style="white-space:nowrap"><code class="k-mono" style="font-size:11px;" title="' + (s.session_id||'').replace(/"/g,'&quot;') + '">' + (s.session_id || '').slice(0, 18) + '</code> <button class="k-btn-text" style="padding:0 4px;font-size:14px" onclick="copyText(\'' + (s.session_id||'').replace(/'/g,"\\'") + '\', this)" title="复制完整会话ID">📋</button></td>' +
+      '<td>' + (s.customer_name || s.customer_id || '-') + '</td>' +
+      '<td>' + (s.agent_name || (s.agent_id ? '#' + s.agent_id : '-')) + '</td>' +
+      '<td>' + (s.channel || '-') + '</td>' +
+      '<td><span class="k-tag k-tag-gray">' + s.status + '</span></td>' +
+      '<td>' + (s.message_count || 0) + '</td>' +
+      '<td>' + A.fmtDate(s.created_at) + '</td>' +
+      '<td>' + A.fmtDate(s.closed_at) + '</td>' +
+      '<td>' + (s.close_reason || '-') + '</td>' +
+      '<td class="actions">' +
+        '<button class="k-btn-text" onclick="viewDetail(\'' + s.session_id + '\')">消息详情</button>' +
+        '<button class="k-btn-text" onclick="inspect(\'' + s.session_id + '\')">质检</button>' +
+      '</td>' +
+    '</tr>').join('') + '</tbody></table>';
+  const pager = document.getElementById('pager');
+  pager.innerHTML = '';
+  pager.appendChild(A.renderPagination(r.data.total, curPage, r.data.size, p => loadList(p)));
+}
+
+async function viewDetail(sid) {
+  // 修复：不再弹窗，改为嵌入后台独立面板
+  const r = await A.api('GET', '/api/agent/message/history?session_id=' + sid + '&limit=200');
+  if (r.code !== 0) { A.toast('加载失败', 'error'); return; }
+  const msgs = (r.data && r.data.messages) || [];
+  const session = (r.data && r.data.session) || {};
+
+  // 接口已在源头按正序返回（最早在上、最新在下），无需再 reverse
+
+  // 移除已有的面板
+  const oldPanel = document.getElementById('chat-detail-panel');
+  if (oldPanel) oldPanel.remove();
+
+  const panel = document.createElement('div');
+  panel.id = 'chat-detail-panel';
+  panel.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:600px;max-width:92vw;background:var(--color-card);box-shadow:-8px 0 24px rgba(0,0,0,0.15);z-index:8000;display:flex;flex-direction:column;border-left:1px solid var(--color-muted);';
+
+  const senderLabel = { customer: '访客', agent: '客服', ai: 'AI 助手', system: '系统消息' };
+  const senderColor = { customer: '#0891B2', agent: '#7C3AED', ai: '#10B981', system: '#6B7280' };
+
+  panel.innerHTML =
+    '<div style="padding:14px 18px;border-bottom:1px solid var(--color-muted);display:flex;justify-content:space-between;align-items:center;">' +
+      '<div>' +
+        '<div style="font-weight:600;font-size:14px;">💬 会话详情</div>' +
+        '<div style="font-size:11px;color:var(--color-text-3);margin-top:2px;">' +
+          '<code style="font-size:11px;">' + sid + '</code>' +
+          (session.agent_name ? ' · 客服：' + session.agent_name : '') +
+          (session.serving_mode ? ' · 模式：' + session.serving_mode : '') +
+          ' · 共 ' + msgs.length + ' 条消息' +
+        '</div>' +
+      '</div>' +
+      '<button onclick="closeChatDetail()" style="background:transparent;border:0;font-size:22px;color:var(--color-text-3);cursor:pointer;line-height:1;">×</button>' +
+    '</div>' +
+    '<div id="chat-detail-body" style="flex:1;overflow-y:auto;padding:18px;background:linear-gradient(180deg,#FAF5FF 0%,#FFFFFF 100%);">' +
+      msgs.map(m => renderDetailMsg(m, senderLabel, senderColor)).join('') +
+    '</div>';
+  document.body.appendChild(panel);
+}
+
+function closeChatDetail() {
+  const oldPanel = document.getElementById('chat-detail-panel');
+  if (oldPanel) oldPanel.remove();
+}
+
+function renderDetailMsg(m, senderLabel, senderColor) {
+  const st = m.sender_type || 'system';
+  const time = (m.created_at || '').substring(0, 19);
+  const content = (m.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+  const isCustomer = st === 'customer';
+  const isSystem = st === 'system';
+  if (isSystem) {
+    return '<div style="text-align:center;margin:8px 0;font-size:12px;color:var(--color-text-3);background:#FEF3C7;padding:4px 10px;border-radius:6px;">' +
+      '<span style="color:' + senderColor.system + ';">' + (senderLabel.system || '系统') + '</span> · ' + time + '<br>' + content + '</div>';
+  }
+  const alignStyle = isCustomer ? 'flex-direction:row-reverse;' : '';
+  const bubbleBg = isCustomer ? 'background:linear-gradient(135deg,#CFFAFE,#A5F3FC);' : 'background:#FFFFFF;border:1px solid #E5E7EB;';
+  return '<div style="display:flex;gap:8px;margin-bottom:12px;' + alignStyle + '">' +
+    '<div style="width:32px;height:32px;border-radius:50%;background:' + senderColor[st] + ';color:white;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:11px;flex-shrink:0;">' +
+      (st === 'customer' ? '访' : st === 'agent' ? '客' : 'AI') +
+    '</div>' +
+    '<div style="max-width:78%;display:flex;flex-direction:column;' + (isCustomer ? 'align-items:flex-end;' : '') + '">' +
+      '<div style="font-size:11px;color:' + senderColor[st] + ';font-weight:600;margin-bottom:4px;">' +
+        (senderLabel[st] || st) + ' · ' + time +
+      '</div>' +
+      '<div style="padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.6;word-break:break-word;' + bubbleBg + '">' +
+        content +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+async function inspect(sid) {
+  const r = await A.api('POST', '/api/admin/quality/inspect', { session_id: sid });
+  A.toast(r.code === 0 ? '已抽检' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+}
+
+loadList(1);
+</script>
+</body>
+</html>

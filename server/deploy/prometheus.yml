@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'kefu-webman'
+    static_configs:
+      - targets: ['webman:8787']
+    metrics_path: '/api/metrics'  # 需要在 webman 加上 /api/metrics 接口暴露 metrics
+    scrape_interval: 30s
+
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+
+
+# Grafana dashboard JSON 模板：详见 docs/dashboards/
+# Kibana / Loki / ES 链路等见 docs/observability.md

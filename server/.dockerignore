@@ -1,0 +1,47 @@
+# .dockerignore - 排除不需要打入镜像的文件
+
+# 运行时目录（日志、缓存、推送队列）
+runtime/
+!runtime/.gitkeep
+
+# 用户上传文件
+upload/
+
+# 测试和临时文件
+test_*.php
+*.tmp
+*.bak
+*.log
+*.swp
+.DS_Store
+Thumbs.db
+
+# IDE 配置
+.vscode/
+.idea/
+*.iml
+
+# Git 相关
+.git/
+.gitignore
+.gitattributes
+
+# 文档（运行时不需要）
+docs/
+
+# 部署文件（compose 在宿主机执行）
+deploy/
+
+# 嵌入式 Webman 源码（vendor 已包含）
+webman/
+
+# 部署脚本（避免误打入）
+Dockerfile
+.dockerignore
+
+# 临时目录
+.tmp_uipro/
+
+# 缓存
+.cache/
+*.cache

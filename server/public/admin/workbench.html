@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>客服工作台自定义 · kefu 管理后台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+  .wb-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media (max-width:1100px){.wb-layout{grid-template-columns:1fr}}
+  .wb-section{background:var(--color-card);border-radius:8px;padding:18px;border:1px solid var(--color-border)}
+  .wb-section h3{margin:0 0 14px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;color:var(--color-text)}
+  .wb-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--color-border)}
+  .wb-row:last-child{border-bottom:0}
+  .wb-row .label{flex:1;color:var(--color-text-2);font-size:13px}
+  .wb-row .label small{display:block;color:var(--color-text-3);font-size:11px;margin-top:2px;font-weight:normal}
+  .switch{position:relative;display:inline-block;width:36px;height:20px}
+  .switch input{display:none}
+  .switch .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#CBD5E1;border-radius:20px;transition:.2s}
+  .switch .slider:before{position:absolute;content:"";height:14px;width:14px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.2s}
+  .switch input:checked + .slider{background:var(--color-primary)}
+  .switch input:checked + .slider:before{transform:translateX(16px)}
+  .color-dot{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid #ddd;vertical-align:middle;margin-right:6px}
+  .tag-pick{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--color-border);border-radius:6px;margin:3px;cursor:pointer;font-size:12px;background:var(--color-card);transition:all .15s}
+  .tag-pick.on{background:var(--color-primary-bg);border-color:var(--color-primary);color:var(--color-primary);font-weight:600}
+  .preview-box{position:relative;height:340px;background:linear-gradient(135deg,#F8FAFC 0%,#EFF6FF 100%);border-radius:8px;border:1px dashed var(--color-border);overflow:hidden;padding:14px}
+  .preview-tab{position:absolute;top:14px;left:14px;display:flex;gap:6px;background:#fff;padding:4px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .preview-tab span{padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;color:var(--color-text-3)}
+  .preview-tab span.on{background:var(--color-primary);color:#fff}
+  .stat-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+  .stat-card{background:#fff;border-radius:8px;padding:12px;border:1px solid var(--color-border)}
+  .stat-card .v{font-size:20px;font-weight:700;color:var(--color-primary)}
+  .stat-card .l{font-size:11px;color:var(--color-text-3);margin-top:2px}
+  .quick-actions{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}
+  .qa{background:#fff;border:1px solid var(--color-border);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--color-text-2)}
+</style>
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="card">
+  <div class="card-title">
+    <span style="display:inline-flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary)"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      客服工作台自定义
+    </span>
+    <div class="extra">
+      <button class="k-btn k-btn-mini" onclick="resetConfig()">重置默认</button>
+      <button class="k-btn k-btn-primary" id="wb-save-btn" onclick="saveConfig()">💾 保存配置</button>
+    </div>
+  </div>
+
+  <div class="wb-layout">
+    <!-- 左侧：配置项 -->
+    <div>
+      <!-- 基础设置 -->
+      <div class="wb-section" style="margin-bottom:14px">
+        <h3>🎨 基础设置</h3>
+        <div class="wb-row">
+          <div class="label">欢迎语<small>客服登录后看到的顶部文字</small></div>
+          <input id="welcome_text" class="k-input" style="width:240px" placeholder="欢迎来到客服工作台" />
+        </div>
+        <div class="wb-row">
+          <div class="label">默认坐席状态<small>客服登录后的初始状态</small></div>
+          <select id="default_status" class="k-select" style="width:160px"></select>
+        </div>
+        <div class="wb-row">
+          <div class="label">自动接单<small>新会话自动分配给在线客服</small></div>
+          <label class="switch"><input type="checkbox" id="auto_accept" checked /><span class="slider"></span></label>
+        </div>
+        <div class="wb-row">
+          <div class="label">主题色<small>影响按钮、高亮、链接</small></div>
+          <select id="theme_color" class="k-select" style="width:160px"></select>
+        </div>
+      </div>
+
+      <!-- 显示模块 -->
+      <div class="wb-section" style="margin-bottom:14px">
+        <h3>👁 显示模块</h3>
+        <div id="display-list"></div>
+      </div>
+
+      <!-- 工作台 Tab -->
+      <div class="wb-section" style="margin-bottom:14px">
+        <h3>📑 工作台 Tab（可多选）</h3>
+        <div id="tabs-list"></div>
+      </div>
+
+      <!-- 统计卡片 -->
+      <div class="wb-section" style="margin-bottom:14px">
+        <h3>📊 统计卡片（可多选）</h3>
+        <div id="stat-cards-list"></div>
+      </div>
+
+      <!-- 快捷操作 -->
+      <div class="wb-section">
+        <h3>⚡ 快捷操作（可多选）</h3>
+        <div id="quick-actions-list"></div>
+      </div>
+    </div>
+
+    <!-- 右侧：参数 + 预览 -->
+    <div>
+      <div class="wb-section" style="margin-bottom:14px">
+        <h3>⚙️ 参数设置</h3>
+        <div class="wb-row">
+          <div class="label">单客服最大并发会话</div>
+          <input id="max_concurrent_sessions" class="k-input" type="number" min="1" max="50" style="width:120px" value="5" />
+        </div>
+        <div class="wb-row">
+          <div class="label">会话超时（分钟）<small>客户无操作多久自动关闭</small></div>
+          <input id="session_timeout_min" class="k-input" type="number" min="5" max="1440" style="width:120px" value="30" />
+        </div>
+        <div class="wb-row">
+          <div class="label">首响目标时长（秒）<small>超过视为超时</small></div>
+          <input id="first_response_target_sec" class="k-input" type="number" min="10" max="600" style="width:120px" value="60" />
+        </div>
+      </div>
+
+      <div class="wb-section">
+        <h3>👁 工作台预览（实时同步设置）</h3>
+        <div class="preview-box" id="preview">
+          <div class="preview-tab" id="preview-tabs">
+            <!-- 动态生成 -->
+          </div>
+          <div style="position:absolute;top:60px;left:14px;right:14px">
+            <div style="font-size:13px;font-weight:600;color:var(--color-text)" id="preview-welcome">欢迎来到客服工作台</div>
+          </div>
+          <div class="stat-cards" id="preview-stats">
+            <!-- 动态生成 -->
+          </div>
+          <div class="quick-actions" id="preview-qa">
+            <!-- 动态生成 -->
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--color-text-3);text-align:center">
+          💡 预览仅供参考，实际样式以客服工作台运行时为准
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+
+let cfg = {};
+let opts = {};
+
+async function load() {
+  const [r, ro] = await Promise.all([
+    A.api('GET', '/api/admin/workbench/get'),
+    A.api('GET', '/api/admin/workbench/options'),
+  ]);
+  if (r.code !== 0) { A.toast('加载失败：' + r.msg, 'error'); return; }
+  cfg = r.data.config;
+  opts = r.data.options || (ro.code === 0 ? ro.data : {});
+  fillForm();
+  renderPreview();
+}
+
+function fillForm() {
+  document.getElementById('welcome_text').value = cfg.welcome_text || '';
+  document.getElementById('auto_accept').checked = !!cfg.auto_accept;
+  document.getElementById('max_concurrent_sessions').value = cfg.max_concurrent_sessions || 5;
+  document.getElementById('session_timeout_min').value = cfg.session_timeout_min || 30;
+  document.getElementById('first_response_target_sec').value = cfg.first_response_target_sec || 60;
+
+  // 状态下拉
+  const sOpts = (opts.default_status || []).map(o => `<option value="${o.value}" ${cfg.default_status===o.value?'selected':''}>${o.label}</option>`).join('');
+  document.getElementById('default_status').innerHTML = sOpts;
+
+  // 主题色下拉
+  const tOpts = (opts.theme_colors || []).map(o => `<option value="${o.value}" ${cfg.theme_color===o.value?'selected':''}>${o.label}</option>`).join('');
+  document.getElementById('theme_color').innerHTML = tOpts;
+
+  // 显示模块开关
+  const displayFields = [
+    {k:'show_customer_info', l:'客户信息卡'},
+    {k:'show_session_source', l:'会话来源标签'},
+    {k:'show_track_timeline', l:'客户访问轨迹'},
+    {k:'show_quick_reply', l:'快捷回复面板'},
+    {k:'show_kb_suggest', l:'知识库推荐'},
+    {k:'show_history_sessions', l:'历史会话'},
+    {k:'show_customer_note', l:'客户备注'},
+    {k:'show_internal_msg', l:'站内信入口'},
+  ];
+  document.getElementById('display-list').innerHTML = displayFields.map(f =>
+    `<div class="wb-row">
+      <div class="label">${f.l}</div>
+      <label class="switch"><input type="checkbox" data-display="${f.k}" ${cfg[f.k]?'checked':''} onchange="renderPreview()" /><span class="slider"></span></label>
+    </div>`
+  ).join('');
+
+  // Tabs / Cards / Actions 多选
+  renderMulti('tabs-list', opts.tabs || [], cfg.tabs || [], 'tab');
+  renderMulti('stat-cards-list', opts.stat_cards || [], cfg.stat_cards || [], 'stat');
+  renderMulti('quick-actions-list', opts.quick_actions || [], cfg.quick_actions || [], 'qa');
+}
+
+function renderMulti(elId, all, selected, prefix) {
+  const box = document.getElementById(elId);
+  box.innerHTML = all.map(o =>
+    `<span class="tag-pick ${selected.includes(o.value)?'on':''}" data-${prefix}="${o.value}" onclick="togglePick(this,'${prefix}')">${o.label}</span>`
+  ).join('');
+}
+
+function togglePick(el, prefix) {
+  el.classList.toggle('on');
+  const attr = 'data-' + prefix;
+  const checked = [...document.querySelectorAll('[' + attr + '].on')].map(e => e.getAttribute(attr));
+  if (prefix === 'tab') cfg.tabs = checked;
+  if (prefix === 'stat') cfg.stat_cards = checked;
+  if (prefix === 'qa') cfg.quick_actions = checked;
+  renderPreview();
+}
+
+function collectForm() {
+  return {
+    welcome_text: document.getElementById('welcome_text').value,
+    default_status: document.getElementById('default_status').value,
+    auto_accept: document.getElementById('auto_accept').checked ? 1 : 0,
+    theme_color: document.getElementById('theme_color').value,
+    max_concurrent_sessions: parseInt(document.getElementById('max_concurrent_sessions').value) || 5,
+    session_timeout_min: parseInt(document.getElementById('session_timeout_min').value) || 30,
+    first_response_target_sec: parseInt(document.getElementById('first_response_target_sec').value) || 60,
+    show_customer_info: document.querySelector('[data-display=show_customer_info]').checked ? 1 : 0,
+    show_session_source: document.querySelector('[data-display=show_session_source]').checked ? 1 : 0,
+    show_track_timeline: document.querySelector('[data-display=show_track_timeline]').checked ? 1 : 0,
+    show_quick_reply: document.querySelector('[data-display=show_quick_reply]').checked ? 1 : 0,
+    show_kb_suggest: document.querySelector('[data-display=show_kb_suggest]').checked ? 1 : 0,
+    show_history_sessions: document.querySelector('[data-display=show_history_sessions]').checked ? 1 : 0,
+    show_customer_note: document.querySelector('[data-display=show_customer_note]').checked ? 1 : 0,
+    show_internal_msg: document.querySelector('[data-display=show_internal_msg]').checked ? 1 : 0,
+    tabs: (cfg.tabs || []).join(','),
+    stat_cards: (cfg.stat_cards || []).join(','),
+    quick_actions: (cfg.quick_actions || []).join(','),
+  };
+}
+
+async function saveConfig() {
+  const btn = document.getElementById('wb-save-btn');
+  if (btn.disabled) return;
+  const body = collectForm();
+  console.log('[workbench] 提交保存:', body);
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = '保存中...';
+  try {
+    const r = await A.api('POST', '/api/admin/workbench/save', body);
+    console.log('[workbench] 保存响应:', r);
+    if (r.code === 0) {
+      cfg = r.data.config;
+      A.toast('保存成功', 'success');
+    } else {
+      A.toast('保存失败：' + r.msg, 'error');
+    }
+  } catch (e) {
+    console.error('[workbench] 保存异常:', e);
+    A.toast('保存异常：' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = oldText;
+  }
+}
+
+async function resetConfig() {
+  if (!confirm('确定重置所有工作台配置为默认值？')) return;
+  const r = await A.api('POST', '/api/admin/workbench/reset', {});
+  if (r.code === 0) {
+    cfg = r.data.config;
+    fillForm();
+    renderPreview();
+    A.toast('已重置', 'success');
+  }
+}
+
+function renderPreview() {
+  // Tab 预览
+  const tabOpts = (opts.tabs || []);
+  const tabSelected = cfg.tabs || [];
+  const tabsHtml = tabSelected.map(v => {
+    const t = tabOpts.find(o => o.value === v);
+    return `<span class="on">${t ? t.label : v}</span>`;
+  }).join('');
+  document.getElementById('preview-tabs').innerHTML = tabsHtml || '<span class="on">我的接待</span>';
+
+  document.getElementById('preview-welcome').textContent = document.getElementById('welcome_text').value || '欢迎来到客服工作台';
+
+  // 统计卡片预览
+  const statsOpts = (opts.stat_cards || []);
+  const statsSelected = cfg.stat_cards || [];
+  const sampleData = {
+    today_new: 12, active_sessions: 8, avg_response: '15s', satisfaction: '98%',
+    resolved_today: 24, pending_tickets: 3,
+  };
+  const statsHtml = statsSelected.slice(0, 4).map(v => {
+    const s = statsOpts.find(o => o.value === v);
+    return `<div class="stat-card"><div class="v">${sampleData[v] !== undefined ? sampleData[v] : '-'}</div><div class="l">${s?s.label:v}</div></div>`;
+  }).join('');
+  document.getElementById('preview-stats').innerHTML = statsHtml;
+
+  // 快捷操作预览
+  const qaOpts = (opts.quick_actions || []);
+  const qaSelected = cfg.quick_actions || [];
+  const qaHtml = qaSelected.slice(0, 5).map(v => {
+    const q = qaOpts.find(o => o.value === v);
+    return `<div class="qa">${q?q.label:v}</div>`;
+  }).join('');
+  document.getElementById('preview-qa').innerHTML = qaHtml;
+}
+
+document.getElementById('welcome_text').addEventListener('input', renderPreview);
+document.getElementById('default_status').addEventListener('change', renderPreview);
+document.getElementById('theme_color').addEventListener('change', renderPreview);
+document.getElementById('auto_accept').addEventListener('change', renderPreview);
+
+load();
+</script>
+</body>
+</html>

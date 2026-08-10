@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<title>在线接待</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+body { margin: 0; display: flex; height: 100vh; overflow: hidden; background: var(--color-bg); }
+
+/* === 左：会话列表（紧凑 + 280px） === */
+.list-pane { width: 280px; background: var(--color-card); border-right: 1px solid var(--color-muted); display: flex; flex-direction: column; flex-shrink: 0; }
+.list-pane .top { padding: 14px 14px 6px; border-bottom: none; }
+.list-pane .top h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.list-pane .top .sub { font-size: 11px; color: var(--color-text-3); margin-top: 4px; }
+.list-pane .search { padding: 8px 14px 10px; }
+.list-pane .search input { width: 100%; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 8px; font-size: 13px; outline: none; background: var(--color-bg); }
+.list-pane .search input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(124,58,237,0.12); background: var(--color-card); }
+.list-pane .items { flex: 1; overflow-y: auto; }
+/* 未读小红点 */
+.unread-dot { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 4px; background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%); color: #fff; font-size: 10px; font-weight: 600; border-radius: 9px; box-shadow: 0 2px 6px rgba(239,68,68,0.3); animation: unread-pulse 2s ease-in-out infinite; }
+@keyframes unread-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+.list-pane .item { padding: 14px 16px; cursor: pointer; border-bottom: 1px solid var(--color-muted); transition: all var(--t-fast); position: relative; }
+.list-pane .item:hover { background: var(--color-primary-bg); }
+.list-pane .item.active { background: var(--color-primary-bg); border-left: 3px solid var(--color-primary); }
+.list-pane .item .top { padding: 0; border: none; display: flex; justify-content: space-between; align-items: center; }
+.list-pane .item .name { font-weight: 600; font-size: 13px; }
+.list-pane .item .time { font-size: 11px; color: var(--color-text-3); }
+.list-pane .item .preview { font-size: 12px; color: var(--color-text-3); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-pane .item .mode-badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 500; margin-left: 6px; }
+.list-pane .item .mode-ai { background: var(--color-ai-bg); color: var(--color-ai); }
+.list-pane .item .mode-human { background: var(--color-human-bg); color: var(--color-human); }
+.list-pane .empty { padding: 30px 20px; text-align: center; color: var(--color-text-3); font-size: 12px; }
+
+/* === 中：聊天区（消息区 vs 输入区 6:4 比例，让输入框更大） === */
+.chat-pane { flex: 1; display: flex; flex-direction: column; background: var(--color-card); min-width: 0; min-height: 0; }
+.chat-pane .chat-header { padding: 14px 20px; border-bottom: 1px solid var(--color-muted); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.chat-pane .chat-header .info h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.chat-pane .chat-header .info .meta { font-size: 12px; color: var(--color-text-3); margin-top: 4px; }
+.chat-pane .messages { flex: 6 1 0; min-height: 0; overflow-y: auto; padding: 24px; background: linear-gradient(180deg, #FAF5FF 0%, #F8FAFC 100%); display: flex; flex-direction: column; gap: 14px; }
+.chat-pane .msg-row { display: flex; gap: 10px; align-items: flex-start; }
+.chat-pane .msg-row.me { justify-content: flex-end; }
+.chat-pane .msg-row .av { width: 36px; height: 36px; border-radius: 50%; background: #E2E8F0; flex-shrink: 0; background-size: cover; background-position: center; border: 2px solid var(--color-card); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; font-weight: 600; overflow: hidden; }
+.chat-pane .msg-row .av .av-text { line-height: 1; pointer-events: none; }
+/* 修复：AI 头像用紫色背景区分，客服头像用渐变色 */
+.chat-pane .msg-row .av.av-ai { background: linear-gradient(135deg, #A78BFA 0%, #7C3AED 100%); border-color: #DDD6FE; }
+.chat-pane .msg-row .av.av-agent { background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%); }
+.chat-pane .msg-row.me .av { order: 2; }
+.chat-pane .msg-row .body { max-width: 65%; display: flex; flex-direction: column; }
+.chat-pane .msg-row.me .body { align-items: flex-end; }
+.chat-pane .msg-row .name { font-size: 11px; color: var(--color-text-3); margin-bottom: 4px; }
+.chat-pane .msg { padding: 10px 14px; border-radius: var(--r-md); font-size: 14px; line-height: 1.55; word-break: break-word; }
+.chat-pane .msg .meta { font-size: 11px; color: var(--color-text-3); margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+.chat-pane .msg .meta .badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; }
+.chat-pane .msg-customer { background: var(--ka-customer-bg, #FFFFFF); color: var(--ka-customer-color, #1F2937); border: 1px solid var(--color-muted); border-bottom-left-radius: 4px; }
+.chat-pane .msg-customer .badge { background: var(--color-text-3); color: white; }
+.chat-pane .msg-agent { background: var(--ka-agent-bg, #7C3AED); color: var(--ka-agent-color, #FFFFFF); border-color: transparent; border-bottom-right-radius: 4px; }
+.chat-pane .msg-agent .meta { color: var(--ka-agent-color, #FFFFFF); opacity: 0.85; }
+.chat-pane .msg-agent .badge { background: rgba(255,255,255,.2); color: white; }
+.chat-pane .msg-ai { background: var(--ka-ai-bg, #F5F3FF); color: var(--ka-ai-color, #5B21B6); border: 1px solid #DDD6FE; border-bottom-left-radius: 4px; }
+.chat-pane .msg-system { background: var(--color-warning-bg); text-align: center; font-style: italic; color: var(--color-warning); font-size: 12px; align-self: center; }
+.chat-pane .empty-chat { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--color-text-3); }
+.chat-pane .empty-chat .ico { font-size: 64px; opacity: 0.3; }
+.chat-pane .input-area { padding: 16px 20px; border-top: 1px solid var(--color-muted); background: var(--color-card); }
+.chat-pane .input-area .tools { display: flex; gap: 8px; margin-bottom: 10px; }
+.chat-pane .input-area .row { display: flex; gap: 10px; }
+.chat-pane .input-area input { flex: 1; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--r-md); font-size: 14px; outline: none; }
+.chat-pane .input-area input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 4px rgba(124,58,237,0.10); }
+.chat-pane .input-area .k-btn { padding: 10px 18px; }
+
+/* === 右：信息栏 === */
+.info-pane { width: 300px; background: var(--color-card); border-left: 1px solid var(--color-muted); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+.info-pane .section { padding: 14px 18px; border-bottom: 1px solid var(--color-muted); }
+.info-pane .section-title { font-size: 11px; color: var(--color-text-3); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.info-pane .kv { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; gap: 10px; }
+.info-pane .kv .label { color: var(--color-text-3); flex-shrink: 0; }
+.info-pane .kv .v { font-weight: 500; text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.info-pane .ai-history { padding: 10px 12px; margin-bottom: 8px; background: var(--color-ai-bg); border-radius: var(--r-md); font-size: 12.5px; line-height: 1.5; }
+.info-pane .ai-history .role { font-weight: 600; color: var(--color-ai); margin-bottom: 4px; font-size: 11px; }
+.info-pane .ai-history .user-q { color: var(--color-text-2); margin-bottom: 4px; font-size: 12px; }
+.info-pane .empty { color: var(--color-text-3); font-size: 12px; padding: 4px 0; }
+
+/* === 快捷回复 === */
+.quick-replies { display: flex; flex-wrap: wrap; gap: 6px; }
+.quick-replies .chip { padding: 4px 10px; background: var(--color-primary-bg); color: var(--color-primary); border-radius: var(--r-pill); font-size: 12px; cursor: pointer; transition: all var(--t-fast); }
+.quick-replies .chip:hover { background: var(--color-primary); color: white; }
+
+/* === 弹窗 === */
+.k-modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 9000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.k-modal { background: var(--color-card); border-radius: var(--r-md); box-shadow: 0 24px 60px rgba(0,0,0,0.25); width: 480px; max-width: 92vw; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+.k-modal-header { padding: 16px 20px; border-bottom: 1px solid var(--color-muted); font-weight: 600; display: flex; justify-content: space-between; align-items: center; font-size: 15px; }
+.k-modal-close { background: transparent; border: 0; font-size: 22px; color: var(--color-text-3); cursor: pointer; padding: 0; line-height: 1; }
+.k-modal-body { padding: 20px; overflow-y: auto; }
+.k-modal-footer { padding: 12px 20px; border-top: 1px solid var(--color-muted); display: flex; justify-content: flex-end; gap: 8px; }
+.form-row { margin-bottom: 14px; }
+.form-row label { display: block; font-size: 12px; font-weight: 600; color: var(--color-text-2); margin-bottom: 6px; }
+.form-row select, .form-row textarea, .form-row input[type=text] { width: 100%; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--r-sm); font-size: 14px; outline: none; font-family: inherit; }
+.form-row select:focus, .form-row textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(124,58,237,0.10); }
+.peer-list { max-height: 280px; overflow-y: auto; border: 1px solid var(--color-muted); border-radius: var(--r-sm); padding: 4px; }
+.peer-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-sm); cursor: pointer; margin-bottom: 4px; }
+.peer-item:hover { background: var(--color-primary-bg); }
+.peer-item input { margin: 0; }
+.peer-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--color-primary-bg); }
+.peer-name { flex: 1; font-size: 14px; }
+.peer-load { font-size: 11px; color: var(--color-text-3); padding: 2px 8px; background: var(--color-primary-bg); border-radius: var(--r-pill); }
+.badge-full { font-size: 10px; padding: 2px 6px; background: var(--color-warning-bg); color: var(--color-warning); border-radius: var(--r-pill); }
+.k-btn-warning { background: #F59E0B; color: white; }
+.k-btn-warning:hover { background: #D97706; }
+.k-btn-danger { background: #EF4444; color: white; }
+.k-btn-danger:hover { background: #DC2626; }
+
+/* === 会话列表紧凑化 === */
+.list-pane { width: 280px; }
+.list-pane .top { padding: 12px 14px 8px; border-bottom: 1px solid var(--color-muted); }
+.list-pane .tabs-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.list-pane .tabs-title { font-size: 15px; font-weight: 600; color: var(--color-text-1); }
+.list-pane .tabs-sub { font-size: 11px; color: var(--color-text-3); }
+.list-pane .item { padding: 11px 14px; }
+.list-pane .item .name { font-size: 13px; }
+.list-pane .item .preview { font-size: 11px; max-width: 200px; }
+
+/* === 聊天区 === */
+.chat-pane .chat-header { padding: 12px 18px; }
+.chat-pane .chat-header .info h3 { font-size: 14px; }
+.chat-pane .messages { padding: 18px; gap: 12px; background: #F8FAFC; }
+.chat-pane .msg-row .av { width: 34px; height: 34px; }
+.chat-pane .msg { font-size: 13.5px; line-height: 1.55; padding: 9px 12px; }
+
+/* === 自定义滚动条（紫色细条） === */
+.messages::-webkit-scrollbar, .items::-webkit-scrollbar, .info-pane::-webkit-scrollbar { width: 6px; }
+.messages::-webkit-scrollbar-track, .items::-webkit-scrollbar-track, .info-pane::-webkit-scrollbar-track { background: transparent; }
+.messages::-webkit-scrollbar-thumb, .items::-webkit-scrollbar-thumb, .info-pane::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.25); border-radius: 3px; transition: background 0.2s; }
+.messages::-webkit-scrollbar-thumb:hover, .items::-webkit-scrollbar-thumb:hover, .info-pane::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,0.5); }
+
+/* === 输入区（消息 vs 输入 6:4，输入区占 40%，自动撑高，textarea 占满内部剩余空间） === */
+.input-area { padding: 8px 18px 12px; border-top: 1px solid var(--color-muted); background: var(--color-card); flex: 4 1 0; min-height: 0; display: flex; flex-direction: column; }
+
+/* === 工具行（极简：小图标横排，靠左，固定高度） === */
+.input-area .input-row-tools {
+  display: flex; gap: 4px; align-items: center; justify-content: flex-start;
+  padding: 4px 0;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+/* === 快捷回复开关 + 提示文字行（独立第二行，固定高度） === */
+.input-area .input-row-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px; padding: 0 4px; min-height: 24px;
+  flex-shrink: 0;
+}
+.input-area .input-row-meta .muted-tip { font-size: 11px; color: var(--color-text-3); white-space: nowrap; letter-spacing: 0.3px; }
+
+/* === 工具图标（极简小图标，参考网易云风格） === */
+.tool-icon { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-size: 15px; color: var(--color-text-3); transition: all 0.15s; user-select: none; opacity: 0.7; }
+.tool-icon:hover { background: var(--color-primary-bg); opacity: 1; }
+.tool-icon.active { background: var(--color-primary); color: #fff; opacity: 1; }
+
+/* === 快捷回复开关 === */
+.quick-toggle { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: var(--r-pill); background: transparent; color: var(--color-text-3); font-size: 12px; cursor: pointer; transition: all var(--t-fast); white-space: nowrap; }
+.quick-toggle:hover { background: var(--color-primary-bg); color: var(--color-primary); }
+.quick-toggle.open { background: var(--color-primary); color: #fff; }
+
+/* 快捷回复管理按钮（紧贴 toggle 右侧） */
+.quick-manage { display: inline-flex; align-items: center; gap: 3px; padding: 4px 10px; margin-left: 6px; border-radius: var(--r-pill); background: transparent; color: var(--color-text-3); font-size: 11.5px; cursor: pointer; transition: all var(--t-fast); }
+.quick-manage:hover { background: var(--color-primary-bg); color: var(--color-primary); }
+
+/* === 快捷回复管理弹窗 === */
+.qr-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 9999; display: none; align-items: center; justify-content: center; }
+.qr-modal-overlay.show { display: flex; }
+.qr-modal { background: var(--color-card); border-radius: 14px; width: 560px; max-width: 92vw; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,0.25); }
+.qr-modal-header { padding: 16px 20px; border-bottom: 1px solid var(--color-muted); display: flex; align-items: center; justify-content: space-between; }
+.qr-modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.qr-modal-header .close-x { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; color: var(--color-text-3); }
+.qr-modal-header .close-x:hover { background: var(--color-bg); color: var(--color-text-1); }
+.qr-modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+.qr-modal-footer { padding: 12px 20px; border-top: 1px solid var(--color-muted); display: flex; justify-content: flex-end; gap: 8px; }
+.qr-row { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border: 1px solid var(--color-muted); border-radius: 8px; margin-bottom: 8px; transition: all 0.15s; }
+.qr-row:hover { border-color: var(--color-primary); background: rgba(124,58,237,0.04); }
+.qr-row .qr-content { flex: 1; min-width: 0; }
+.qr-row .qr-title { font-size: 13px; font-weight: 500; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qr-row .qr-preview { font-size: 12px; color: var(--color-text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qr-row .qr-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.qr-row .qr-actions button { padding: 4px 8px; font-size: 11px; border-radius: 4px; cursor: pointer; border: 1px solid var(--color-muted); background: var(--color-card); color: var(--color-text-1); transition: all 0.15s; }
+.qr-row .qr-actions button:hover { border-color: var(--color-primary); color: var(--color-primary); }
+/* 修复：删除按钮默认就是红色高亮，更醒目 */
+.qr-row .qr-actions button.del { border-color: #FCA5A5; color: #DC2626; background: #FEF2F2; }
+.qr-row .qr-actions button.del:hover { border-color: #EF4444; color: white; background: #EF4444; }
+.qr-row .cat-badge { display: inline-block; padding: 1px 6px; font-size: 10px; border-radius: 8px; margin-right: 6px; }
+.qr-row .cat-badge.common { background: var(--color-primary-bg); color: var(--color-primary); }
+.qr-row .cat-badge.personal { background: #FEF3C7; color: #B45309; }
+.qr-form { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--color-bg); border-radius: 8px; margin-bottom: 14px; }
+.qr-form input, .qr-form textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 13px; outline: none; font-family: inherit; box-sizing: border-box; }
+.qr-form input:focus, .qr-form textarea:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
+.qr-form textarea { min-height: 70px; resize: vertical; }
+.qr-form .qr-form-row { display: flex; gap: 10px; }
+.qr-form .qr-form-row > * { flex: 1; }
+.qr-form .qr-form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* === 快捷回复面板（折叠，简约：单行紧凑展示，最大 120px 高） === */
+.quick-panel { max-height: 120px; overflow-y: auto; background: var(--color-bg); border: 1px solid var(--color-muted); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; flex-shrink: 0; }
+.quick-panel .quick-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.quick-panel .chip { padding: 3px 8px; background: var(--color-card); color: var(--color-text-1); border: 1px solid var(--color-muted); border-radius: var(--r-pill); font-size: 11.5px; cursor: pointer; transition: all var(--t-fast); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-panel .chip:hover { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.quick-panel .chip .cat-tag { display: inline-block; padding: 0 4px; margin-right: 4px; font-size: 9px; background: var(--color-primary-bg); color: var(--color-primary); border-radius: 8px; vertical-align: middle; }
+.quick-panel .chip.personal .cat-tag { background: #FEF3C7; color: #B45309; }
+
+/* === 主输入栏（简约风：占满输入区剩余空间，默认 180px 高，可自动撑高） === */
+.input-area .input-row-main { display: flex; align-items: flex-end; gap: 10px; position: relative; flex: 1 1 auto; min-height: 180px; }
+.input-area .input-row-main textarea {
+  flex: 1;
+  min-height: 180px;
+  max-height: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 0;
+  font-size: 14.5px;
+  line-height: 1.7;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  background: transparent;
+  color: var(--color-text-1);
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+.input-area .input-row-main textarea:focus { border: none; }
+.input-area .input-row-main textarea::placeholder { color: var(--color-text-3); }
+
+/* === 发送按钮（简约风：右下角小箭头按钮） === */
+.send-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; min-width: 48px; padding: 0;
+  border: 0; border-radius: 50%; cursor: pointer;
+  background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+  color: #fff; font-size: 16px; font-weight: 600;
+  box-shadow: 0 4px 12px rgba(124,58,237,0.32);
+  transition: all 0.15s;
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-bottom: 4px;
+}
+.send-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(124,58,237,0.42); }
+.send-btn:active:not(:disabled) { transform: translateY(0); }
+.send-btn:disabled { background: var(--color-muted); color: var(--color-text-3); cursor: not-allowed; box-shadow: none; opacity: 0.6; }
+.send-btn .send-icon { font-size: 22px; line-height: 1; }
+.send-btn .send-text { display: none; }
+
+/* === 表情面板（9 宫格） === */
+.emoji-panel { margin-top: 8px; padding: 10px; background: var(--color-bg); border-radius: var(--r-md); border: 1px solid var(--color-muted); flex-shrink: 0; }
+.emoji-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; max-height: 220px; overflow-y: auto; }
+.emoji-grid span { display: inline-flex; align-items: center; justify-content: center; padding: 6px; cursor: pointer; font-size: 22px; border-radius: 6px; transition: all 0.15s; }
+.emoji-grid span:hover { background: var(--color-primary-bg); transform: scale(1.2); }
+
+/* === 媒体消息气泡（图片/文件/音视频） === */
+.msg-media { padding: 6px; max-width: 360px; }
+.msg-media .image-thumb { display: block; max-width: 240px; max-height: 240px; border-radius: 6px; cursor: pointer; }
+.msg-media .file-card { display: flex; gap: 10px; padding: 8px 10px; min-width: 220px; align-items: center; }
+.msg-media .file-icon { font-size: 32px; flex-shrink: 0; }
+.msg-media .file-info { flex: 1; min-width: 0; }
+.msg-media .file-name { font-size: 13px; font-weight: 500; word-break: break-all; }
+.msg-media .file-size { font-size: 11px; color: var(--color-text-3); margin-top: 2px; }
+.msg-media .file-download { color: var(--color-primary); font-size: 12px; text-decoration: none; flex-shrink: 0; }
+.msg-media .audio-bar { display: flex; align-items: center; gap: 10px; padding: 6px 10px; }
+.msg-media audio { max-width: 280px; }
+.msg-media video { max-width: 280px; border-radius: 6px; }
+
+/* === 表情消息 === */
+.msg-emoji { font-size: 32px !important; padding: 6px 10px !important; background: transparent !important; border: none !important; }
+.msg-emoji .meta { display: none; }
+
+/* === 右栏更紧凑（已合并到 .info-pane 上方） === */
+</style>
+</head>
+<body>
+
+<!-- 左：会话列表 -->
+<aside class="list-pane">
+  <div class="top">
+    <div class="tabs-row">
+      <span class="tabs-title">💬 在线会话</span>
+      <span class="tabs-sub">实时 · 自动</span>
+    </div>
+    <div class="search"><input id="session-kw" placeholder="搜索会话 / 客户" onkeydown="if(event.key==='Enter')loadSessions()" /></div>
+  </div>
+  <div class="items" id="session-list">
+    <div class="empty">加载中…</div>
+  </div>
+</aside>
+
+<!-- 中：聊天 -->
+<main class="chat-pane">
+  <div class="chat-header" id="chat-header">
+    <div class="info"><h3>请选择会话</h3><div class="meta">从左侧选择会话开始接待</div></div>
+  </div>
+  <div class="messages" id="messages">
+    <div class="empty-chat">
+      <div class="ico">💬</div>
+      <p style="margin-top: 16px;">请在左侧选择会话开始接待</p>
+    </div>
+  </div>
+
+  <!-- 输入区（媒体工具行独立 + 快捷回复/提示行 + 大输入框） -->
+  <div class="input-area" id="input-area" style="display:none;">
+    <!-- 媒体工具行（独立：表情/图片/文件/视频，靠左均分） -->
+    <div class="input-row-tools">
+      <span class="tool-icon" id="btn-emoji" title="表情">😊</span>
+      <span class="tool-icon" id="btn-image" title="发送图片">🖼️</span>
+      <span class="tool-icon" id="btn-file"  title="发送文件">📎</span>
+      <span class="tool-icon" id="btn-video" title="发送视频">🎬</span>
+      <input type="file" id="file-image" accept="image/*" style="display:none" />
+      <input type="file" id="file-doc"   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z" style="display:none" />
+      <input type="file" id="file-video" accept="video/*,audio/*" style="display:none" />
+    </div>
+
+    <!-- 快捷回复面板（折叠，点 + 快捷回复 时展开） -->
+    <!-- 快捷回复面板（折叠；从后端 /quick-reply/list 加载，支持自定义） -->
+    <div class="quick-panel" id="quick-panel" style="display:none;">
+      <div class="quick-chips" id="quick-chips">
+        <!-- 启动时由 loadQuickReplies() 渲染 -->
+      </div>
+    </div>
+
+    <!-- 快捷回复开关 + 管理按钮 + 提示文字行（独立） -->
+    <div class="input-row-meta">
+      <span class="quick-toggle" id="quick-toggle" onclick="toggleQuickPanel()">＋ 快捷回复</span>
+      <span class="quick-manage" onclick="openQuickReplyManager()" title="管理我的快捷回复">⚙ 管理</span>
+      <span class="muted-tip" id="input-tip">Enter 发送 · Shift+Enter 换行</span>
+    </div>
+
+    <!-- 主输入行（textarea + 发送按钮，等高 140px） -->
+    <div class="input-row-main">
+      <textarea id="msg-input" placeholder="输入回复消息…" rows="1"></textarea>
+      <button id="btn-send" class="send-btn" onclick="sendMsg()" disabled>
+        <span class="send-icon">➤</span><span class="send-text">发送</span>
+      </button>
+    </div>
+
+    <div class="emoji-panel" id="emoji-panel" style="display:none;">
+      <div class="emoji-grid" id="emoji-grid"></div>
+    </div>
+  </div>
+</main>
+
+<!-- 右：信息 -->
+<aside class="info-pane">
+  <div class="section">
+    <div class="section-title">会话信息</div>
+    <div id="session-info"><div class="empty">未选择会话</div></div>
+  </div>
+  <div class="section">
+    <div class="section-title">客户信息</div>
+    <div id="customer-info"><div class="empty">未选择</div></div>
+  </div>
+  <div class="section">
+    <div class="section-title">操作</div>
+    <div class="k-flex" style="gap:8px;flex-direction:column;align-items:stretch;">
+      <button class="k-btn k-btn-accent" onclick="takeOver()" style="justify-content:center;">⚡ 接管会话</button>
+      <!-- 修复：转接和结束按钮放到操作区（接管会话下面） -->
+      <div class="k-flex" style="gap:8px;">
+        <button class="k-btn k-btn-warning" onclick="openTransferModal()" style="flex:1;justify-content:center;" title="转接给其他客服">🔁 转接</button>
+        <button class="k-btn k-btn-danger" onclick="openCloseModal()" style="flex:1;justify-content:center;" title="结束会话">✕ 结束</button>
+      </div>
+    </div>
+  </div>
+  <div class="section" style="flex:1;">
+    <div class="section-title">🤖 AI 接待历史</div>
+    <div id="ai-history"><div class="empty">当前会话无 AI 历史</div></div>
+  </div>
+</aside>
+
+<script src="/agent/common.js?v=20260808"></script>
+<script>
+// 修复：不能把所有代码放在 IIFE 内，否则 onclick="selectSession('...')" 找不到函数
+// 现在：所有函数在全局，初始化 async 也用 try/catch 包裹
+if (!KefuAgent.requireLogin()) {
+  // 修复：token 缺失时不要 throw，而是显示错误提示，让用户能重新登录
+  const box = document.getElementById('session-list');
+  if (box) {
+    box.innerHTML = '<div style="padding:40px 20px;text-align:center;"><div style="font-size:32px;margin-bottom:16px;">��</div><div style="color:#1E293B;font-size:16px;font-weight:600;margin-bottom:8px;">未登录</div><div style="color:#64748B;font-size:13px;margin-bottom:24px;">session 已过期，请重新登录</div><a href="/agent/login.html" style="display:inline-block;padding:10px 24px;background:#7C3AED;color:white;border-radius:6px;text-decoration:none;font-size:14px;">前往登录</a></div>';
+    box.classList.remove('k-loading');
+  } else {
+    location.href = '/agent/login.html';
+  }
+}
+const A = KefuAgent;
+let currentSessionId = null;
+let pollingTimer = null;
+
+// === 读取管理员配置的访客端样式，写到 CSS 变量上 ===
+// 让客服气泡的颜色完全由超管在访客端样式里控制
+async function loadBubbleStyle() {
+  const tid = (A.user && A.user.tenant_id) || (A.token ? parseInt(((A.token.split('.')[0] || '').match(/tenant_id":"?(\d+)/) || [])[1] || '1', 10) : 1) || 1;
+  try {
+    const r = await fetch('/api/visitor-style/get?tenant_id=' + tid).then(x => x.json());
+    if (r.code !== 0 || !r.data || !r.data.config) return;
+    const c = r.data.config;
+    const root = document.documentElement.style;
+    if (c.agent_console_agent_bg)     root.setProperty('--ka-agent-bg',     c.agent_console_agent_bg);
+    if (c.agent_console_agent_color)  root.setProperty('--ka-agent-color',  c.agent_console_agent_color);
+    if (c.agent_console_customer_bg)  root.setProperty('--ka-customer-bg',  c.agent_console_customer_bg);
+    if (c.agent_console_customer_color) root.setProperty('--ka-customer-color', c.agent_console_customer_color);
+    if (c.agent_console_ai_bg)        root.setProperty('--ka-ai-bg',        c.agent_console_ai_bg);
+    if (c.agent_console_ai_color)     root.setProperty('--ka-ai-color',     c.agent_console_ai_color);
+    // 把访客端样式写到 body data-* 方便调试
+    document.body.setAttribute('data-bubble-style', 'ok');
+  } catch (e) { /* 静默失败，使用默认颜色 */ }
+}
+loadBubbleStyle();
+
+function getSessionIdFromUrl() {
+  const m = location.search.match(/session=([^&]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+async function loadSessions() {
+  const box = document.getElementById('session-list');
+  if (!box) { console.warn('[loadSessions] #session-list not found'); return; }
+  try {
+    // 修复：每次调用前先清空旧内容（避免和"加载中…"残留）
+    box.innerHTML = '<div class="empty" style="padding:14px;text-align:center;color:var(--color-text-3);font-size:12px;">加载中…</div>';
+    const r = await A.api('GET', '/api/agent/session/list?size=50&status=');
+    if (!r || typeof r !== 'object') {
+      box.innerHTML = '<div class="empty">接口返回异常</div>';
+      return;
+    }
+    if (r.code !== 0) {
+      box.innerHTML = '<div class="empty">加载失败：' + (r.msg || '未知') + ' <button onclick="loadSessions()" style="margin-left:8px;padding:2px 8px;">重试</button></div>';
+      return;
+    }
+    const rows = (r.data && r.data.list) || [];
+    if (!rows.length) {
+      box.innerHTML = '<div class="empty">暂无活跃会话</div>';
+      return;
+    }
+  box.innerHTML = rows.map(s => {
+    // 修复：去掉所有 onclick 字符串拼接（避免特殊字符转义问题），改用 data- 属性 + 事件代理
+    const sidStr = String(s.session_id || '');
+    const cidStr = String(s.customer_id || '');
+    const cnameStr = String(s.customer_name || '');
+    const isMine = s.agent_id == A.employeeId;
+    const modeClass = s.serving_mode === 'ai' ? 'mode-ai' : 'mode-human';
+    const modeText = s.serving_mode === 'ai' ? 'AI' : '人工';
+    const customerLabel = A.escapeHtml(s.customer_name || s.customer_id || '') || '访客';
+    // 接管按钮：仅当无人接管 / waiting 状态
+    const actionBtn = (!s.agent_id || s.status === 'waiting')
+      ? '<button class="k-btn-text btn-takeover" data-sid="' + A.escapeHtml(sidStr) + '" style="color:#7C3AED;font-size:12px;">⚡ 接管</button>'
+      : '';
+    // 历史按钮
+    const historyBtn = (s.customer_id && s.customer_id > 0)
+      ? '<button class="k-btn-text btn-history" data-cid="' + A.escapeHtml(cidStr) + '" data-cname="' + A.escapeHtml(cnameStr) + '" style="color:#0891B2;font-size:12px;" title="查看该访客的历史会话">📜 历史</button>'
+      : '';
+    // 未读小红点
+    const unreadDot = (s.unread_count && s.unread_count > 0)
+      ? '<span class="unread-dot" title="' + s.unread_count + ' 条未读">' + (s.unread_count > 99 ? '99+' : s.unread_count) + '</span>'
+      : '';
+    return '<div class="item ' + (currentSessionId === sidStr ? 'active' : '') + '" data-sid="' + A.escapeHtml(sidStr) + '">' +
+      '<div class="top"><span class="name">' + customerLabel + (isMine ? ' <span class="mode-badge mode-human">我</span>' : '') + ' <span class="mode-badge ' + modeClass + '">' + modeText + '</span></span>' +
+      '<span class="time">' + ((s.created_at || '').slice(11, 16)) + '</span></div>' +
+      '<div class="preview">' + (s.message_count || 0) + ' 消息 · ' + (s.channel || '-') + ' ' + actionBtn + historyBtn + unreadDot + '</div>' +
+    '</div>';
+  }).join('');
+  // 修复：用事件代理绑定点击（避免 onclick 字符串拼接出错）
+  bindSessionListEvents();
+  } catch (e) {
+    // 修复：catch 块始终替换 innerHTML + console.error 暴露问题
+    console.error('[loadSessions] error:', e);
+    box.innerHTML = '<div class="empty">加载失败：' + (e.message || '网络异常') + ' <button onclick="loadSessions()" style="margin-left:8px;padding:2px 8px;">重试</button></div>';
+  }
+}
+
+// 修复：会话列表事件代理（避免 onclick 字符串拼接出错）
+function bindSessionListEvents() {
+  const list = document.getElementById('session-list');
+  if (!list) return;
+  // 防止重复绑定：先克隆节点清掉旧 listener
+  if (list._bindReady) return;
+  list._bindReady = true;
+  list.addEventListener('click', function(ev) {
+    const takeBtn = ev.target.closest('.btn-takeover');
+    if (takeBtn) {
+      ev.stopPropagation();
+      const sid = takeBtn.getAttribute('data-sid');
+      if (sid) takeOverFromList(sid);
+      return;
+    }
+    const histBtn = ev.target.closest('.btn-history');
+    if (histBtn) {
+      ev.stopPropagation();
+      const cid = histBtn.getAttribute('data-cid');
+      const cname = histBtn.getAttribute('data-cname') || '';
+      if (cid) loadVisitorHistory(cid, cname);
+      return;
+    }
+    const item = ev.target.closest('.item');
+    if (item) {
+      const sid = item.getAttribute('data-sid');
+      if (sid) selectSession(sid);
+    }
+  });
+}
+
+async function takeOverFromList(sid) {
+  const r = await A.api('POST', '/api/agent/session/assign', { session_id: sid, employee_id: A.employeeId });
+  A.toast(r.code === 0 ? '已接管' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+  if (r.code === 0) {
+    await loadSessions();
+    selectSession(sid);
+  }
+}
+
+// === 访客历史会话浮层 ===
+let _historyDropdownEl = null;
+// 修复：history-key 映射（避免把 session_id 拼进 onclick）
+let _historyKeys = {};
+// 事件代理：把 history-item 的 data-key 映射回 session_id 然后调用 viewHistorySession
+document.addEventListener('click', function(ev) {
+  const h = ev.target.closest('.history-item');
+  if (h && _historyKeys) {
+    const key = h.getAttribute('data-key');
+    const sid = _historyKeys[key];
+    if (sid) viewHistorySession(sid);
+  }
+});
+function closeHistoryDropdown() {
+  if (_historyDropdownEl) { _historyDropdownEl.remove(); _historyDropdownEl = null; }
+}
+/**
+ * 加载指定访客的历史会话（已关闭）到 chat-header 下的下拉浮层
+ * @param customerId 访客 customer_id
+ * @param customerName 访客昵称
+ */
+async function loadVisitorHistory(customerId, customerName) {
+  closeHistoryDropdown();
+  // 浮层放在 chat-header 上方
+  const head = document.querySelector('.chat-pane .chat-header');
+  if (!head) return;
+  const panel = document.createElement('div');
+  panel.id = 'visitor-history-dropdown';
+  panel.style.cssText = 'position:absolute;top:60px;right:24px;width:380px;max-height:420px;background:var(--color-card);box-shadow:0 12px 36px rgba(0,0,0,0.18);border-radius:12px;z-index:8000;border:1px solid var(--color-muted);overflow:hidden;';
+  panel.innerHTML = '<div style="padding:12px 14px;border-bottom:1px solid var(--color-muted);display:flex;justify-content:space-between;align-items:center;">' +
+    '<span style="font-size:13px;font-weight:600;">📜 ' + A.escapeHtml(customerName || '访客') + ' 的历史会话</span>' +
+    '<button onclick="closeHistoryDropdown()" style="border:0;background:transparent;font-size:20px;color:var(--color-text-3);cursor:pointer;line-height:1;">×</button>' +
+    '</div><div style="padding:10px 14px;color:var(--color-text-3);font-size:12px;">加载中…</div>';
+  // 相对 chat-pane 绝对定位
+  head.parentElement.style.position = 'relative';
+  head.parentElement.appendChild(panel);
+  _historyDropdownEl = panel;
+  // 拉历史
+  const r = await A.api('GET', '/api/agent/history/sessions?size=50&q=' + encodeURIComponent(customerName || ''));
+  if (r.code !== 0) {
+    panel.innerHTML = '<div style="padding:18px;color:var(--color-text-3);font-size:12px;">加载失败：' + (r.msg || '') + '</div>';
+    return;
+  }
+  // 简单过滤：保留 customer_name 相同的（防重名）
+  const all = (r.data && r.data.list) || [];
+  const list = all.filter(x => !customerName || (x.customer_name && x.customer_name.indexOf(customerName) >= 0));
+  if (!list.length) {
+    panel.innerHTML = '<div style="padding:12px 14px;border-bottom:1px solid var(--color-muted);display:flex;justify-content:space-between;align-items:center;">' +
+      '<span style="font-size:13px;font-weight:600;">📜 ' + A.escapeHtml(customerName || '访客') + ' 的历史会话</span>' +
+      '<button onclick="closeHistoryDropdown()" style="border:0;background:transparent;font-size:20px;color:var(--color-text-3);cursor:pointer;line-height:1;">×</button>' +
+      '</div><div style="padding:30px;text-align:center;color:var(--color-text-3);font-size:12px;">该访客暂无历史会话</div>';
+    return;
+  }
+  panel.innerHTML = '<div style="padding:12px 14px;border-bottom:1px solid var(--color-muted);display:flex;justify-content:space-between;align-items:center;">' +
+    '<span style="font-size:13px;font-weight:600;">📜 ' + A.escapeHtml(customerName || '访客') + ' 的历史会话（' + list.length + '）</span>' +
+    '<button onclick="closeHistoryDropdown()" style="border:0;background:transparent;font-size:20px;color:var(--color-text-3);cursor:pointer;line-height:1;">×</button>' +
+    '</div><div style="max-height:360px;overflow-y:auto;">' +
+    list.map(item => {
+      const reasonText = { timeout: '超时关闭', customer_leave: '客户离开', agent_leave: '客服离开', no_response: '无响应', resolved: '已完结', customer_timeout: '客户超时', agent_timeout: '客服超时' }[item.close_reason] || (item.close_reason || '已关闭');
+      const time = (item.closed_at || item.created_at || '').slice(0, 16);
+      const canReopen = item.can_reopen;
+      // 修复：用 data- 属性 + 事件代理，避免 onclick 字符串拼接出错
+      const sidEsc = A.escapeHtml(item.session_id || '');
+      const sidKey = 'h_' + Math.random().toString(36).slice(2, 9);
+      _historyKeys[sidKey] = item.session_id;
+      return '<div class="history-item" data-key="' + sidKey + '" style="padding:10px 14px;border-bottom:1px solid var(--color-muted);cursor:pointer;" onmouseover="this.style.background=\'var(--color-primary-bg)\'" onmouseout="this.style.background=\'\'">' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;">' +
+          '<span style="color:var(--color-text-1);font-weight:500;">' + A.escapeHtml(item.session_id.slice(0, 18)) + '…</span>' +
+          '<span style="color:var(--color-text-3);">' + time + '</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--color-text-3);margin-top:4px;">' +
+          (item.agent_name || '未分配') + ' · ' + (item.message_count || 0) + ' 消息 · <span style="color:#7C3AED;">' + reasonText + '</span>' +
+          (canReopen ? ' · <span style="color:#10B981;">可重新接管</span>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+}
+
+/**
+ * 查看一个历史会话：拉消息 + 渲染到聊天面板（不切换 currentSessionId 的轮询）
+ */
+async function viewHistorySession(sessionId) {
+  closeHistoryDropdown();
+  const r = await A.api('GET', '/api/agent/message/history?session_id=' + sessionId + '&limit=200');
+  if (r.code !== 0) { A.toast('加载失败', 'error'); return; }
+  const box = document.getElementById('messages');
+  box.innerHTML = '';
+  // 顶部加一个提示条 + 返回按钮
+  const banner = document.createElement('div');
+  banner.style.cssText = 'background:#FEF3C7;color:#92400E;padding:8px 14px;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-radius:8px;margin-bottom:10px;border:1px solid #FCD34D;';
+  banner.innerHTML = '<span>📜 当前为历史会话浏览模式（只读），会话ID: <code>' + A.escapeHtml(sessionId.slice(0, 18)) + '…</code></span>' +
+    '<button onclick="selectSession(currentSessionId)" style="background:#7C3AED;color:white;border:0;padding:4px 12px;border-radius:6px;cursor:pointer;font-size:12px;">↩ 回到当前会话</button>';
+  box.appendChild(banner);
+  const msgs = (r.data && r.data.messages) || [];
+  msgs.forEach(m => { box.insertAdjacentHTML('beforeend', renderMsg(m)); });
+  // 滚到底
+  requestAnimationFrame(() => requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; }));
+}
+
+async function selectSession(sid) {
+  try {
+    currentSessionId = sid;
+    document.querySelectorAll('.list-pane .item').forEach(el => el.classList.toggle('active', el.getAttribute('onclick') && el.getAttribute('onclick').includes(sid)));
+    document.getElementById('input-area').style.display = 'flex';
+    document.getElementById('messages').innerHTML = '<div class="k-loading">加载历史…</div>';
+    // 隐藏右侧空状态
+    const empty = document.querySelector('#chat-header + .empty-chat, .empty-chat');
+    if (empty) empty.style.display = 'none';
+    // 修复：拆开 Promise.all，任一失败不影响其他（之前一个失败整个 reject，右栏永远停在加载中）
+    const tasks = [
+      loadHistory().catch(e => console.error('loadHistory err:', e)),
+      loadSessionInfo().catch(e => console.error('loadSessionInfo err:', e)),
+      loadAiHistory().catch(e => console.error('loadAiHistory err:', e)),
+    ];
+    await Promise.all(tasks);
+    startPoll();
+    history.replaceState(null, '', '?session=' + sid);
+  } catch (e) {
+    console.error('selectSession error:', e);
+    A.toast('会话加载失败：' + (e.message || '未知'), 'error');
+    document.getElementById('messages').innerHTML = '<div class="k-empty">加载失败：' + (e.message || '未知') + ' <button onclick="selectSession(currentSessionId)" style="margin-left:8px;padding:2px 8px;">重试</button></div>';
+  }
+}
+
+async function loadHistory() {
+  try {
+    if (!currentSessionId) return;
+    const r = await A.api('GET', '/api/agent/message/history?session_id=' + currentSessionId + '&limit=50');
+    const box = document.getElementById('messages');
+    if (!box) return;
+    if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败：' + (r.msg || '未知') + '</div>'; return; }
+    const msgs = (r.data && r.data.messages) || [];
+    if (!msgs.length) { box.innerHTML = '<div class="empty-chat"><div class="ico">💬</div><p style="margin-top:16px;">暂无消息</p></div>'; return; }
+    // 记录已渲染 id，防止 poll 重复
+    msgs.forEach(m => { if (m.id) renderedMsgIds[m.id] = true; });
+    // 接口已在源头按正序返回（最早在上，最新在下），无需再 reverse
+    box.innerHTML = msgs.map(m => renderMsg(m)).join('');
+    // 双重 rAF：浏览器会在 commit 后才完成布局，确保 scrollTop 滚到底
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      box.scrollTop = box.scrollHeight;
+    }));
+    // 兜底：再 200ms 后强制滚一次（应对图片/异步布局）
+    setTimeout(() => { box.scrollTop = box.scrollHeight; }, 200);
+  } catch (e) {
+    console.error('loadHistory hard error:', e);
+  }
+}
+
+function renderMsg(m) {
+  // 系统消息居中
+  if (m.sender_type === 'system' || m.type === 'system') {
+    return '<div class="msg msg-system">' + A.escapeHtml(m.content || '') + '</div>';
+  }
+  // 兼容 polling payload 的字段名（pushPayload 用 sender_type；payload 可能用 type）
+  const senderType = m.sender_type || m.type || 'unknown';
+  const isAgent = senderType === 'agent';
+  const isCustomer = senderType === 'customer' || senderType === 'visitor' || senderType === 'user';
+  const isAi = senderType === 'ai' || senderType === 'robot';
+  const cls = isAi ? 'msg-ai' : isCustomer ? 'msg-customer' : 'msg-agent';
+  const badgeName = isCustomer ? '访客' : isAi ? 'AI' : '客服';
+  const name = isAi ? (m.ai_name || 'AI 助手') :
+               isCustomer ? (m.customer_name || m.customer_id || '访客') :
+               (m.agent_name || (m.sender_name || '客服'));
+  // 头像
+  let avUrl = '';
+  if (isCustomer) avUrl = m.customer_avatar || '';
+  else if (isAi) avUrl = '';
+  else avUrl = m.agent_avatar || '';
+  const initial = (name || '客').slice(0, 2);
+  const avCls = isAi ? 'av av-ai' : isAgent ? 'av av-agent' : 'av';
+  // 修复：用 inline SVG 头像（不用 dataURL，避免破图占位）
+  const avHtml = '<div class="' + avCls + '" data-initial="' + A.escapeHtml(initial) + '" data-name="' + A.escapeHtml(name || '') + '"' +
+    (avUrl ? ' style="background-image:url(' + escAttr(avUrl) + ');background-size:cover;"' : '') + '>' +
+    (!avUrl ? '<span class="av-text">' + A.escapeHtml(initial) + '</span>' : '') +
+    '</div>';
+  const rowCls = isAgent ? 'msg-row me' : 'msg-row';
+
+  // === 修复：按 msg_type 渲染媒体内容（image/file/audio/video/emoji） ===
+  const mt = (m.msg_type || 'text').toLowerCase();
+  const mediaUrl = m.media_url || '';
+  let contentHtml = '';
+  if (mt === 'image' && mediaUrl) {
+    // 修复：用 JSON.stringify 安全序列化 mediaUrl（含 ' " / 等都不怕）
+    const urlJs = JSON.stringify(mediaUrl);
+    const typeJs = JSON.stringify(type);
+    contentHtml = '<img class="image-thumb" src="' + escAttr(mediaUrl) + '" onclick="previewMedia(' + urlJs + ',' + typeJs + ')" />';
+  } else if (mt === 'video' && mediaUrl) {
+    contentHtml = '<video src="' + escAttr(mediaUrl) + '" controls preload="metadata"></video>';
+  } else if (mt === 'audio' && mediaUrl) {
+    contentHtml = '<audio src="' + escAttr(mediaUrl) + '" controls preload="metadata"></audio>';
+  } else if (mt === 'file' && mediaUrl) {
+    const sizeText = m.file_size ? ' · ' + formatSize(m.file_size) : '';
+    const fileName = m.file_name || m.content || '文件';
+    contentHtml = '<div class="file-card">' +
+      '<span class="file-icon">📄</span>' +
+      '<div class="file-info"><div class="file-name">' + A.escapeHtml(fileName) + '</div>' +
+      '<div class="file-size">' + A.escapeHtml(sizeText.trim('·').trim()) + '</div></div>' +
+      '<a class="file-download" href="' + escAttr(mediaUrl) + '" target="_blank" download>下载</a>' +
+    '</div>';
+  } else if (mt === 'emoji') {
+    // 表情：content 存的就是 emoji 字符或图片 URL
+    if (mediaUrl) {
+      contentHtml = '<img src="' + escAttr(mediaUrl) + '" alt="emoji" style="width:80px;height:80px;object-fit:contain;">';
+    } else {
+      contentHtml = A.escapeHtml(m.content || '😊');
+    }
+  } else {
+    // 文本：保留换行
+    contentHtml = A.escapeHtml(m.content || '').replace(/\n/g, '<br>');
+  }
+  // 是否媒体消息
+  const isMedia = ['image','file','audio','video','emoji'].includes(mt);
+  const msgCls = isMedia ? 'msg ' + cls + ' msg-media' : 'msg ' + cls;
+  const emojiCls = mt === 'emoji' ? 'msg-emoji' : '';
+
+  return '<div class="' + rowCls + '" data-msg-id="' + (m.msg_id || m.id || '') + '">' +
+    avHtml +
+    '<div class="body">' +
+      (mt === 'emoji' ? '' : '<div class="name">' + A.escapeHtml(name) + '</div>') +
+      '<div class="' + msgCls + ' ' + emojiCls + '">' + contentHtml +
+        '<div class="meta"><span class="badge">' + badgeName + '</span> ' + A.fmtDate(m.created_at) + '</div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function formatSize(b) {
+  if (!b) return '';
+  b = +b;
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return Math.round(b / 1024) + ' KB';
+  if (b < 1073741824) return (b / 1048576).toFixed(1) + ' MB';
+  return (b / 1073741824).toFixed(1) + ' GB';
+}
+
+// 媒体预览（图片灯箱）
+let _mediaPreviewEl = null;
+function previewMedia(url, type) {
+  closeMediaPreview();
+  if (type !== 'image') return;  // 非图片直接返回
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9500;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+  ov.innerHTML = '<img src="' + escAttr(url) + '" style="max-width:92vw;max-height:92vh;border-radius:8px;" />';
+  ov.onclick = closeMediaPreview;
+  document.body.appendChild(ov);
+  _mediaPreviewEl = ov;
+}
+function closeMediaPreview() { if (_mediaPreviewEl) { _mediaPreviewEl.remove(); _mediaPreviewEl = null; } }
+
+function escAttr(s) { return String(s||'').replace(/"/g, '&quot;'); }
+// 修复：默认头像用 canvas 生成 PNG dataURL（避免 SVG 字体渲染问题）
+function defaultAvatar(name) {
+  const initial = (name || '客').slice(0, 2);  // 中文取前 2 字符，英文取 1 大写
+  const colors = ['#7C3AED','#0EA5E9','#10B981','#F59E0B','#8B5CF6','#EC4899','#EF4444','#6366F1'];
+  const seed = (name || '客').split('').reduce((s, c) => s + c.charCodeAt(0), 0);
+  const c = colors[seed % colors.length];
+  // 构造 SVG（修复：去掉 utf8, 改用标准 ;charset=utf-8, + 转义 < > &）
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">' +
+    '<rect width="40" height="40" rx="20" fill="' + c + '"/>' +
+    '<text x="20" y="' + (initial.length > 1 ? '27' : '27') + '" font-size="' + (initial.length > 1 ? '16' : '18') + '" fill="#fff" text-anchor="middle" font-family="-apple-system, PingFang SC, Microsoft YaHei, sans-serif" font-weight="600">' +
+    initial + '</text></svg>';
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+async function loadSessionInfo() {
+  const r = await A.api('GET', '/api/agent/session/list?size=100');
+  if (r.code === 0) {
+    const s = (r.data.list || []).find(x => x.session_id === currentSessionId);
+    if (s) {
+      const head = document.querySelector('#chat-header .info');
+      // 修复：用 JSON.stringify 安全序列化 currentSessionId
+      const curJs = JSON.stringify(currentSessionId);
+      head.querySelector('h3').innerHTML = '会话 <code style="font-size:12px;font-family:Fira Code,monospace;">' + currentSessionId.slice(0, 18) + '…</code> <button onclick="copyText(' + curJs + ', this)" style="border:0;background:transparent;cursor:pointer;font-size:14px;padding:0 4px" title="复制完整会话ID">📋</button>';
+      head.querySelector('.meta').textContent = '客户 ' + (s.customer_id || '-') + ' · 渠道 ' + (s.channel || '-') + ' · ' + (s.message_count || 0) + ' 消息';
+      // 修复：用 JSON.stringify 安全序列化
+      const curJs2 = JSON.stringify(currentSessionId);
+      document.getElementById('session-info').innerHTML =
+        '<div class="kv"><span class="label">会话ID</span><span class="v"><code class="k-mono" style="font-size:11px;" title="' + currentSessionId.replace(/"/g,'&quot;') + '">' + currentSessionId.slice(0, 14) + '…</code> <button onclick="copyText(' + curJs2 + ', this)" style="border:0;background:transparent;cursor:pointer;font-size:14px;padding:0 4px" title="复制完整会话ID">📋</button></span></div>' +
+        '<div class="kv"><span class="label">状态</span><span class="v"><span class="k-tag k-tag-' + (s.status==='active'?'success':'warning') + '">' + s.status + '</span></span></div>' +
+        '<div class="kv"><span class="label">服务模式</span><span class="v"><span class="k-tag ' + (s.serving_mode==='ai'?'k-tag-ai':'k-tag-human') + '">' + (s.serving_mode === 'ai' ? '🤖 AI' : '👤 人工') + '</span></span></div>' +
+        '<div class="kv"><span class="label">客服</span><span class="v">' + (s.agent_name || (s.agent_id ? '#' + s.agent_id : '未分配')) + '</span></div>' +
+        '<div class="kv"><span class="label">开始时间</span><span class="v k-mono" style="font-size:11px;">' + A.fmtDate(s.created_at) + '</span></div>';
+      document.getElementById('customer-info').innerHTML =
+        '<div class="kv"><span class="label">客户ID</span><span class="v k-mono" style="font-size:11px;">' + (s.customer_id || '-') + '</span></div>' +
+        '<div class="kv"><span class="label">渠道</span><span class="v">' + (s.channel || '-') + '</span></div>' +
+        '<div id="custom-fields-box"><div class="empty">加载访客信息…</div></div>';
+      // 加载访客自定义字段
+      loadVisitorFields(s.customer_id, currentSessionId);
+    }
+  }
+}
+
+async function loadVisitorFields(visitorId, sessionId) {
+  const box = document.getElementById('custom-fields-box');
+  if (!box) return;
+  if (!visitorId && !sessionId) { box.innerHTML = ''; return; }
+  let url = '/api/admin/visitor/field/get?';
+  if (visitorId) url += 'visitor_id=' + encodeURIComponent(visitorId);
+  else if (sessionId) url += 'session_id=' + encodeURIComponent(sessionId);
+  const r = await A.api('GET', url);
+  if (r.code !== 0) { box.innerHTML = '<div class="empty" style="color:#94A3B8;font-size:11px">无访客信息</div>'; return; }
+  const fields = r.data.fields || {};
+  const keys = Object.keys(fields);
+  if (!keys.length) { box.innerHTML = ''; return; }
+  let html = '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #E2E8F0">';
+  html += '<div style="font-size:11px;color:#64748B;font-weight:600;margin-bottom:6px">📇 访客信息</div>';
+  keys.forEach(function (k) {
+    const f = fields[k];
+    let v = f.value;
+    if (Array.isArray(v)) v = v.join('、');
+    html += '<div class="kv"><span class="label">' + A.escapeHtml(f.name) + '</span><span class="v">' + A.escapeHtml(String(v || '-')) + '</span></div>';
+  });
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+async function loadAiHistory() {
+  const r = await A.api('GET', '/api/agent/message/history?session_id=' + currentSessionId + '&limit=50');
+  const box = document.getElementById('ai-history');
+  if (r.code !== 0) { box.innerHTML = '<div class="empty">加载失败</div>'; return; }
+  const msgs = (r.data && r.data.messages) || [];
+  const ai = msgs.filter(m => m.sender_type === 'ai');
+  if (!ai.length) { box.innerHTML = '<div class="empty">此会话无 AI 历史</div>'; return; }
+  box.innerHTML = ai.slice(-6).map(m => '<div class="ai-history"><div class="role">🤖 AI</div>' + A.escapeHtml(m.content || '') + '</div>').join('');
+}
+
+// 已渲染的消息 id（去重）
+const renderedMsgIds = {};
+
+/**
+ * 轮询拉新消息：基于 /api/poll/agent 服务端推送事件
+ * 流程：客服每 2s 拉一次，取事件流里的 message 事件并渲染到当前会话
+ */
+function startPoll() {
+  if (pollingTimer) clearInterval(pollingTimer);
+  let afterSeq = 0;
+  pollingTimer = setInterval(async () => {
+    if (!currentSessionId) return;
+    try {
+      const r = await fetch('/api/poll/agent?watch_session=' + encodeURIComponent(currentSessionId) + '&after_seq=' + afterSeq, {
+        headers: { 'Authorization': 'Bearer ' + A.token }
+      });
+      const j = await r.json();
+      if (j.code !== 0) return;
+      for (const evt of (j.data.events || [])) {
+        afterSeq = Math.max(afterSeq, evt.seq || 0);
+        const p = evt.payload || {};
+        // 只处理当前会话的新消息
+        if (p.type !== 'message' || p.session_id !== currentSessionId) continue;
+        // 渲染新消息（去重：按 msg_id）
+        if (!renderedMsgIds[p.msg_id]) {
+          renderedMsgIds[p.msg_id] = true;
+          const msgsBox = document.getElementById('messages');
+          msgsBox.insertAdjacentHTML('beforeend', renderMsg(p));
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            msgsBox.scrollTop = msgsBox.scrollHeight;
+          }));
+        }
+      }
+    } catch (e) { /* ignore */ }
+  }, 2000);
+}
+
+async function sendMsg() {
+  const inp = document.getElementById('msg-input');
+  const content = inp.value.trim();
+  if (!content || !currentSessionId) return;
+  const r = await A.api('POST', '/api/agent/message/send', {
+    session_id: currentSessionId,
+    content,
+    type: 'text',
+    client_msg_id: 'ag_' + Date.now(),
+  });
+  if (r.code === 0) {
+    inp.value = '';
+    // 重置 textarea 高度 + 发送按钮 disabled
+    autoResizeTextarea(inp);
+    const d = (r.data && r.data.data) ? r.data.data : (r.data || {});
+    const m = {
+      // 修复：兼容多种返回值（r.data.msg_id / d.msg_id / d.id），防止 poll 拉自己发的消息时重复渲染
+      id: (r.data && r.data.msg_id) || d.msg_id || d.id || 0,
+      sender_type: 'agent',
+      content: content,
+      msg_type: 'text',
+      created_at: d.created_at || new Date().toISOString(),
+      agent_name: A.user && (A.user.real_name || A.user.username) || '客服',
+      agent_avatar: A.user && A.user.avatar || ''
+    };
+    if (m.id) renderedMsgIds[m.id] = true;
+    const msgsBox = document.getElementById('messages');
+    msgsBox.insertAdjacentHTML('beforeend', renderMsg(m));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      msgsBox.scrollTop = msgsBox.scrollHeight;
+    }));
+  } else {
+    A.toast('发送失败：' + r.msg, 'error');
+  }
+}
+
+// === 通用：上传并发送媒体消息 ===
+async function uploadAndSend(file, msgType) {
+  if (!file) return;
+  if (!currentSessionId) { A.toast && A.toast('请先选择会话', 'error'); return; }
+  // 1. 上传到服务器
+  const fd = new FormData();
+  fd.append('file', file);
+  const upRes = await fetch('/api/common/upload', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + A.token },
+    body: fd,
+  }).then(r => r.json()).catch(() => null);
+  if (!upRes || upRes.code !== 0) { A.toast && A.toast('上传失败：' + ((upRes && upRes.msg) || '未知'), 'error'); return; }
+  const url = upRes.data.url;
+  // 2. 调 message/send 发送媒体消息
+  const sendRes = await A.api('POST', '/api/agent/message/send', {
+    session_id: currentSessionId,
+    content: upRes.data.original_name || file.name || '文件',
+    type: msgType,
+    media_url: url,
+    ext: { file_name: file.name, file_size: file.size, mime: file.type, ext: upRes.data.ext },
+    client_msg_id: 'ag_' + Date.now(),
+  });
+  if (sendRes.code === 0) {
+    const d = (sendRes.data && sendRes.data.data) ? sendRes.data.data : (sendRes.data || {});
+    const m = {
+      id: d.id || d.msg_id || 0,
+      sender_type: 'agent',
+      msg_type: msgType,
+      content: file.name || '文件',
+      media_url: url,
+      file_name: file.name,
+      file_size: file.size,
+      created_at: d.created_at || new Date().toISOString(),
+      agent_name: A.user && (A.user.real_name || A.user.username) || '客服',
+      agent_avatar: A.user && A.user.avatar || ''
+    };
+    if (m.id) renderedMsgIds[m.id] = true;
+    const box = document.getElementById('messages');
+    box.insertAdjacentHTML('beforeend', renderMsg(m));
+    requestAnimationFrame(() => requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; }));
+  } else {
+    A.toast && A.toast('发送失败：' + sendRes.msg, 'error');
+  }
+}
+
+// === 工具按钮初始化（图片/文件/视频/表情） ===
+function initInputTools() {
+  const $ = id => document.getElementById(id);
+  $('btn-image').onclick = () => $('file-image').click();
+  $('file-image').onchange = e => { if (e.target.files[0]) uploadAndSend(e.target.files[0], 'image'); e.target.value = ''; };
+
+  $('btn-file').onclick = () => $('file-doc').click();
+  $('file-doc').onchange = e => { if (e.target.files[0]) uploadAndSend(e.target.files[0], 'file'); e.target.value = ''; };
+
+  $('btn-video').onclick = () => $('file-video').click();
+  $('file-video').onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const isAudio = (f.type || '').startsWith('audio');
+    uploadAndSend(f, isAudio ? 'audio' : 'video');
+    e.target.value = '';
+  };
+
+  // 表情面板（点击 emoji 插入到输入框）
+  $('btn-emoji').onclick = () => {
+    // emoji 面板与快捷回复面板互斥
+    const panel = $('emoji-panel');
+    const qp = $('quick-panel');
+    const qb = $('quick-toggle');
+    const show = panel.style.display === 'none';
+    panel.style.display = show ? '' : 'none';
+    if (qp) qp.style.display = 'none';
+    if (qb) { qb.classList.remove('open'); qb.textContent = '＋ 快捷回复'; }
+    $('btn-emoji').classList.toggle('active', show);
+  };
+  // 初始化表情九宫格
+  const EMOJIS = [
+    '😀','😁','😂','🤣','😃','😄','😅','😆','😉','😊','😋','😎','😍','😘','🥰','😗','😙','😚',
+    '🙂','🤗','🤩','🤔','🤨','😐','😑','😶','🙄','😏','😣','😥','😮','🤐','😯','😪','😫','🥱',
+    '😴','😌','😛','😜','😝','🤤','😒','😓','😔','😕','🙃','🤑','😲','☹️','🙁','😖','😞','😟',
+    '😤','😢','😭','😦','😧','😨','😩','🤯','😬','😰','😱','🥵','🥶','😳','🤪','😵','🥴','😠',
+    '😡','🤬','😷','🤒','🤕','🤢','🤮','🤧','🥳','🥺','🤠','🤡','🤥','🤫','🤭','🧐','🤓','😈',
+    '👿','👹','👺','💀','👻','👽','🤖','💩','😺','😸','😹','😻','😼','😽','🙀','😿','😾','👐',
+    '🙌','👏','🙏','🤝','👍','👎','👊','✊','🤛','🤜','🤞','✌️','🤘','🤟','👌','🤏','👈','👉',
+    '👆','👇','✋','🤚','🖐️','🖖','👋','🤙','💪','🦾','🖕','✍️','💅','🦵','🦿','🦶','👂','🦻',
+    '👃','🧠','🦷','🦴','👀','👁️','👅','👄','💋','🩸','💖','💗','💓','💞','💕','💝','💘','💔',
+    '❤️','🧡','💛','💚','💙','💜','🤎','🖤','🤍','💯','💢','💥','💫','💦','💨','🕳️','💣','💬',
+    '👍','🔥','✨','🎉','🎊','🌟','⭐','🍕','🍔','☕','🍺'
+  ];
+  const grid = $('emoji-grid');
+  grid.innerHTML = EMOJIS.map(e =>
+    '<span data-emoji="' + e + '">' + e + '</span>'
+  ).join('');
+  grid.onclick = ev => {
+    const t = ev.target.closest('span[data-emoji]');
+    if (!t) return;
+    const inp = $('msg-input');
+    inp.value = (inp.value || '') + t.dataset.emoji;
+    inp.focus();
+    autoResizeTextarea(inp);
+  };
+
+  // textarea Enter 发送 / Shift+Enter 换行
+  $('msg-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMsg();
+    }
+  });
+  // 修复：textarea 输入时自动撑高 + 发送按钮联动
+  $('msg-input').addEventListener('input', e => autoResizeTextarea(e.target));
+  // 初始化一次（防止刷新时旧值没及时调整）
+  setTimeout(() => autoResizeTextarea($('msg-input')), 100);
+}
+
+function insertQuick(text) {
+  const inp = document.getElementById('msg-input');
+  inp.value = text;
+  inp.focus();
+  // 同时触发 input 事件让高度自适应 + 发送按钮可点击
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// === 快捷回复（从后端 /api/agent/quick-reply/list 加载） ===
+let QR_CACHE = { common: [], personal: [] };
+async function loadQuickReplies() {
+  try {
+    const r = await fetch('/api/agent/quick-reply/list?size=100', { headers: { 'Authorization': 'Bearer ' + A.token } });
+    const j = await r.json();
+    const list = (j.data && j.data.list) || [];
+    QR_CACHE = { common: list.filter(x => x.category === 'common'), personal: list.filter(x => x.category === 'personal') };
+    renderQuickChips();
+  } catch (e) {
+    console.warn('loadQuickReplies failed', e);
+    // 失败时给空数组即可（面板会显示空态）
+    QR_CACHE = { common: [], personal: [] };
+    renderQuickChips();
+  }
+}
+function renderQuickChips() {
+  const box = document.getElementById('quick-chips');
+  if (!box) return;
+  const all = []
+    .concat(QR_CACHE.personal.map(x => Object.assign(x, { _isPersonal: true })))
+    .concat(QR_CACHE.common.map(x => Object.assign(x, { _isPersonal: false })));
+  if (all.length === 0) {
+    box.innerHTML = '<span style="font-size:11.5px;color:var(--color-text-3);">暂无快捷回复，点右侧"⚙ 管理"添加</span>';
+    return;
+  }
+  box.innerHTML = all.map(x => {
+    const titleEsc = (x.title || '').replace(/"/g, '&quot;');
+    const contentEsc = (x.content || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const catTag = x._isPersonal ? '<span class="cat-tag">个人</span>' : '<span class="cat-tag">公共</span>';
+    // 修复：用 data- 属性 + 事件代理，避免 onclick 字符串拼接出错
+    return '<span class="chip qr-chip ' + (x._isPersonal ? 'personal' : '') + '" data-content="' + A.escapeHtml(x.content || '') + '" title="' + titleEsc + '：' + contentEsc + '">' + catTag + titleEsc + '</span>';
+  }).join('');
+  // 修复：绑定 chips 点击事件
+  const qBox = document.getElementById('quick-chips');
+  if (qBox && !qBox._bound) {
+    qBox._bound = true;
+    qBox.addEventListener('click', function(ev) {
+      const c = ev.target.closest('.qr-chip');
+      if (!c) return;
+      const content = c.getAttribute('data-content') || '';
+      insertQuick(content);
+    });
+  }
+}
+
+// === 快捷回复管理弹窗 ===
+async function openQuickReplyManager() {
+  document.getElementById('qr-modal-overlay').classList.add('show');
+  resetQrForm();
+  await refreshQrList();
+}
+function closeQuickReplyManager() {
+  document.getElementById('qr-modal-overlay').classList.remove('show');
+}
+function resetQrForm() {
+  document.getElementById('qr-id').value = '0';
+  document.getElementById('qr-title').value = '';
+  document.getElementById('qr-shortcut').value = '';
+  document.getElementById('qr-content').value = '';
+  document.getElementById('qr-category').value = 'personal';
+  document.getElementById('qr-sort').value = '0';
+}
+async function refreshQrList() {
+  try {
+    const r = await fetch('/api/agent/quick-reply/list?size=100', { headers: { 'Authorization': 'Bearer ' + (window.A && A.token || '') } });
+    const j = await r.json();
+    const list = (j.data && j.data.list) || [];
+    const box = document.getElementById('qr-list');
+    if (list.length === 0) {
+      box.innerHTML = '<div style="text-align:center;color:var(--color-text-3);padding:30px 0;font-size:13px;">还没有快捷回复，使用上方表单添加一条吧～</div>';
+    } else {
+      box.innerHTML = list.map(x => {
+        const tEsc = (x.title || '').replace(/</g, '&lt;');
+        const cEsc = (x.content || '').replace(/</g, '&lt;');
+        const cEscAttr = (x.content || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const isPers = x.category === 'personal';
+        const ownerTag = isPers ? '' : '<span style="font-size:11px;color:var(--color-text-3);margin-left:6px;">（公共）</span>';
+        // 修复：用 data- 属性，避免 onclick 字符串拼接出错
+        const titleEsc2 = A.escapeHtml(x.title || '');
+        const delBtn = '<button class="del btn-qr-del" data-id="' + x.id + '" data-title="' + titleEsc2 + '" title="删除这条快捷回复">✕ 删除</button>';
+        const editBtn = '<button class="btn-qr-edit" data-id="' + x.id + '" title="编辑">✎ 编辑</button>';
+        return '<div class="qr-row">' +
+          '<div class="qr-content">' +
+            '<div class="qr-title"><span class="cat-badge ' + x.category + '">' + (x.category === 'common' ? '公共' : '个人') + '</span>' + tEsc + ownerTag + '</div>' +
+            '<div class="qr-preview">' + cEsc + '</div>' +
+          '</div>' +
+          '<div class="qr-actions">' + editBtn + delBtn + '</div>' +
+        '</div>';
+      }).join('');
+      // 修复：绑定 edit/delete 按钮事件
+      if (!box._qrBound) {
+        box._qrBound = true;
+        box.addEventListener('click', function(ev) {
+          const del = ev.target.closest('.btn-qr-del');
+          if (del) { deleteQuickReply(parseInt(del.getAttribute('data-id')), del.getAttribute('data-title') || ''); return; }
+          const ed = ev.target.closest('.btn-qr-edit');
+          if (ed) { editQuickReply(parseInt(ed.getAttribute('data-id'))); return; }
+        });
+      }
+    }
+  } catch (e) {
+    console.error('refreshQrList failed', e);
+  }
+}
+function editQuickReply(id) {
+  // 在 QR_CACHE 或重新拉一次
+  const list = [].concat(QR_CACHE.personal, QR_CACHE.common);
+  const item = list.find(x => x.id === id);
+  if (!item) { alert('记录不存在，请刷新'); return; }
+  document.getElementById('qr-id').value = item.id;
+  document.getElementById('qr-title').value = item.title || '';
+  document.getElementById('qr-shortcut').value = item.shortcut || '';
+  document.getElementById('qr-content').value = item.content || '';
+  document.getElementById('qr-category').value = item.category || 'personal';
+  document.getElementById('qr-sort').value = item.sort || 0;
+  // 滚到表单
+  document.getElementById('qr-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+async function saveQuickReply() {
+  const id = document.getElementById('qr-id').value;
+  const title = document.getElementById('qr-title').value.trim();
+  const content = document.getElementById('qr-content').value.trim();
+  const shortcut = document.getElementById('qr-shortcut').value.trim();
+  const category = document.getElementById('qr-category').value;
+  const sort = parseInt(document.getElementById('qr-sort').value || 0);
+  if (!title || !content) { alert('标题和内容不能为空'); return; }
+  const url = id > 0 ? '/api/agent/quick-reply/update' : '/api/agent/quick-reply/create';
+  const body = { title, content, shortcut, category, sort };
+  if (id > 0) body.id = id;
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + A.token },
+      body: JSON.stringify(body)
+    });
+    const j = await r.json();
+    if (j.code === 0) {
+      resetQrForm();
+      await refreshQrList();
+      await loadQuickReplies();  // 刷新面板 chips
+    } else {
+      alert('保存失败：' + (j.msg || '未知错误'));
+    }
+  } catch (e) {
+    alert('保存失败：' + e.message);
+  }
+}
+async function deleteQuickReply(id, title) {
+  // 修复：删除前二次确认（用更友好的 confirm 文案）
+  const label = title ? '「' + title + '」' : '这条';
+  if (!confirm('确认删除' + label + '快捷回复？\n删除后将无法恢复。')) return;
+  try {
+    const r = await fetch('/api/agent/quick-reply/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + A.token },
+      body: JSON.stringify({ id })
+    });
+    const j = await r.json();
+    if (j.code === 0) {
+      await refreshQrList();
+      await loadQuickReplies();
+      // 修复：删除成功给个轻量 toast 提示
+      showQrToast('✅ 已删除：' + label, 'success');
+    } else {
+      showQrToast('❌ 删除失败：' + (j.msg || '未知错误'), 'error');
+    }
+  } catch (e) {
+    showQrToast('❌ 删除失败：' + e.message, 'error');
+  }
+}
+
+// 修复：轻量 toast 提示（替换 alert）
+function showQrToast(msg, type) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);' +
+    'padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:10000;' +
+    'box-shadow:0 8px 24px rgba(0,0,0,0.15);animation:qrToastIn 0.3s ease;pointer-events:none;' +
+    (type === 'success'
+      ? 'background:#10B981;color:white;'
+      : 'background:#EF4444;color:white;');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 300); }, 1800);
+}
+
+// 切换快捷回复折叠面板（点开是分组展示，再点收起）
+function toggleQuickPanel() {
+  const panel = document.getElementById('quick-panel');
+  const btn = document.getElementById('quick-toggle');
+  const ep = document.getElementById('emoji-panel');
+  const eb = document.getElementById('btn-emoji');
+  const show = panel.style.display === 'none';
+  panel.style.display = show ? '' : 'none';
+  // 互斥：关闭 emoji 面板
+  if (ep) ep.style.display = 'none';
+  if (eb) { eb.classList.remove('active'); }
+  if (btn) btn.classList.toggle('open', show);
+  btn.textContent = (show ? '－' : '＋') + ' 快捷回复';
+}
+
+// textarea 行数自适应（随内容自动撑高，最大 200px）
+function autoResizeTextarea(ta) {
+  if (!ta) return;
+  // 修复：textarea 在 flex:1 容器中已自适应，JS 不再强制高度
+  // 仅触发滚动到底部（保证输入时光标可见）
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+  // 联动发送按钮可用性
+  const btn = document.getElementById('btn-send');
+  if (btn) btn.disabled = !(ta.value.trim().length > 0);
+}
+
+initInputTools();
+// 修复：启动时加载快捷回复（来自后端 /api/agent/quick-reply/list）
+loadQuickReplies();
+
+async function copyText(text, btn) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    if (btn) { const old = btn.innerHTML; btn.innerHTML = '✅'; setTimeout(() => btn.innerHTML = old, 1500); }
+    A.toast && A.toast('已复制会话ID', 'success');
+  } catch (e) { A.toast && A.toast('复制失败', 'error'); }
+}
+
+async function takeOver() {
+  if (!currentSessionId) return;
+  if (!confirm('接管此会话并分配给自己？')) return;
+  const r = await A.api('POST', '/api/agent/session/assign', { session_id: currentSessionId, employee_id: A.employeeId });
+  A.toast(r.code === 0 ? '已接管' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+  if (r.code === 0) loadSessionInfo();
+}
+
+async function closeSession() {
+  if (!currentSessionId) return;
+  if (!confirm('关闭此会话？')) return;
+  const r = await A.api('POST', '/api/agent/session/close', { session_id: currentSessionId, reason: 'agent_close' });
+  A.toast(r.msg, r.code === 0 ? 'success' : 'error');
+  if (r.code === 0) {
+    currentSessionId = null;
+    document.getElementById('input-area').style.display = 'none';
+    document.getElementById('messages').innerHTML = '<div class="empty-chat"><div class="ico">✓</div><p style="margin-top:16px;">会话已关闭</p></div>';
+    if (pollingTimer) clearInterval(pollingTimer);
+  }
+}
+
+// ===== 转接 =====
+async function openTransferModal() {
+  if (!currentSessionId) { A.toast('请先选择会话', 'error'); return; }
+  // 加载在线同事
+  const r = await A.api('GET', '/api/agent/peers/online');
+  const list = (r.data && r.data.length) ? r.data : [];
+  if (!list.length) { A.toast('当前没有其他在线客服可转接', 'error'); return; }
+  // 弹窗
+  let opts = list.map(p => `<label class="peer-item">
+    <input type="radio" name="peer" value="${p.id}" ${p.load_count >= p.max_sessions ? 'disabled' : ''}/>
+    <img class="peer-avatar" src="${(p.avatar||'').replace(/"/g, '&quot;')}" onerror="this.style.display='none'" alt=""/>
+    <span class="peer-name">${(p.real_name||'').replace(/</g,'&lt;')}</span>
+    <span class="peer-load">${p.load_count}/${p.max_sessions}</span>
+    ${p.load_count >= p.max_sessions ? '<span class="badge-full">满载</span>' : ''}
+  </label>`).join('');
+  showModal('🔁 转接到其他客服', `
+    <div class="peer-list">${opts}</div>
+    <div class="form-row">
+      <label>转接原因（可选）</label>
+      <select id="transfer-reason">
+        <option value="专业匹配">专业匹配</option>
+        <option value="下班交接">下班交接</option>
+        <option value="复杂问题升级">复杂问题升级</option>
+        <option value="客户指定">客户指定</option>
+        <option value="其他">其他</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>备注（可选）</label>
+      <textarea id="transfer-note" rows="2" placeholder="补充说明给同事..."></textarea>
+    </div>
+  `, [
+    { text: '取消', cls: 'k-btn-secondary', onClick: closeModal },
+    { text: '确认转接', cls: 'k-btn-warning', onClick: submitTransfer },
+  ]);
+}
+
+async function submitTransfer() {
+  const peer = document.querySelector('input[name="peer"]:checked');
+  if (!peer) { A.toast('请选择目标客服', 'error'); return; }
+  const toEmployeeId = parseInt(peer.value, 10);
+  const reason = document.getElementById('transfer-reason').value || '主动转接';
+  const note = document.getElementById('transfer-note').value.trim();
+  const r = await A.api('POST', '/api/agent/session/transfer', {
+    session_id: currentSessionId, to_employee_id: toEmployeeId, reason, note,
+  });
+  if (r.code === 0) {
+    A.toast('已转接给 ' + (r.data && r.data.to_agent || ''), 'success');
+    closeModal();
+    // 本地刷新
+    currentSessionId = null;
+    document.getElementById('input-area').style.display = 'none';
+    document.getElementById('messages').innerHTML = '<div class="empty-chat"><div class="ico">🔁</div><p style="margin-top:16px;">会话已转接</p></div>';
+    loadSessions();
+  } else {
+    A.toast(r.msg || '转接失败', 'error');
+  }
+}
+
+// ===== 结束会话（带原因） =====
+function openCloseModal() {
+  if (!currentSessionId) { A.toast('请先选择会话', 'error'); return; }
+  showModal('✕ 结束会话', `
+    <div class="form-row">
+      <label>结束原因</label>
+      <select id="close-reason">
+        <option value="resolved">已解决</option>
+        <option value="customer_leave">客户离开</option>
+        <option value="agent_leave">客服暂离</option>
+        <option value="timeout">超时</option>
+        <option value="transfer_ticket">已转工单</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>备注（可选）</label>
+      <textarea id="close-note" rows="2" placeholder="补充说明..."></textarea>
+    </div>
+  `, [
+    { text: '取消', cls: 'k-btn-secondary', onClick: closeModal },
+    { text: '确认结束', cls: 'k-btn-danger', onClick: submitClose },
+  ]);
+}
+
+async function submitClose() {
+  const reason = document.getElementById('close-reason').value;
+  const note = document.getElementById('close-note').value.trim();
+  const r = await A.api('POST', '/api/agent/session/close', {
+    session_id: currentSessionId, reason, note,
+  });
+  if (r.code === 0) {
+    A.toast('会话已结束', 'success');
+    closeModal();
+    currentSessionId = null;
+    document.getElementById('input-area').style.display = 'none';
+    document.getElementById('messages').innerHTML = '<div class="empty-chat"><div class="ico">✓</div><p style="margin-top:16px;">会话已结束</p></div>';
+    loadSessions();
+  } else {
+    A.toast(r.msg || '结束失败', 'error');
+  }
+}
+
+// ===== 通用弹窗 =====
+let modalOverlay = null;
+function showModal(title, html, buttons) {
+  closeModal();
+  modalOverlay = document.createElement('div');
+  modalOverlay.className = 'k-modal-overlay';
+  modalOverlay.innerHTML = `
+    <div class="k-modal">
+      <div class="k-modal-header">${title}<button class="k-modal-close" onclick="closeModal()">×</button></div>
+      <div class="k-modal-body">${html}</div>
+      <div class="k-modal-footer" id="modal-footer"></div>
+    </div>
+  `;
+  document.body.appendChild(modalOverlay);
+  const footer = modalOverlay.querySelector('#modal-footer');
+  (buttons || []).forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'k-btn ' + (b.cls || 'k-btn-primary');
+    btn.textContent = b.text;
+    btn.onclick = b.onClick;
+    footer.appendChild(btn);
+  });
+}
+function closeModal() {
+  if (modalOverlay && modalOverlay.parentNode) modalOverlay.parentNode.removeChild(modalOverlay);
+  modalOverlay = null;
+}
+
+(function () {
+  // 修复：初始化用 try/catch 包裹，但定义函数要全局
+  try {
+    (async () => {
+      await loadSessions();
+      const sid = getSessionIdFromUrl();
+      if (sid) {
+        try { await selectSession(sid); } catch (e) { console.error(e); }
+      }
+      setInterval(loadSessions, 5000);
+    })();
+  } catch (e) {
+    console.error('init error:', e);
+  }
+})();
+</script>
+
+<!-- 快捷回复管理弹窗（新增/编辑/删除） -->
+<div class="qr-modal-overlay" id="qr-modal-overlay" onclick="if(event.target===this) closeQuickReplyManager()">
+  <div class="qr-modal">
+    <div class="qr-modal-header">
+      <h3>⚡ 我的快捷回复</h3>
+      <span class="close-x" onclick="closeQuickReplyManager()">✕</span>
+    </div>
+    <div class="qr-modal-body">
+      <div class="qr-form" id="qr-form">
+        <div class="qr-form-row">
+          <input type="text" id="qr-title" placeholder="标题（必填，例如：问候语）" />
+          <input type="text" id="qr-shortcut" placeholder="快捷键 /ab（可选）" maxlength="20" />
+        </div>
+        <textarea id="qr-content" placeholder="回复内容（必填，点击 chip 后插入到输入框的内容）"></textarea>
+        <div class="qr-form-row">
+          <select id="qr-category" style="flex:1;padding:8px 10px;border:1px solid var(--color-border);border-radius:6px;font-size:13px;background:var(--color-card);">
+            <option value="personal">个人（仅自己可见）</option>
+            <option value="common">公共（所有客服可见）</option>
+          </select>
+          <input type="number" id="qr-sort" placeholder="排序（默认 0）" value="0" style="flex:0.5;" />
+        </div>
+        <div class="qr-form-actions">
+          <input type="hidden" id="qr-id" value="0" />
+          <button class="k-btn" onclick="resetQrForm()">清空</button>
+          <button class="k-btn k-btn-primary" onclick="saveQuickReply()">保存</button>
+        </div>
+      </div>
+      <div id="qr-list"></div>
+    </div>
+    <div class="qr-modal-footer">
+      <span style="flex:1;font-size:12px;color:var(--color-text-3);">💡 个人分类只能你自己编辑/删除，公共分类所有客服可见</span>
+      <button class="k-btn" onclick="closeQuickReplyManager()">关闭</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

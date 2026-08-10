@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>系统集成 · kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+.tab-btn { padding: 10px 20px; border: none; background: transparent; cursor: pointer; font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent; color: var(--color-text-2); transition: all .15s; }
+.tab-btn.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.tab-btn:hover { color: var(--color-primary); }
+</style>
+</head>
+<body style="background:var(--color-bg);padding:24px;">
+
+<div class="k-toolbar">
+  <div style="font-size:18px;font-weight:600;">🔌 系统集成</div>
+</div>
+
+<div style="display:flex;border-bottom:1px solid var(--color-border);margin-bottom:16px;">
+  <button class="tab-btn active" data-tab="developer" onclick="switchTab('developer')">🔑 开发者ID</button>
+  <button class="tab-btn" data-tab="crm" onclick="switchTab('crm')">🔗 CRM 对接</button>
+  <button class="tab-btn" data-tab="webhook" onclick="switchTab('webhook')">📡 链接外接 / Webhook</button>
+  <button class="tab-btn" data-tab="widget" onclick="switchTab('widget')">🌐 网页接入 Widget</button>
+  <button class="tab-btn" data-tab="channel" onclick="switchTab('channel')">📨 多渠道 API</button>
+</div>
+
+<!-- 开发者ID Tab -->
+<div id="tab-developer" class="tab-pane">
+  <div class="k-card">
+    <div class="k-card-title">开发者 ID（对接应用凭证）</div>
+    <p class="text-muted" style="margin:0 0 16px;font-size:13px;">
+      对接第三方应用时使用的身份凭证。开发者可定义更高级的客户接口和访客身份等信息。
+      <a href="#" onclick="UI.warn('请前往 CRM 帮助中心');return false;" style="margin-left:8px;">🔗 点击查阅门户接入文档</a>
+    </p>
+    <div class="k-form-row">
+      <div class="item"><label>AppKey</label><input id="d-appkey" class="k-input" placeholder="AppKey"></div>
+      <div class="item"><label>AppSecret</label>
+        <div style="display:flex;gap:8px;">
+          <input id="d-appsec" class="k-input" type="password" placeholder="AppSecret">
+          <button class="k-btn-mini" onclick="UI.togglePwd('d-appsec')">显示</button>
+        </div>
+      </div>
+    </div>
+    <div class="k-form-row">
+      <div class="item flex"><label>消息与事件传递 URL</label><input id="d-push" class="k-input" placeholder="https://your-server.com/webhook"></div>
+    </div>
+    <button class="k-btn k-btn-primary" onclick="save('developer')">保存</button>
+  </div>
+</div>
+
+<!-- CRM 对接 Tab -->
+<div id="tab-crm" class="tab-pane" style="display:none;">
+  <div class="k-card">
+    <div class="k-card-title">CRM 信息对接（企业业务系统对接）</div>
+    <p class="text-muted" style="margin:0 0 16px;font-size:13px;">
+      请提供企业业务系统中的以下字段，让客服能看到客户及订单信息等数据。
+      <a href="#" onclick="UI.warn('请查阅 CRM 对接文档');return false;" style="margin-left:8px;">🔗 点击查阅 CRM 对接文档</a>
+    </p>
+    <div class="k-form-row">
+      <div class="item"><label>AppId</label><input id="c-appid" class="k-input"></div>
+      <div class="item"><label>AppSecret</label>
+        <div style="display:flex;gap:8px;">
+          <input id="c-appsec" class="k-input" type="password">
+          <button class="k-btn-mini" onclick="UI.togglePwd('c-appsec')">显示</button>
+        </div>
+      </div>
+    </div>
+    <div class="k-form-label">接口 URL 配置</div>
+    <table class="k-table" style="font-size:13px;">
+      <tbody>
+        <tr><th style="width:200px;">获取会话 token URL</th><td><input id="c-token" class="k-input" placeholder="https://..."></td></tr>
+        <tr><th>用户信息查询 URL</th><td><input id="c-userinfo" class="k-input" placeholder="https://..."></td></tr>
+        <tr><th>用户信息详情 URL</th><td><input id="c-userdetail" class="k-input" placeholder="https://..."></td></tr>
+        <tr><th>用户订单接口 URL</th><td><input id="c-order" class="k-input" placeholder="https://..."></td></tr>
+        <tr><th>用户订单详情 URL</th><td><input id="c-orderdetail" class="k-input" placeholder="https://..."></td></tr>
+        <tr><th>在线接待生成小红书 URL</th><td><input id="c-minip" class="k-input" placeholder="https://..."></td></tr>
+        <tr><th>在线会话客服新预约 URL</th><td><input id="c-appnew" class="k-input" placeholder="https://..."></td></tr>
+        <tr><th>对话 URL</th><td><input id="c-session" class="k-input" placeholder="https://..."></td></tr>
+        <tr><th>工单对象 URL</th><td><input id="c-ticket" class="k-input" placeholder="https://..."></td></tr>
+        <tr><th>通知机器人通话记录 URL</th><td><input id="c-robot" class="k-input" placeholder="https://..."></td></tr>
+        <tr><th>访客名片 URL</th><td><input id="c-card" class="k-input" placeholder="https://..."></td></tr>
+        <tr><th>客户标签接口 URL</th><td><input id="c-tag" class="k-input" placeholder="https://..."></td></tr>
+      </tbody>
+    </table>
+    <button class="k-btn k-btn-primary" style="margin-top:16px;" onclick="save('crm')">保存</button>
+  </div>
+</div>
+
+<!-- Webhook Tab -->
+<div id="tab-webhook" class="tab-pane" style="display:none;">
+  <div class="k-card">
+    <div class="k-card-title">链接外接 · 事件订阅总开关</div>
+    <div class="k-banner k-banner-info">
+      ⚠️ 启用 Webhook 后，企业网关将向您配置的 URL 推送事件消息。
+      <a href="#" style="margin-left:auto;">点击查阅 Webhook 文档</a>
+    </div>
+    <button class="k-btn k-btn-primary" onclick="openWebhook()">+ 添加事件接收 URL</button>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">已配置 Webhook</div>
+    <table class="k-table">
+      <thead><tr><th>名称</th><th>URL</th><th>事件</th><th>状态</th><th>密钥</th><th style="text-align:right;">操作</th></tr></thead>
+      <tbody id="w-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Widget Tab -->
+<div id="tab-widget" class="tab-pane" style="display:none;">
+  <div class="k-card">
+    <div class="k-card-title">网页接入 Widget</div>
+    <p class="text-muted" style="font-size:13px;">企业官网、网页、共享客服接入方式。</p>
+    <button class="k-btn k-btn-primary" onclick="openWidget()">+ 新建 Widget</button>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">已创建 Widget</div>
+    <table class="k-table">
+      <thead><tr><th>名称</th><th>允许域名</th><th>状态</th><th>访问</th><th>对话</th><th style="text-align:right;">操作</th></tr></thead>
+      <tbody id="w2-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 多渠道 API Tab -->
+<div id="tab-channel" class="tab-pane" style="display:none;">
+  <div class="k-card">
+    <div class="k-card-title">多渠道接入 API</div>
+    <p class="text-muted" style="font-size:13px;line-height:1.7">
+      通过统一 REST API 把微信公众号、视频号、抖音、邮件、APP 等渠道接入 kefu 系统。下方列出所有公开端点，可在「开发者 ID」中配置 AppKey/AppSecret 后使用。
+    </p>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">1️⃣ 消息接入 API</div>
+    <table class="k-table">
+      <thead><tr><th style="width:180px;">端点</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>POST /api/visitor/message/send</code></td><td>访客发送消息（无需鉴权，已限流）</td></tr>
+        <tr><td><code>POST /api/visitor/message/handoff</code></td><td>访客主动请求转人工</td></tr>
+        <tr><td><code>POST /api/visitor/auth/weapp</code></td><td>微信小程序授权登录（拿 openid）</td></tr>
+        <tr><td><code>POST /api/visitor/auth/h5</code></td><td>H5 端匿名会话创建</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">2️⃣ 公众号 / 视频号 / 抖音 接入流程</div>
+    <ol style="line-height:1.9;font-size:13px;color:var(--color-text-2)">
+      <li>在「开发者 ID」页配置 AppKey / AppSecret</li>
+      <li>将渠道 Webhook URL 配置到对应开放平台
+        <ul style="margin-top:6px;">
+          <li>📨 微信 / 视频号：<code>https://kefu.xiaozhusho.top/api/channel/wechat/webhook?appkey={你的AppKey}</code></li>
+          <li>📨 抖音：<code>https://kefu.xiaozhusho.top/api/channel/douyin/webhook?appkey={你的AppKey}</code></li>
+          <li>📨 邮件（IMAP 拉取）：在「系统集成 → CRM 对接」配置收件 URL</li>
+        </ul>
+      </li>
+      <li>kefu 自动将渠道消息转为标准会话，分配给在线客服</li>
+    </ol>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">3️⃣ 内部推送 API</div>
+    <table class="k-table">
+      <thead><tr><th style="width:380px;">端点</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>POST /api/agent/message/send</code></td><td>客服主动发消息（需 Bearer Token）</td></tr>
+        <tr><td><code>POST /api/agent/session/transfer</code></td><td>转接会话给其他客服</td></tr>
+        <tr><td><code>POST /api/agent/session/close</code></td><td>关闭会话</td></tr>
+        <tr><td><code>POST /api/ticket/create</code></td><td>创建工单</td></tr>
+        <tr><td><code>POST /api/ticket/from-session</code></td><td>从会话一键建工单</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">4️⃣ Webhook 推送（接收事件）</div>
+    <p style="font-size:13px;line-height:1.7;color:var(--color-text-2);margin:0 0 12px;">
+      在「链接外接 / Webhook」配置接收 URL，kefu 将以 <code>POST</code> 方式推送事件。请求头包含：
+    </p>
+    <pre style="background:#1E293B;color:#94A3B8;padding:14px;border-radius:6px;font-family:'Fira Code',monospace;font-size:12px;line-height:1.6;overflow:auto;">
+X-Kefu-Signature: HMAC-SHA256 签名
+X-Kefu-Timestamp: 推送时间戳
+X-Kefu-Event:     事件名（如 session.new）
+Content-Type:     application/json
+{
+  "event": "session.new",
+  "tenant_id": 1,
+  "data": { ... 业务字段 ... }
+}
+    </pre>
+    <p style="font-size:12px;color:var(--color-text-3);margin:8px 0 0;">
+      💡 签名算法：<code>hash_hmac('sha256', $timestamp . '.' . $body, $secret)</code>
+    </p>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">5️⃣ 长轮询（替代 WebSocket）</div>
+    <p style="font-size:13px;line-height:1.7;color:var(--color-text-2);margin:0 0 12px;">
+      Windows 环境下 WebSocket 不可用，可使用 HTTP 长轮询：
+    </p>
+    <table class="k-table">
+      <thead><tr><th style="width:280px;">端点</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET /api/poll/agent</code></td><td>客服端轮询新消息</td></tr>
+        <tr><td><code>GET /api/poll/visitor</code></td><td>访客端轮询新消息</td></tr>
+        <tr><td><code>GET /api/poll/role/{role}</code></td><td>按角色轮询（如 /api/poll/role/admin）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">6️⃣ 鉴权说明</div>
+    <ul style="line-height:1.9;font-size:13px;color:var(--color-text-2)">
+      <li>管理后台 / 客服工作台：<code>Authorization: Bearer {jwt_token}</code> + Token 续期</li>
+      <li>访客端：<code>?token=xxx</code> + 服务端 IP 限流（默认 60 条/分钟）</li>
+      <li>开放 API：使用「开发者 ID」中的 AppKey + HMAC 签名</li>
+    </ul>
+  </div>
+</div>
+
+<script src="/admin/common.js"></script>
+<script src="/ui.js"></script>
+<script>
+if (!KefuAdmin.token) KefuAdmin.token = localStorage.getItem('kefu_token');
+if (!UI.token) UI.token = localStorage.getItem('kefu_token');
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+  document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+  document.getElementById('tab-' + name).style.display = '';
+  if (name === 'webhook') loadWebhooks();
+  if (name === 'widget') loadWidgets();
+  // 处理 URL hash
+  try { history.replaceState(null, '', '#' + name); } catch(e) {}
+}
+
+async function loadData(type) {
+  const j = await UI.api('GET', '/api/admin/integration/get?type=' + type);
+  const d = j.data || {};
+  if (type === 'developer') {
+    document.getElementById('d-appkey').value = d.app_key || '';
+    document.getElementById('d-appsec').value = d.app_secret || '';
+    document.getElementById('d-push').value = '';
+  } else if (type === 'crm') {
+    document.getElementById('c-appid').value = d.app_id || '';
+    document.getElementById('c-appsec').value = d.app_secret || '';
+    const fields = ['token','userinfo','userdetail','order','orderdetail','minip','appnew','session','ticket','robot','card','tag'];
+    fields.forEach(f => {
+      const el = document.getElementById('c-' + f);
+      if (el) el.value = d[f + '_url'] || '';
+    });
+  }
+}
+
+async function save(type) {
+  let data = { type };
+  if (type === 'developer') {
+    data.app_key    = document.getElementById('d-appkey').value;
+    data.app_secret = document.getElementById('d-appsec').value;
+  } else if (type === 'crm') {
+    data.app_id     = document.getElementById('c-appid').value;
+    data.app_secret = document.getElementById('c-appsec').value;
+    const fields = ['token','userinfo','userdetail','order','orderdetail','minip','appnew','session','ticket','robot','card','tag'];
+    fields.forEach(f => {
+      const el = document.getElementById('c-' + f);
+      if (el) data[f + '_url'] = el.value;
+    });
+  }
+  const j = await UI.api('POST', '/api/admin/integration/save', data);
+  if (j.code !== 0) return UI.error(j.msg);
+  UI.success('已保存');
+}
+
+async function loadWebhooks() {
+  const j = await UI.api('GET', '/api/admin/webhook/list');
+  const list = (j.data && j.data.list) || [];
+  document.getElementById('w-tbody').innerHTML = list.length ? list.map(w =>
+    `<tr>
+      <td><b>${UI.escapeHtml(w.name)}</b></td>
+      <td><code style="font-size:11px;">${UI.escapeHtml(w.url.slice(0, 50))}${w.url.length > 50 ? '...' : ''}</code></td>
+      <td><span class="k-tag k-tag-blue">${UI.escapeHtml((w.events || '').split(',')[0] || '-')}</span></td>
+      <td>${w.enabled == 1 ? '<span class="k-tag k-tag-success">启用</span>' : '<span class="k-tag k-tag-gray">停用</span>'}</td>
+      <td><code style="font-size:11px;">${UI.escapeHtml((w.secret || '').slice(0, 16))}...</code></td>
+      <td style="text-align:right;">
+        <button class="k-btn-text" onclick="testW(${w.id})">测试</button>
+        <button class="k-btn-text" onclick="toggleW(${w.id})">${w.enabled == 1 ? '停用' : '启用'}</button>
+        <button class="k-btn-text" onclick="delW(${w.id})" style="color:var(--color-danger);">删除</button>
+      </td>
+    </tr>`
+  ).join('') : '<tr><td colspan="6" class="k-empty">暂无 Webhook</td></tr>';
+}
+
+function openWebhook() {
+  UI.modal('新建 Webhook',
+    `<div class="k-form-row">
+      <div class="item flex"><label>名称</label><input id="w-n" class="k-input" placeholder="My Server"></div>
+    </div>
+    <div class="k-form-row">
+      <div class="item flex"><label>URL</label><input id="w-u" class="k-input" placeholder="https://..."></div>
+    </div>
+    <div class="k-form-row">
+      <div class="item"><label>事件（多选）</label>
+        <select id="w-e" class="k-select" multiple style="height:120px;">
+          <option value="session.new">会话新建</option>
+          <option value="session.close">会话关闭</option>
+          <option value="message.new">新消息</option>
+          <option value="worksheet.create">工单创建</option>
+          <option value="worksheet.reply">工单回复</option>
+          <option value="worksheet.close">工单关闭</option>
+          <option value="leave_msg.new">新留言</option>
+        </select>
+      </div>
+      <div class="item"><label>签名密钥（可选）</label>
+        <input id="w-s" class="k-input" placeholder="留空自动生成"></div>
+    </div>`,
+    async ok => {
+      if (!ok) return false;
+      const events = Array.from(document.getElementById('w-e').selectedOptions).map(o => o.value);
+      const j = await UI.api('POST', '/api/admin/webhook/create', {
+        name: document.getElementById('w-n').value,
+        url: document.getElementById('w-u').value,
+        events,
+        secret: document.getElementById('w-s').value,
+      });
+      if (j.code !== 0) { UI.error(j.msg); return false; }
+      UI.success('已创建');
+      loadWebhooks();
+    }
+  );
+}
+
+async function testW(id) {
+  const j = await UI.api('POST', '/api/admin/webhook/test', { id });
+  if (j.code !== 0) return UI.error(j.msg);
+  const r = j.data;
+  UI.info(`HTTP ${r.http_code}${r.error ? ' · 错误: ' + r.error : ''}\n响应: ${r.response}`);
+  loadWebhooks();
+}
+
+async function toggleW(id) {
+  await UI.api('POST', '/api/admin/webhook/toggle', { id });
+  loadWebhooks();
+}
+
+async function delW(id) {
+  if (!UI.confirm('确认删除？')) return;
+  await UI.api('POST', '/api/admin/webhook/delete', { id });
+  UI.success('已删除');
+  loadWebhooks();
+}
+
+async function loadWidgets() {
+  const j = await UI.api('GET', '/api/admin/web-widget/list');
+  const list = (j.data && j.data.list) || [];
+  document.getElementById('w2-tbody').innerHTML = list.length ? list.map(w =>
+    `<tr>
+      <td><b>${UI.escapeHtml(w.name)}</b></td>
+      <td><code>${UI.escapeHtml(w.domain || '*')}</code></td>
+      <td>${w.enabled == 1 ? '<span class="k-tag k-tag-success">启用</span>' : '<span class="k-tag k-tag-gray">停用</span>'}</td>
+      <td>${w.visit_count || 0}</td>
+      <td>${w.chat_count || 0}</td>
+      <td style="text-align:right;">
+        <button class="k-btn-text" onclick="delW2(${w.id})" style="color:var(--color-danger);">删除</button>
+      </td>
+    </tr>`
+  ).join('') : '<tr><td colspan="6" class="k-empty">暂无 Widget</td></tr>';
+}
+
+function openWidget() {
+  UI.modal('新建网页 Widget',
+    `<div class="k-form-row">
+      <div class="item flex"><label>名称</label><input id="x-n" class="k-input"></div>
+    </div>
+    <div class="k-form-row">
+      <div class="item flex"><label>允许域名（* 表示全部）</label><input id="x-d" class="k-input" value="*"></div>
+    </div>
+    <div class="k-form-row">
+      <div class="item flex"><label>悬浮窗颜色</label><input id="x-c" class="k-input" type="color" value="#0EA5E9"></div>
+    </div>`,
+    async ok => {
+      if (!ok) return false;
+      const j = await UI.api('POST', '/api/admin/web-widget/create', {
+        name: document.getElementById('x-n').value,
+        domain: document.getElementById('x-d').value,
+        config: { color: document.getElementById('x-c').value, position: 'right-bottom' }
+      });
+      if (j.code !== 0) { UI.error(j.msg); return false; }
+      UI.modal('Widget 创建成功', '<p>请将以下代码嵌入您的网站：</p><pre style="background:var(--color-bg);padding:12px;border-radius:8px;font-size:12px;overflow-x:auto;">' + j.data.snippet + '</pre>', () => false);
+      loadWidgets();
+    }
+  );
+}
+
+async function delW2(id) {
+  if (!UI.confirm('确认删除？')) return;
+  await UI.api('POST', '/api/admin/web-widget/delete', { id });
+  UI.success('已删除');
+  loadWidgets();
+}
+
+loadData('developer');
+loadData('crm');
+</script>
+</body>
+</html>

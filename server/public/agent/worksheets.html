@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>工单管理 · kefu 客服工作台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+  body { margin: 0; padding: 24px; background: #F8FAFC; font-family: -apple-system, "PingFang SC", sans-serif; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .head h1 { font-size: 22px; margin: 0; font-weight: 700; color: #0F172A; }
+  .filters { background: white; padding: 14px 20px; border-radius: 12px; display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr auto auto; gap: 12px; align-items: end; box-shadow: 0 2px 8px rgba(15,23,42,.04); margin-bottom: 16px; }
+  .filters .item label { display: block; font-size: 11px; color: #64748B; margin-bottom: 6px; font-weight: 500; }
+  .filters .item input,
+  .filters .item select { width: 100%; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; background: white; }
+  .list { background: white; padding: 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(15,23,42,.04); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #F8FAFC; padding: 12px 14px; text-align: left; color: #475569; font-weight: 600; font-size: 12px; border-bottom: 1px solid #E2E8F0; }
+  td { padding: 12px 14px; border-bottom: 1px solid #F1F5F9; color: #334155; vertical-align: middle; }
+  tr:hover td { background: #FAFAFA; }
+  .status-pill { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
+  .status-pill.new      { background: #DBEAFE; color: #1D4ED8; }
+  .status-pill.processing { background: #FEF3C7; color: #B45309; }
+  .status-pill.resolved { background: #D1FAE5; color: #047857; }
+  .status-pill.closed   { background: #E5E7EB; color: #4B5563; }
+  .priority { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 11px; }
+  .priority.high { background: #FEE2E2; color: #B91C1C; }
+  .priority.normal { background: #E0E7FF; color: #3730A3; }
+  .priority.low { background: #F3F4F6; color: #4B5563; }
+  .empty-state { padding: 60px 20px; text-align: center; color: #94A3B8; }
+  .ticket-no { color: #7C3AED; font-family: ui-monospace, monospace; font-size: 12px; }
+  .pagination { padding: 14px 20px; background: #FAFAFA; border-top: 1px solid #F1F5F9; display: flex; align-items: center; justify-content: space-between; }
+  /* 新建工单弹窗样式 */
+  .k-dialog-mask { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: flex; align-items: center; justify-content: center; z-index: 9000; backdrop-filter: blur(2px); }
+  .k-dialog { background: white; border-radius: 14px; width: 92vw; max-height: 88vh; overflow: hidden; box-shadow: 0 24px 48px rgba(0,0,0,.22); display: flex; flex-direction: column; }
+  .k-dialog-head { padding: 14px 20px; border-bottom: 1px solid #F1F5F9; display: flex; justify-content: space-between; align-items: center; }
+  .k-dialog-title { font-size: 15px; font-weight: 600; color: #0F172A; }
+  .k-dialog-close { border: 0; background: transparent; font-size: 22px; color: #94A3B8; cursor: pointer; line-height: 1; padding: 0 4px; }
+  .k-dialog-close:hover { color: #0F172A; }
+  .k-dialog-body { padding: 20px; overflow-y: auto; }
+  .k-dialog-foot { padding: 12px 20px; border-top: 1px solid #F1F5F9; display: flex; justify-content: flex-end; gap: 8px; background: #F8FAFC; }
+  .form-item { margin-bottom: 14px; }
+  .form-item label { display: block; font-size: 12px; color: #475569; margin-bottom: 6px; font-weight: 500; }
+  .form-item input, .form-item select, .form-item textarea { width: 100%; padding: 9px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; font-family: inherit; }
+  .form-item input:focus, .form-item select:focus, .form-item textarea:focus { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,.15); }
+  .form-item textarea { resize: vertical; min-height: 80px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="head">
+    <h1>📋 工单管理</h1>
+    <button class="k-btn k-btn-primary" onclick="openCreateDialog()">+ 新建工单</button>
+  </div>
+
+  <!-- 新建工单弹窗 -->
+  <div id="createDialog" class="k-dialog-mask" style="display:none;">
+    <div class="k-dialog" style="max-width:520px;">
+      <div class="k-dialog-head">
+        <span class="k-dialog-title">新建工单</span>
+        <button class="k-dialog-close" onclick="closeCreateDialog()">×</button>
+      </div>
+      <div class="k-dialog-body">
+        <div class="form-item"><label>标题 <span style="color:#EF4444;">*</span></label><input id="ct_title" placeholder="请输入工单标题" /></div>
+        <div class="form-item"><label>客户 <span style="color:#EF4444;">*</span></label><input id="ct_customer" placeholder="客户姓名 / 手机号（必填，用于建档或匹配已有客户）" /></div>
+        <div class="form-item"><label>优先级</label><select id="ct_priority"><option value="low">低</option><option value="normal" selected>中</option><option value="high">高</option></select></div>
+        <div class="form-item"><label>描述</label><textarea id="ct_desc" rows="4" placeholder="详细描述问题..."></textarea></div>
+      </div>
+      <div class="k-dialog-foot">
+        <button class="k-btn k-btn-ghost" onclick="closeCreateDialog()">取消</button>
+        <button class="k-btn k-btn-primary" id="ct_submit_btn" onclick="submitCreateTicket()">提交</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div class="item"><label>搜索</label><input id="q" placeholder="工单号 / 标题 / 客户" /></div>
+    <div class="item"><label>状态</label><select id="status"><option value="">全部</option><option value="new">新工单</option><option value="processing">处理中</option><option value="resolved">已解决</option><option value="closed">已关闭</option></select></div>
+    <div class="item"><label>优先级</label><select id="priority"><option value="">全部</option><option value="high">高</option><option value="normal">中</option><option value="low">低</option></select></div>
+    <div class="item"><label>时间</label><input id="from" type="date" /></div>
+    <button class="k-btn k-btn-ghost" onclick="reset()">重置</button>
+    <button class="k-btn k-btn-primary" onclick="loadList(1)">查询</button>
+  </div>
+
+  <div class="list">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 130px;">工单号</th>
+          <th>标题</th>
+          <th style="width: 100px;">状态</th>
+          <th style="width: 80px;">优先级</th>
+          <th style="width: 110px;">处理人</th>
+          <th style="width: 130px;">创建时间</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"><tr><td colspan="6" class="empty-state">加载中...</td></tr></tbody>
+    </table>
+    <div class="pagination">
+      <span id="pageInfo" style="font-size:12px;color:#64748B;">共 0 条</span>
+      <div id="pager"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/agent/common.js?v=2026"></script>
+<script>
+if (!KefuAgent.requireLogin()) throw new Error('not logged in');
+const A = KefuAgent;
+let _page = 1, _total = 0;
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const statusText = { new: '新工单', processing: '处理中', resolved: '已解决', closed: '已关闭' };
+
+async function loadList(page) {
+  _page = page || 1;
+  const params = new URLSearchParams({
+    q:        document.getElementById('q').value.trim(),
+    status:   document.getElementById('status').value,
+    priority: document.getElementById('priority').value,
+    from:     document.getElementById('from').value,
+    page:     _page,
+    size:     20,
+  });
+  const r = await A.api('GET', '/api/ticket/list?' + params.toString());
+  const tbody = document.getElementById('tbody');
+  if (r.code !== 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">加载失败：' + (r.msg || '') + '</td></tr>'; return; }
+  const list = (r.data && r.data.list) || [];
+  _total = r.data && r.data.total || 0;
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无工单</td></tr>'; document.getElementById('pageInfo').textContent = '共 0 条'; document.getElementById('pager').innerHTML = ''; return; }
+  tbody.innerHTML = list.map(t => {
+    const st = t.status || '';
+    const pr = t.priority || 'normal';
+    return '<tr>' +
+      '<td class="ticket-no">' + esc((t.ticket_no || t.id || '').toString().slice(0, 16)) + '</td>' +
+      '<td>' + esc(t.title || t.subject || '-') + '</td>' +
+      '<td><span class="status-pill ' + esc(st) + '">' + esc(statusText[st] || st) + '</span></td>' +
+      '<td><span class="priority ' + esc(pr) + '">' + ({high:'高',normal:'中',low:'低'}[pr] || pr) + '</span></td>' +
+      '<td>' + esc(t.assignee_name || t.assignee || '-') + '</td>' +
+      '<td>' + (t.created_at ? A.fmtDate(t.created_at) : '-') + '</td>' +
+    '</tr>';
+  }).join('');
+  document.getElementById('pageInfo').textContent = '共 ' + _total + ' 条 / 第 ' + _page + ' 页';
+}
+
+function reset() {
+  ['q','status','priority','from'].forEach(id => document.getElementById(id).value = '');
+  loadList(1);
+}
+
+// 权限：检查当前客服是否拥有 worksheet:create 权限
+let _hasCreatePerm = true;  // 兜底默认有权限（避免 my-permissions 接口失败导致无法新建）
+async function checkCreatePerm() {
+  try {
+    const r = await A.api('GET', '/api/admin/permission/my-permissions');
+    if (r && r.code === 0) {
+      // 超管（all=true）或者权限码命中 worksheet:create / worksheet 都允许新建
+      const codes = r.data.permissions || [];
+      const isAll = !!r.data.all;
+      _hasCreatePerm = isAll || codes.indexOf('worksheet:create') >= 0 || codes.indexOf('worksheet') >= 0;
+    }
+  } catch (e) {}
+  if (!_hasCreatePerm) {
+    document.querySelector('.head .k-btn-primary').style.display = 'none';
+  }
+}
+
+function openCreateDialog() {
+  if (!_hasCreatePerm) {
+    A.toast && A.toast('当前角色无"新建工单"权限，请联系管理员', 'error');
+    return;
+  }
+  document.getElementById('ct_title').value = '';
+  document.getElementById('ct_customer').value = '';
+  document.getElementById('ct_priority').value = 'normal';
+  document.getElementById('ct_desc').value = '';
+  document.getElementById('createDialog').style.display = 'flex';
+  setTimeout(() => document.getElementById('ct_title').focus(), 50);
+}
+function closeCreateDialog() {
+  document.getElementById('createDialog').style.display = 'none';
+}
+
+async function submitCreateTicket() {
+  const title = document.getElementById('ct_title').value.trim();
+  const desc  = document.getElementById('ct_desc').value.trim();
+  const customer = document.getElementById('ct_customer').value.trim();
+  const priority = document.getElementById('ct_priority').value;
+  if (!title)   { A.toast && A.toast('请输入标题', 'error'); return; }
+  if (!desc)    { A.toast && A.toast('请输入描述', 'error'); return; }
+  if (!customer){ A.toast && A.toast('请输入客户（姓名/手机号）', 'error'); return; }
+
+  const btn = document.getElementById('ct_submit_btn');
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+  try {
+    const r = await A.api('POST', '/api/ticket/create', {
+      title: title,
+      content: desc,
+      customer_id: 0,                    // 让后端按 name 匹配/建档
+      customer_name: customer,           // 后端会按这个自动匹配或新建客户
+      priority: priority === 'high' ? 1 : (priority === 'low' ? 4 : 2),
+      source: 'agent_console',
+    });
+    if (r.code === 0) {
+      A.toast && A.toast('工单已创建：' + (r.data && r.data.ticket_no ? r.data.ticket_no : ''), 'success');
+      closeCreateDialog();
+      loadList(1);
+    } else {
+      A.toast && A.toast('创建失败：' + (r.msg || '未知'), 'error');
+    }
+  } catch (e) {
+    A.toast && A.toast('请求异常：' + (e.message || ''), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '提交';
+  }
+}
+
+loadList(1);
+checkCreatePerm();
+</script>
+</body>
+</html>

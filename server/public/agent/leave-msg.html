@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>留言管理 · kefu 客服工作台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+  body { margin: 0; padding: 24px; background: #F8FAFC; font-family: -apple-system, "PingFang SC", sans-serif; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .head h1 { font-size: 22px; margin: 0; font-weight: 700; color: #0F172A; }
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .summary .card { background: white; padding: 16px 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(15,23,42,.04); }
+  .summary .card .label { color: #64748B; font-size: 12px; margin-bottom: 6px; }
+  .summary .card .value { font-size: 22px; font-weight: 700; color: #0F172A; }
+  .filters { background: white; padding: 14px 20px; border-radius: 12px; display: grid; grid-template-columns: 1.4fr 1fr 1fr auto auto; gap: 12px; align-items: end; box-shadow: 0 2px 8px rgba(15,23,42,.04); margin-bottom: 16px; }
+  .filters .item label { display: block; font-size: 11px; color: #64748B; margin-bottom: 6px; font-weight: 500; }
+  .filters .item input,
+  .filters .item select { width: 100%; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; background: white; }
+  .list { background: white; padding: 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(15,23,42,.04); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #F8FAFC; padding: 12px 14px; text-align: left; color: #475569; font-weight: 600; font-size: 12px; border-bottom: 1px solid #E2E8F0; }
+  td { padding: 12px 14px; border-bottom: 1px solid #F1F5F9; color: #334155; vertical-align: middle; }
+  tr:hover td { background: #FAFAFA; }
+  .empty-state { padding: 60px 20px; text-align: center; color: #94A3B8; }
+  .ticket-no { color: #7C3AED; font-family: ui-monospace, monospace; font-size: 12px; }
+  .status-pill { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
+  .status-pill.new      { background: #DBEAFE; color: #1D4ED8; }
+  .status-pill.replied  { background: #D1FAE5; color: #047857; }
+  .status-pill.spam     { background: #F1F5F9; color: #64748B; }
+  .status-pill.closed   { background: #FEF3C7; color: #B45309; }
+  .content-cell { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pagination { padding: 14px 20px; background: #FAFAFA; border-top: 1px solid #F1F5F9; display: flex; align-items: center; justify-content: space-between; }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .k-btn { border: 1px solid #E2E8F0; background: white; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; color: #334155; }
+  .k-btn:hover { border-color: #94A3B8; }
+  .k-btn-primary { background: #2563EB; border-color: #2563EB; color: white; }
+  .k-btn-primary:hover { background: #1D4ED8; border-color: #1D4ED8; }
+  .k-btn-warn { background: #F59E0B; border-color: #F59E0B; color: white; }
+  .k-btn-warn:hover { background: #D97706; border-color: #D97706; }
+  .k-btn-danger { background: #EF4444; border-color: #EF4444; color: white; }
+  .k-btn-danger:hover { background: #DC2626; border-color: #DC2626; }
+
+  /* 弹窗 */
+  .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,.4); display: none; align-items: center; justify-content: center; z-index: 99; }
+  .modal-mask.show { display: flex; }
+  .modal { background: white; border-radius: 14px; width: 620px; max-width: 92vw; max-height: 86vh; overflow: hidden; display: flex; flex-direction: column; }
+  .modal-head { padding: 16px 22px; border-bottom: 1px solid #F1F5F9; display: flex; justify-content: space-between; align-items: center; }
+  .modal-head h3 { margin: 0; font-size: 16px; color: #0F172A; }
+  .modal-head .close-x { cursor: pointer; color: #94A3B8; font-size: 20px; border: 0; background: transparent; }
+  .modal-body { padding: 20px 22px; overflow: auto; }
+  .modal-body textarea { width: 100%; min-height: 120px; padding: 10px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; resize: vertical; box-sizing: border-box; font-family: inherit; outline: none; }
+  .modal-body textarea:focus { border-color: #2563EB; }
+  .modal-foot { padding: 14px 22px; border-top: 1px solid #F1F5F9; display: flex; justify-content: flex-end; gap: 8px; }
+  .detail-row { margin-bottom: 10px; font-size: 13px; }
+  .detail-row .k { color: #64748B; display: inline-block; min-width: 72px; }
+  .detail-row .v { color: #0F172A; white-space: pre-wrap; word-break: break-word; }
+  .reply-box { background: #F8FAFC; padding: 10px 12px; border-radius: 8px; margin-top: 14px; }
+  .reply-box .meta { font-size: 12px; color: #64748B; margin-bottom: 4px; }
+  .reply-box .content { color: #0F172A; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="head"><h1>📨 留言管理</h1></div>
+
+  <div class="summary">
+    <div class="card"><div class="label">待处理 (new)</div><div class="value" id="s_new">-</div></div>
+    <div class="card"><div class="label">已回复 (replied)</div><div class="value" id="s_replied">-</div></div>
+    <div class="card"><div class="label">已关闭 (closed)</div><div class="value" id="s_closed">-</div></div>
+    <div class="card"><div class="label">总数</div><div class="value" id="s_total">-</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="item"><label>搜索 (工单号/姓名/手机/内容)</label><input id="keyword" placeholder="请输入关键词" /></div>
+    <div class="item"><label>状态</label>
+      <select id="status">
+        <option value="">全部</option>
+        <option value="new">待处理</option>
+        <option value="replied">已回复</option>
+        <option value="spam">垃圾</option>
+        <option value="closed">已关闭</option>
+      </select>
+    </div>
+    <div class="item"><label>日期 (创建日)</label><input id="from" type="date" /></div>
+    <button class="k-btn" onclick="reset()">重置</button>
+    <button class="k-btn k-btn-primary" onclick="loadList(1)">查询</button>
+  </div>
+
+  <div class="list">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 170px;">工单号</th>
+          <th style="width: 90px;">姓名</th>
+          <th style="width: 120px;">联系方式</th>
+          <th>内容</th>
+          <th style="width: 80px;">状态</th>
+          <th style="width: 140px;">时间</th>
+          <th style="width: 220px;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"><tr><td colspan="7" class="empty-state">加载中...</td></tr></tbody>
+    </table>
+    <div class="pagination">
+      <span id="pageInfo" style="font-size:12px;color:#64748B;">共 0 条</span>
+      <div id="pager"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 详情/回复弹窗 -->
+<div id="modal" class="modal-mask">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">留言详情</h3>
+      <button class="close-x" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot">
+      <button class="k-btn" onclick="closeModal()">取消</button>
+      <button class="k-btn k-btn-primary" id="btnConfirm" onclick="submitReply()">提交回复</button>
+    </div>
+  </div>
+</div>
+
+<script src="/agent/common.js?v=20260806"></script>
+<script>
+if (!KefuAgent.requireLogin()) throw new Error('not logged in');
+const A = KefuAgent;
+let _page = 1, _total = 0, _size = 20, _stats = null;
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const STATUS_TEXT = { new: '待处理', replied: '已回复', spam: '垃圾', closed: '已关闭' };
+
+async function loadStats() {
+  try {
+    const r = await A.api('GET', '/api/admin/leave-message/stats');
+    if (r.code === 0 && r.data) {
+      _stats = r.data;
+      document.getElementById('s_new').textContent    = r.data.new || 0;
+      document.getElementById('s_replied').textContent = r.data.replied || 0;
+      document.getElementById('s_closed').textContent  = r.data.closed || 0;
+      document.getElementById('s_total').textContent   = r.data.total || 0;
+    }
+  } catch (e) { console.warn(e); }
+}
+
+async function loadList(page) {
+  _page = page || 1;
+  const params = new URLSearchParams({
+    keyword: document.getElementById('keyword').value.trim(),
+    status:  document.getElementById('status').value,
+    page:    _page,
+    size:    _size,
+  });
+  const r = await A.api('GET', '/api/admin/leave-message/list?' + params.toString());
+  const tbody = document.getElementById('tbody');
+  if (r.code !== 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">加载失败：' + (r.msg || '') + '</td></tr>';
+    return;
+  }
+  const list = (r.data && r.data.list) || [];
+  _total = r.data && r.data.total || list.length;
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无留言</td></tr>'; return; }
+  tbody.innerHTML = list.map(t => {
+    const st = t.status || 'new';
+    const contact = [];
+    if (t.visitor_phone) contact.push(t.visitor_phone);
+    if (t.visitor_email) contact.push(t.visitor_email);
+    return '<tr>' +
+      '<td class="ticket-no">' + esc((t.ticket_no || ('#LM' + t.id)).toString().slice(0, 20)) + '</td>' +
+      '<td>' + esc(t.visitor_name || '-') + '</td>' +
+      '<td>' + esc(contact.join(' ') || '-') + '</td>' +
+      '<td class="content-cell" title="' + esc(t.content || '') + '">' + esc((t.content || '').slice(0, 50)) + '...</td>' +
+      '<td><span class="status-pill ' + esc(st) + '">' + esc(STATUS_TEXT[st] || st) + '</span></td>' +
+      '<td>' + (t.created_at ? A.fmtDate(t.created_at) : '-') + '</td>' +
+      '<td class="actions">' +
+        '<button class="k-btn" onclick="openDetail(' + t.id + ')">详情</button>' +
+        '<button class="k-btn k-btn-primary" onclick="openReply(' + t.id + ')">回复</button>' +
+        (st !== 'replied' ? '<button class="k-btn k-btn-warn" onclick="markStatus(' + t.id + ',\'replied\')">标已处理</button>' : '') +
+        '<button class="k-btn k-btn-danger" onclick="delItem(' + t.id + ')">删除</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  document.getElementById('pageInfo').textContent = '共 ' + _total + ' 条 · 第 ' + _page + ' 页';
+  renderPager();
+}
+
+function renderPager() {
+  const totalPages = Math.max(1, Math.ceil(_total / _size));
+  const pager = document.getElementById('pager');
+  if (totalPages <= 1) { pager.innerHTML = ''; return; }
+  let html = '';
+  if (_page > 1)          html += '<button class="k-btn" onclick="loadList(' + (_page-1) + ')">上一页</button>';
+  html += '<span style="margin:0 8px;font-size:12px;color:#64748B;">' + _page + ' / ' + totalPages + '</span>';
+  if (_page < totalPages) html += '<button class="k-btn" onclick="loadList(' + (_page+1) + ')">下一页</button>';
+  pager.innerHTML = html;
+}
+
+function reset() {
+  ['keyword','status','from'].forEach(id => document.getElementById(id).value = '');
+  loadList(1);
+}
+
+/* ============ 弹窗：详情 ============ */
+let _currentId = 0, _mode = 'detail';  // detail / reply
+
+async function openDetail(id) {
+  _currentId = id; _mode = 'detail';
+  const r = await A.api('GET', '/api/admin/leave-message/detail?id=' + id);
+  if (r.code !== 0) { alert('获取详情失败：' + r.msg); return; }
+  const t = r.data || {};
+  const st = t.status || 'new';
+  const contact = [];
+  if (t.visitor_phone) contact.push('手机：' + t.visitor_phone);
+  if (t.visitor_email) contact.push('邮箱：' + t.visitor_email);
+  const meta = t.visitor_meta && Object.keys(t.visitor_meta).length ? t.visitor_meta : null;
+
+  document.getElementById('modalTitle').textContent = '留言详情 · ' + (t.ticket_no || ('#LM' + t.id));
+  document.getElementById('modalBody').innerHTML =
+    '<div class="detail-row"><span class="k">状态：</span><span class="v"><span class="status-pill ' + esc(st) + '">' + esc(STATUS_TEXT[st] || st) + '</span></span></div>' +
+    '<div class="detail-row"><span class="k">访客：</span><span class="v">' + esc(t.visitor_name || '-') + (t.visitor_id ? ' (' + esc(t.visitor_id) + ')' : '') + '</span></div>' +
+    (contact.length ? '<div class="detail-row"><span class="k">联系：</span><span class="v">' + esc(contact.join('，')) + '</span></div>' : '') +
+    '<div class="detail-row"><span class="k">来源：</span><span class="v">' + esc(t.source || '-') + (t.session_id ? '  会话：' + esc(t.session_id) : '') + '</span></div>' +
+    '<div class="detail-row"><span class="k">时间：</span><span class="v">' + esc(t.created_at || '-') + '</span></div>' +
+    (meta ? '<div class="detail-row"><span class="k">自定义：</span><span class="v">' + esc(JSON.stringify(meta)) + '</span></div>' : '') +
+    '<div class="detail-row"><span class="k">内容：</span><div class="v" style="background:#F8FAFC;padding:10px 12px;border-radius:8px;margin-top:6px;">' + esc(t.content || '') + '</div></div>' +
+    (t.reply_content ?
+      '<div class="reply-box">' +
+        '<div class="meta">' + esc(t.reply_by_name || t.reply_by || '客服') + ' 于 ' + esc(t.reply_at || '') + ' 回复：</div>' +
+        '<div class="content">' + esc(t.reply_content || '') + '</div>' +
+      '</div>' : '');
+  document.getElementById('modalFoot').innerHTML =
+    '<button class="k-btn" onclick="closeModal()">关闭</button>' +
+    (st !== 'replied' ? '<button class="k-btn k-btn-primary" onclick="openReply(' + id + ')">回复该留言</button>' : '');
+  document.getElementById('modal').classList.add('show');
+}
+
+async function openReply(id) {
+  _currentId = id; _mode = 'reply';
+  const r = await A.api('GET', '/api/admin/leave-message/detail?id=' + id);
+  if (r.code !== 0) { alert('获取详情失败：' + r.msg); return; }
+  const t = r.data || {};
+  document.getElementById('modalTitle').textContent = '回复留言 · ' + (t.ticket_no || ('#LM' + t.id));
+  document.getElementById('modalBody').innerHTML =
+    '<div class="detail-row"><span class="k">原留言：</span><div class="v" style="background:#F8FAFC;padding:10px 12px;border-radius:8px;margin-top:6px;">' + esc(t.content || '') + '</div></div>' +
+    '<div style="margin-top:16px;"><label style="font-size:12px;color:#64748B;">回复内容</label>' +
+    '<textarea id="replyContent" placeholder="请输入回复内容..."></textarea></div>';
+  document.getElementById('modalFoot').innerHTML =
+    '<button class="k-btn" onclick="closeModal()">取消</button>' +
+    '<button class="k-btn k-btn-primary" onclick="submitReply()">提交回复</button>';
+  document.getElementById('modal').classList.add('show');
+  setTimeout(() => document.getElementById('replyContent') && document.getElementById('replyContent').focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('show');
+  _currentId = 0; _mode = 'detail';
+}
+
+async function submitReply() {
+  const content = (document.getElementById('replyContent') || {}).value || '';
+  if (!content.trim()) { alert('请输入回复内容'); return; }
+  const r = await A.api('POST', '/api/admin/leave-message/reply', { id: _currentId, reply_content: content.trim() });
+  if (r.code !== 0) { alert('回复失败：' + r.msg); return; }
+  alert('回复已提交');
+  closeModal();
+  loadList(_page);
+  loadStats();
+}
+
+async function markStatus(id, status) {
+  if (!confirm('确认标记为 ' + (STATUS_TEXT[status] || status) + ' 吗？')) return;
+  const r = await A.api('POST', '/api/admin/leave-message/status', { id, status });
+  if (r.code !== 0) { alert('操作失败：' + r.msg); return; }
+  loadList(_page);
+  loadStats();
+}
+
+async function delItem(id) {
+  if (!confirm('确认删除该留言？删除后无法恢复')) return;
+  const r = await A.api('POST', '/api/admin/leave-message/delete', { id });
+  if (r.code !== 0) { alert('删除失败：' + r.msg); return; }
+  loadList(_page);
+  loadStats();
+}
+
+/* 初始化 */
+loadStats();
+loadList(1);
+</script>
+</body>
+</html>

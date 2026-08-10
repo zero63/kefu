@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>客户轨迹 · kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+.timeline { position: relative; padding-left: 28px; }
+.timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: var(--color-border); }
+.tl-item { position: relative; padding: 12px 0; }
+.tl-item::before { content: ''; position: absolute; left: -25px; top: 18px; width: 14px; height: 14px; border-radius: 50%; background: var(--color-primary); box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.18); }
+.tl-item .time { font-size: 12px; color: var(--color-text-3); }
+.tl-item .title { font-size: 14px; font-weight: 500; margin-top: 2px; }
+.tl-item .desc { font-size: 12px; color: var(--color-text-2); margin-top: 4px; }
+</style>
+</head>
+<body style="background:var(--color-bg);padding:24px;">
+
+<div class="k-toolbar">
+  <div style="font-size:18px;font-weight:600;">🛤️ 客户访问轨迹</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;">
+  <div class="k-card">
+    <div class="k-card-title">客户列表</div>
+    <input id="search" class="k-input" placeholder="搜索客户 ID" style="margin-bottom:12px;">
+    <div id="cust-list" style="max-height:600px;overflow-y:auto;"></div>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">轨迹时间线</div>
+    <div id="timeline" class="timeline">
+      <div class="k-empty">请在左侧选择客户查看轨迹</div>
+    </div>
+  </div>
+</div>
+
+<div class="k-card" style="margin-top:16px;">
+  <div class="k-card-title">⚙️ 自定义字段定义</div>
+  <div class="k-toolbar">
+    <button class="k-btn k-btn-primary k-btn-mini" onclick="openField()">+ 新增字段</button>
+  </div>
+  <table class="k-table">
+    <thead><tr><th>标识</th><th>名称</th><th>类型</th><th>必填</th><th style="text-align:right;">操作</th></tr></thead>
+    <tbody id="f-tbody"></tbody>
+  </table>
+</div>
+
+<script src="/admin/common.js"></script>
+<script src="/ui.js"></script>
+<script>
+if (!KefuAdmin.token) KefuAdmin.token = localStorage.getItem('kefu_token');
+if (!UI.token) UI.token = localStorage.getItem('kefu_token');
+
+async function loadCustomers() {
+  const j = await UI.api('GET', '/api/admin/customer-track/list');
+  const list = (j.data && j.data.list) || [];
+  const customers = {};
+  list.forEach(t => {
+    if (!customers[t.customer_id]) customers[t.customer_id] = { count: 0, last: t.created_at };
+    customers[t.customer_id].count++;
+  });
+  const box = document.getElementById('cust-list');
+  const ids = Object.keys(customers);
+  if (!ids.length) {
+    box.innerHTML = '<div class="k-empty">暂无客户轨迹</div>';
+    return;
+  }
+  box.innerHTML = ids.map(cid => {
+    const c = customers[cid];
+    return `<div class="k-card" style="cursor:pointer;padding:12px;margin-bottom:8px;" onclick="loadTimeline('${cid}')">
+      <div style="font-family:'JetBrains Mono';font-size:13px;">${UI.escapeHtml(cid)}</div>
+      <div class="text-muted" style="font-size:11px;margin-top:4px;">${c.count} 次 · 最近 ${UI.fmtDate(c.last)}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadTimeline(cid) {
+  const j = await UI.api('GET', '/api/admin/customer-track/timeline?customer_id=' + encodeURIComponent(cid));
+  const list = (j.data && j.data.list) || [];
+  const box = document.getElementById('timeline');
+  if (!list.length) { box.innerHTML = '<div class="k-empty">该客户暂无轨迹</div>'; return; }
+  box.innerHTML = list.map(t => {
+    const ev = {
+      page_view: '📄 浏览页面',
+      stay: '⏱️ 停留',
+      click: '🖱️ 点击',
+      form: '📝 提交表单',
+      leave: '🚪 离开',
+    }[t.event_type] || ('• ' + t.event_type);
+    return `<div class="tl-item">
+      <div class="time">${UI.fmtDate(t.created_at)} ${t.duration_ms ? '· 停留 ' + Math.round(t.duration_ms/1000) + 's' : ''}</div>
+      <div class="title">${ev}</div>
+      <div class="desc">${UI.escapeHtml(t.page_title || t.page_url || '')}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadFields() {
+  const j = await UI.api('GET', '/api/admin/customer-track/field/list');
+  const list = (j.data && j.data.list) || [];
+  const tbody = document.getElementById('f-tbody');
+  tbody.innerHTML = list.length ? list.map(f =>
+    `<tr>
+      <td><code>${UI.escapeHtml(f.field_key)}</code></td>
+      <td>${UI.escapeHtml(f.field_name)}</td>
+      <td><span class="k-tag k-tag-blue">${UI.escapeHtml(f.field_type)}</span></td>
+      <td>${f.required == 1 ? '<span class="k-tag k-tag-red">必填</span>' : '-'}</td>
+      <td style="text-align:right;">
+        <button class="k-btn-text" onclick="removeField(${f.id})">删除</button>
+      </td>
+    </tr>`
+  ).join('') : '<tr><td colspan="5" class="k-empty">暂无自定义字段</td></tr>';
+}
+
+function openField() {
+  UI.modal('新增客户字段',
+    `<div class="k-form-row">
+      <div class="item"><label>字段标识（英文）</label><input id="f-k" class="k-input" placeholder="vip_level"></div>
+      <div class="item"><label>显示名称</label><input id="f-n" class="k-input" placeholder="VIP 等级"></div>
+    </div>
+    <div class="k-form-row">
+      <div class="item"><label>字段类型</label>
+        <select id="f-t" class="k-select">
+          <option value="text">文本</option>
+          <option value="number">数字</option>
+          <option value="date">日期</option>
+          <option value="select">下拉</option>
+          <option value="multiselect">多选</option>
+        </select>
+      </div>
+      <div class="item"><label>必填</label>
+        <select id="f-r" class="k-select"><option value="0">否</option><option value="1">是</option></select>
+      </div>
+    </div>`,
+    async ok => {
+      if (!ok) return false;
+      const data = {
+        field_key: document.getElementById('f-k').value,
+        field_name: document.getElementById('f-n').value,
+        field_type: document.getElementById('f-t').value,
+        required: document.getElementById('f-r').value,
+      };
+      const j = await UI.api('POST', '/api/admin/customer-track/field/create', data);
+      if (j.code !== 0) { UI.error(j.msg); return false; }
+      UI.success('已添加');
+      loadFields();
+    }
+  );
+}
+
+async function removeField(id) {
+  if (!UI.confirm('确认删除？该客户的所有字段值也会被清除')) return;
+  const j = await UI.api('POST', '/api/admin/customer-track/field/delete', { id });
+  if (j.code !== 0) return UI.error(j.msg);
+  UI.success('已删除');
+  loadFields();
+}
+
+document.getElementById('search').oninput = (e) => {
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll('#cust-list .k-card').forEach(el => {
+    el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+};
+
+loadCustomers();
+loadFields();
+</script>
+</body>
+</html>

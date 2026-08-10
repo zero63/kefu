@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>访客自定义字段 · kefu 管理后台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+  body { margin: 0; padding: 0; }
+  .vf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .vf-grid { grid-template-columns: 1fr; } }
+  .vf-card { background: #fff; border-radius: 10px; padding: 18px; border: 1px solid var(--color-border); }
+  .vf-card h3 { font-size: 14px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  .vf-list-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--color-border-light); }
+  .vf-list-item:last-child { border: 0; }
+  .vf-list-item .info { flex: 1; min-width: 0; }
+  .vf-list-item .name { font-weight: 600; font-size: 14px; }
+  .vf-list-item .meta { font-size: 12px; color: var(--color-text-3); margin-top: 2px; }
+  .vf-list-item .badge { padding: 2px 8px; border-radius: 999px; font-size: 10px; }
+  .vf-list-item .badge.on { background: #D1FAE5; color: #047857; }
+  .vf-list-item .badge.off { background: #F1F5F9; color: #64748B; }
+  .vf-list-item .badge.req { background: #FEE2E2; color: #B91C1C; }
+  .vf-form-item { margin-bottom: 12px; }
+  .vf-form-item label { display: block; font-size: 12px; color: var(--color-text-3); margin-bottom: 4px; }
+  .vf-help { background: #F0F9FF; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #075985; margin-bottom: 14px; line-height: 1.6; }
+  .vf-empty { padding: 40px 20px; text-align: center; color: var(--color-text-3); }
+  .vf-row-toolbar { display: flex; gap: 6px; }
+  .vf-row-toolbar button { white-space: nowrap; }
+  .vf-status-switch { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-title">
+    <span style="display:inline-flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#0EA5E9"><path d="M9 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2h-4"/><path d="M12 2v15"/><path d="m6 6 6-4 6 4"/></svg>
+      访客自定义字段
+    </span>
+  </div>
+
+  <div class="vf-help">
+    💡 在此配置访客进入客服前需要填写的自定义信息（如订单号、会员等级、咨询类型等）。访客端（widget）或 API 携带这些信息后，客服在工作台可看到这些自定义画像。<br>
+    📦 <strong>API 调用方式：</strong> GET <code>/api/visitor/field/list</code> 获取字段定义；POST <code>/api/visitor/field/save</code> 提交字段值（参数 <code>visitor_id</code> + <code>values</code> JSON 对象）；GET <code>/api/admin/visitor/field/get?visitor_id=xxx</code> 后台读取。
+  </div>
+
+  <div class="vf-grid">
+    <!-- 字段列表 -->
+    <div class="vf-card">
+      <h3>📋 字段列表 <span style="margin-left:auto;font-size:11px;color:var(--color-text-3)" id="vf-count"></span></h3>
+      <div id="vf-list" class="k-loading">加载中…</div>
+    </div>
+
+    <!-- 新增字段 -->
+    <div class="vf-card">
+      <h3>➕ 添加字段</h3>
+      <div class="vf-form-item">
+        <label>字段标识（英文下划线）<span style="color:#EF4444">*</span></label>
+        <input id="fld-key" class="k-input" placeholder="如：order_no、vip_level、industry" />
+      </div>
+      <div class="vf-form-item">
+        <label>字段名称（显示给访客）<span style="color:#EF4444">*</span></label>
+        <input id="fld-name" class="k-input" placeholder="如：订单号、会员等级、所在行业" />
+      </div>
+      <div class="vf-form-item">
+        <label>字段类型</label>
+        <select id="fld-type" class="k-input" onchange="onTypeChange()">
+          <option value="text">单行文本</option>
+          <option value="textarea">多行文本</option>
+          <option value="number">数字</option>
+          <option value="email">邮箱</option>
+          <option value="phone">手机号</option>
+          <option value="date">日期</option>
+          <option value="select">下拉选择</option>
+          <option value="radio">单选</option>
+          <option value="checkbox">多选</option>
+        </select>
+      </div>
+      <div class="vf-form-item" id="fld-options-wrap" style="display:none">
+        <label>选项（每行一个）</label>
+        <textarea id="fld-options" class="k-input" rows="4" placeholder="选项A&#10;选项B&#10;选项C"></textarea>
+      </div>
+      <div class="vf-form-item">
+        <label>占位符提示</label>
+        <input id="fld-placeholder" class="k-input" placeholder="如：请输入您的订单号" />
+      </div>
+      <div class="vf-form-item">
+        <label>是否必填</label>
+        <select id="fld-required" class="k-input">
+          <option value="0">否</option>
+          <option value="1">是</option>
+        </select>
+      </div>
+      <div class="vf-form-item">
+        <label>排序（数字越小越靠前）</label>
+        <input id="fld-sort" class="k-input" type="number" value="0" />
+      </div>
+      <button class="k-btn k-btn-primary" style="width:100%;margin-top:8px" onclick="submitField()">💾 添加字段</button>
+    </div>
+  </div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+const TYPE_LABEL = { text:'文本', textarea:'多行', number:'数字', email:'邮箱', phone:'手机', date:'日期', select:'下拉', radio:'单选', checkbox:'多选' };
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function onTypeChange() {
+  const t = document.getElementById('fld-type').value;
+  document.getElementById('fld-options-wrap').style.display = ['select','radio','checkbox'].includes(t) ? 'block' : 'none';
+}
+
+async function loadList() {
+  const r = await A.api('GET', '/api/admin/visitor-field/list');
+  const box = document.getElementById('vf-list');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="vf-empty">加载失败</div>'; return; }
+  const list = r.data.list || [];
+  document.getElementById('vf-count').textContent = list.length ? '共 ' + list.length + ' 项' : '';
+  if (!list.length) {
+    box.innerHTML = '<div class="vf-empty">尚未配置任何字段<br><small>访客端/客服端将不收集任何自定义信息</small></div>';
+    return;
+  }
+  box.innerHTML = list.map(f => `
+    <div class="vf-list-item">
+      <div class="info">
+        <div class="name">${escapeHtml(f.field_name)} <code style="color:var(--color-primary);font-size:11px">${escapeHtml(f.field_key)}</code></div>
+        <div class="meta">
+          <span style="background:#E0F2FE;color:#075985;padding:1px 6px;border-radius:4px;font-size:11px">${TYPE_LABEL[f.field_type] || f.field_type}</span>
+          ${parseInt(f.required) ? '<span class="badge req">必填</span>' : ''}
+          <span class="badge ${f.enabled==1?'on':'off'}">${f.enabled==1?'已启用':'已禁用'}</span>
+          <span style="color:var(--color-text-3)">${f.visitor_count || 0} 位访客填写</span>
+        </div>
+      </div>
+      <div class="vf-row-toolbar">
+        <button class="k-btn k-btn-mini" onclick="toggleEnabled(${f.id}, ${f.enabled==1?0:1})">${f.enabled==1?'禁用':'启用'}</button>
+        <button class="k-btn k-btn-mini k-btn-danger" onclick="deleteField(${f.id}, '${escapeHtml(f.field_key)}')">删除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function submitField() {
+  const field_key = document.getElementById('fld-key').value.trim();
+  const field_name = document.getElementById('fld-name').value.trim();
+  const field_type = document.getElementById('fld-type').value;
+  const required = document.getElementById('fld-required').value;
+  const placeholder = document.getElementById('fld-placeholder').value.trim();
+  const sort_no = parseInt(document.getElementById('fld-sort').value) || 0;
+  const optsText = document.getElementById('fld-options').value.trim();
+  if (!field_key || !field_name) { A.toast('字段标识和名称必填', 'warning'); return; }
+  if (!/^[a-z][a-z0-9_]{0,30}$/.test(field_key)) { A.toast('字段标识格式错误', 'warning'); return; }
+  let options = [];
+  if (['select','radio','checkbox'].includes(field_type)) {
+    options = optsText.split('\n').map(s => s.trim()).filter(Boolean);
+    if (options.length === 0) { A.toast('下拉/单选/多选必须配置选项', 'warning'); return; }
+  }
+  const r = await A.api('POST', '/api/admin/visitor-field/create', {
+    field_key, field_name, field_type, required, placeholder, sort_no, options
+  });
+  if (r.code === 0) {
+    A.toast('已添加', 'success');
+    document.getElementById('fld-key').value = '';
+    document.getElementById('fld-name').value = '';
+    document.getElementById('fld-options').value = '';
+    document.getElementById('fld-placeholder').value = '';
+    onTypeChange();
+    loadList();
+  } else {
+    A.toast('添加失败：' + r.msg, 'error');
+  }
+}
+
+async function toggleEnabled(id, enabled) {
+  const r = await A.api('POST', '/api/admin/visitor-field/update', { id, enabled });
+  if (r.code === 0) { A.toast('已更新', 'success'); loadList(); }
+  else A.toast('更新失败：' + r.msg, 'error');
+}
+
+async function deleteField(id, key) {
+  if (!confirm('确定删除字段"' + key + '"？\n此字段在所有访客端已填写的值也会被删除。')) return;
+  const r = await A.api('POST', '/api/admin/visitor-field/delete', { id });
+  if (r.code === 0) { A.toast('已删除', 'success'); loadList(); }
+  else A.toast('删除失败：' + r.msg, 'error');
+}
+
+(async () => { onTypeChange(); await loadList(); })();
+</script>
+</body>
+</html>

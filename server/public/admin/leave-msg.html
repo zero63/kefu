@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>留言记录 · kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+</head>
+<body style="background:var(--color-bg);padding:24px;">
+
+<div class="k-toolbar">
+  <div style="font-size:18px;font-weight:600;">📝 留言记录</div>
+</div>
+
+<div class="k-card">
+  <div class="k-card-title">留言列表</div>
+  <div class="k-form-row">
+    <div class="item"><select id="st-filter" class="k-select">
+      <option value="">全部状态</option>
+      <option value="pending">待处理</option>
+      <option value="assigned">已分配</option>
+      <option value="resolved">已回复</option>
+    </select></div>
+    <div class="item flex"><input id="kw" class="k-input" placeholder="搜索姓名/内容"></div>
+    <button class="k-btn k-btn-primary k-btn-mini" onclick="loadList()">查询</button>
+  </div>
+  <table class="k-table">
+    <thead><tr>
+      <th>姓名</th><th>手机</th><th>留言内容</th><th>渠道</th>
+      <th>状态</th><th>处理人</th><th>时间</th><th style="text-align:right;">操作</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script src="/admin/common.js"></script>
+<script src="/ui.js"></script>
+<script>
+if (!KefuAdmin.token) KefuAdmin.token = localStorage.getItem('kefu_token');
+if (!UI.token) UI.token = localStorage.getItem('kefu_token');
+
+const STATUS_TAG = {
+  pending:  '<span class="k-tag k-tag-orange">待处理</span>',
+  assigned: '<span class="k-tag k-tag-blue">已分配</span>',
+  resolved: '<span class="k-tag k-tag-success">已回复</span>',
+};
+
+async function loadList() {
+  const kw = document.getElementById('kw').value.trim();
+  const st = document.getElementById('st-filter').value;
+  let url = '/api/admin/leave-msg/list';
+  const q = [];
+  if (kw) q.push('keyword=' + encodeURIComponent(kw));
+  if (st) q.push('status=' + st);
+  if (q.length) url += '?' + q.join('&');
+  const j = await UI.api('GET', url);
+  const list = (j.data && j.data.list) || [];
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = list.length ? list.map(m =>
+    `<tr>
+      <td><b>${UI.escapeHtml(m.customer_name || '-')}</b></td>
+      <td><code style="font-size:12px;">${UI.escapeHtml(m.customer_phone || '-')}</code></td>
+      <td><div style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${UI.escapeHtml(m.content || '')}">${UI.escapeHtml(m.content || '')}</div></td>
+      <td><span class="k-tag k-tag-gray">${UI.escapeHtml(m.channel || '-')}</span></td>
+      <td>${STATUS_TAG[m.status] || m.status}</td>
+      <td>${UI.escapeHtml(m.assigned_to_name || '-')}</td>
+      <td class="text-muted">${UI.fmtDate(m.created_at)}</td>
+      <td style="text-align:right;">
+        ${m.status !== 'resolved' ? `<button class="k-btn-text" onclick="replyM(${m.id},'${UI.escapeHtml(m.content || '').replace(/'/g, "\\'")}')">回复</button>` : ''}
+        <!-- 修复：新增"标记已处理"按钮（无需回复直接标记处理完成） -->
+        ${m.status !== 'resolved' ? `<button class="k-btn-text" style="color:#10B981;" onclick="markResolved(${m.id})">✓ 标记已处理</button>` : ''}
+      </td>
+    </tr>`
+  ).join('') : '<tr><td colspan="8" class="k-empty">暂无留言</td></tr>';
+}
+
+function replyM(id, content) {
+  UI.modal('回复留言',
+    `<div class="k-form-label">客户留言</div>
+     <div style="background:var(--color-bg);padding:12px;border-radius:8px;margin-bottom:12px;font-size:13px;color:var(--color-text-2);">${UI.escapeHtml(content)}</div>
+     <div class="k-form-label">回复内容</div>
+     <textarea id="r-c" class="k-textarea" rows="4"></textarea>`,
+    async ok => {
+      if (!ok) return false;
+      const reply = document.getElementById('r-c').value.trim();
+      if (!reply) { UI.error('请填写回复'); return false; }
+      const j = await UI.api('POST', '/api/admin/leave-msg/reply', { id, reply_content: reply });
+      if (j.code !== 0) { UI.error(j.msg); return false; }
+      UI.success('已回复');
+      loadList();
+    }
+  );
+}
+
+// 修复：一键标记已处理（无需填写回复）
+async function markResolved(id) {
+  if (!confirm('确认将这条留言标记为已处理？')) return;
+  const j = await UI.api('POST', '/api/admin/leave-msg/update', { id, status: 'resolved' });
+  if (j.code === 0) {
+    UI.success('已标记为已处理');
+    loadList();
+  } else {
+    UI.error('操作失败：' + (j.msg || ''));
+  }
+}
+
+loadList();
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>敏感词</title>
+<link rel="stylesheet" href="/design-system.css" />
+  <link rel="stylesheet" href="/admin/admin2.css" />
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="card">
+  <div class="card-title">🚫 敏感词列表</div>
+  <div class="toolbar">
+    <select id="category" class="k-select" onchange="loadList()"><option value="">全部分类</option><option value="common">通用</option><option value="politics">政治</option><option value="profanity">辱骂</option><option value="spam">广告</option></select>
+    <input id="kw" class="k-input" placeholder="搜索关键词" onkeydown="if(event.key==='Enter')loadList()" />
+    <button class="k-btn k-btn-primary" onclick="openAdd()">+ 添加</button>
+    <button class="k-btn k-btn-warning" onclick="testFilter()">试运行</button>
+    <div class="spacer"></div>
+    <button class="k-btn k-btn-secondary" onclick="clearCache()">清缓存</button>
+  </div>
+  <div id="list" class="k-loading">加载中...</div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+
+async function loadList() {
+  const params = new URLSearchParams({
+    category: document.getElementById('category').value,
+    keyword: document.getElementById('kw').value.trim(),
+  });
+  const r = await A.api('GET', '/api/admin/sensitive/list?' + params.toString());
+  const box = document.getElementById('list');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败：' + r.msg + '</div>'; return; }
+  const rows = (r.data && r.data.list) || [];
+  if (!rows.length) { box.innerHTML = '<div class="k-empty">暂无敏感词</div>'; return; }
+  box.innerHTML = '<table class="k-table"><thead><tr><th>ID</th><th>关键词</th><th>分类</th><th>动作</th><th>创建时间</th><th>操作</th></tr></thead><tbody>' + rows.map(w => {
+    const actionCls = w.action === 'block' ? 'k-tag-red' : 'k-tag-blue';
+    return '<tr><td>' + w.id + '</td><td><code>' + w.word + '</code></td><td>' + (w.category || 'common') + '</td><td><span class="k-tag ' + actionCls + '">' + (w.action === 'block' ? '拦截' : '替换') + '</span></td><td>' + (A.fmtDate ? A.fmtDate(w.created_at) : '-') + '</td><td class="actions"><button class="k-btn-text danger" onclick="del(' + w.id + ')">删除</button></td></tr>';
+  }).join('') + '</tbody></table>';
+}
+
+function openAdd() {
+  const html = '<div class="form-row"><div class="form-item flex"><label>关键词 *</label><input class="k-input" name="word" /></div></div><div class="form-row"><div class="form-item"><label>分类</label><select class="k-select" name="category"><option value="common">通用</option><option value="politics">政治</option><option value="profanity">辱骂</option><option value="spam">广告</option></select></div><div class="form-item"><label>动作</label><select class="k-select" name="action"><option value="replace">替换</option><option value="block">拦截</option></select></div></div>';
+  A.openModal('添加敏感词', html, async ok => {
+    if (!ok) return;
+    const data = A.formToObject(document.getElementById('modal-form-body'));
+    if (!data.word) { A.toast('必填关键词', 'error'); return false; }
+    const r = await A.api('POST', '/api/admin/sensitive/add', data);
+    A.toast(r.code === 0 ? '已添加' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+    if (r.code === 0) loadList();
+    return r.code === 0;
+  });
+}
+
+async function del(id) {
+  if (!confirm('删除该敏感词？')) return;
+  const r = await A.api('POST', '/api/admin/sensitive/delete', { id: id });
+  A.toast(r.msg, r.code === 0 ? 'success' : 'error');
+  loadList();
+}
+
+function testFilter() {
+  const html = '<div class="form-row"><div class="form-item flex"><label>测试文本</label><textarea class="k-textarea" name="text" placeholder="输入测试..."></textarea></div></div><div id="test-result" style="margin-top:12px;"></div>';
+  A.openModal('试运行敏感词', html, async ok => {
+    if (!ok) return false;
+    const data = A.formToObject(document.getElementById('modal-form-body'));
+    if (!data.text) return false;
+    const r = await A.api('POST', '/api/admin/sensitive/test', data);
+    const resultBox = document.getElementById('test-result');
+    if (r.code === 0) {
+      resultBox.innerHTML = '<div>原文：<code>' + data.text + '</code></div><div>结果：<code>' + (r.data.content || '(空)') + '</code></div>' + (r.data.words ? '<div>命中：<span class="k-tag k-tag-orange">' + r.data.words.join(',') + '</span></div>' : '');
+    } else {
+      resultBox.innerHTML = '<div class="text-danger">失败：' + r.msg + '</div>';
+    }
+    return false;
+  });
+}
+
+async function clearCache() {
+  if (!confirm('清空敏感词缓存并重载？')) return;
+  const r = await A.api('POST', '/api/admin/sensitive/clear');
+  A.toast(r.msg, r.code === 0 ? 'success' : 'error');
+}
+
+loadList();
+</script>
+</body>
+</html>

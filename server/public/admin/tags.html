@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>标签管理 · kefu 管理后台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+.tag-grid{display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:var(--color-bg-2);border-radius:8px;min-height:60px}
+.tag-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:#fff;border:1px solid var(--color-border);font-size:13px;font-weight:500;cursor:default;transition:all .15s}
+.tag-chip:hover{box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.tag-chip .tc-color{width:8px;height:8px;border-radius:50%}
+.tag-chip .tc-del{cursor:pointer;color:var(--color-text-3);font-size:14px;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;transition:all .12s}
+.tag-chip .tc-del:hover{background:#FEE2E2;color:#EF4444}
+.color-picker-row{display:flex;gap:6px;flex-wrap:wrap}
+.color-picker-row .cp{width:28px;height:28px;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:transform .12s}
+.color-picker-row .cp:hover{transform:scale(1.1)}
+.color-picker-row .cp.active{border-color:#0F172A;box-shadow:0 0 0 2px #fff inset}
+.k-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.k-pill-blue{background:var(--color-primary-bg);color:var(--color-primary)}
+.k-pill-gray{background:#F1F5F9;color:#475569}
+</style>
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="card">
+  <div class="card-title">
+    <span style="display:inline-flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary)"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      客户标签库
+    </span>
+    <div class="extra" style="font-size:12px;color:var(--color-text-3)">
+      用于给客户打分类标签，便于分组营销
+    </div>
+  </div>
+
+  <div style="margin-bottom:16px;display:flex;gap:8px;align-items:center">
+    <input id="new-name" class="k-input" placeholder="标签名称" style="width:200px" />
+    <div class="color-picker-row" id="color-picker"></div>
+    <button class="k-btn k-btn-primary" onclick="createTag()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      新建标签
+    </button>
+  </div>
+
+  <div id="tag-grid" class="tag-grid k-loading">加载中…</div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="card-title">
+    <span style="display:inline-flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#7C3AED"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+      会话标签
+    </span>
+    <div class="extra" style="font-size:12px;color:var(--color-text-3)">
+      给会话打标签便于归类筛选
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <input id="sess-id" class="k-input" placeholder="会话 ID" style="width:280px" />
+    <input id="sess-tag" class="k-input" placeholder="标签名称（例：投诉 / VIP / 售后）" style="width:280px" />
+    <button class="k-btn k-btn-primary" onclick="tagSession()">打标签</button>
+    <button class="k-btn" onclick="loadSessionTags()">查看标签</button>
+  </div>
+
+  <div id="sess-tags" class="tag-grid">
+    <div class="k-empty" style="width:100%;padding:20px;text-align:center;color:var(--color-text-3)">输入会话ID并点击「查看标签」</div>
+  </div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+let selectedColor = '#7C3AED';
+let tags = [];
+
+const COLORS = ['#EF4444','#F59E0B','#10B981','#3B82F6','#7C3AED','#EC4899','#14B8A6','#0EA5E9','#84CC16','#F97316'];
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// 初始化颜色选择器
+function initColorPicker() {
+  const picker = document.getElementById('color-picker');
+  picker.innerHTML = COLORS.map(c => `<div class="cp ${c==selectedColor?'active':''}" style="background:${c}" data-c="${c}" onclick="pickColor('${c}')"></div>`).join('');
+}
+function pickColor(c) {
+  selectedColor = c;
+  initColorPicker();
+}
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function loadTags() {
+  const r = await A.api('GET', '/api/admin/tag/customer/list');
+  const box = document.getElementById('tag-grid');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  tags = (r.data && r.data.list) || [];
+  if (!tags.length) {
+    box.innerHTML = '<div class="k-empty" style="width:100%;padding:24px;text-align:center;color:var(--color-text-3)">还没有标签，在上方输入名称 + 选择颜色 → 新建标签</div>';
+    return;
+  }
+  box.innerHTML = tags.map(t => `
+    <div class="tag-chip">
+      <span class="tc-color" style="background:${t.tag_color}"></span>
+      ${escapeHtml(t.tag_name)}
+      <span class="tc-del" onclick="deleteTag(${t.id}, '${escapeHtml(t.tag_name)}')" title="删除">×</span>
+    </div>
+  `).join('');
+}
+
+async function createTag() {
+  const name = document.getElementById('new-name').value.trim();
+  if (!name) { A.toast('请输入标签名', 'warning'); return; }
+  const r = await A.api('POST', '/api/admin/tag/customer/create', { tag_name: name, tag_color: selectedColor });
+  if (r.code === 0) {
+    A.toast('已创建', 'success');
+    document.getElementById('new-name').value = '';
+    loadTags();
+  } else {
+    A.toast('创建失败：' + r.msg, 'error');
+  }
+}
+
+async function deleteTag(id, name) {
+  if (!confirm('确认删除标签「' + name + '」？\n（若已被客户使用，需先解除关联）')) return;
+  const r = await A.api('POST', '/api/admin/tag/customer/delete', { id: id });
+  if (r.code === 0) { A.toast('已删除', 'success'); loadTags(); }
+  else A.toast('删除失败：' + r.msg, 'error');
+}
+
+async function tagSession() {
+  const sid = document.getElementById('sess-id').value.trim();
+  const tag = document.getElementById('sess-tag').value.trim();
+  if (!sid || !tag) { A.toast('会话ID和标签名必填', 'warning'); return; }
+  const r = await A.api('POST', '/api/admin/tag/session/tag', { session_id: sid, tag_name: tag });
+  if (r.code === 0) {
+    A.toast('已标记', 'success');
+    document.getElementById('sess-tag').value = '';
+    loadSessionTags();
+  } else {
+    A.toast('标记失败：' + r.msg, 'error');
+  }
+}
+
+async function loadSessionTags() {
+  const sid = document.getElementById('sess-id').value.trim();
+  if (!sid) { A.toast('请输入会话ID', 'warning'); return; }
+  const r = await A.api('GET', '/api/admin/tag/session/tags?session_id=' + encodeURIComponent(sid));
+  const box = document.getElementById('sess-tags');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  const list = (r.data && r.data.list) || [];
+  if (!list.length) {
+    box.innerHTML = '<div class="k-empty" style="width:100%;padding:24px;text-align:center;color:var(--color-text-3)">该会话暂无标签</div>';
+    return;
+  }
+  box.innerHTML = list.map(t => `
+    <div class="tag-chip" style="background:${t.tag_color}15;color:${t.tag_color}">
+      ${escapeHtml(t.tag_name)}
+    </div>
+  `).join('');
+}
+
+initColorPicker();
+loadTags();
+</script>
+</body>
+</html>

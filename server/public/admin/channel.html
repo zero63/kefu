@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>多渠道接入 · kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+.channel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.channel-card { background: white; border-radius: 14px; padding: 20px; border: 1px solid var(--color-border); transition: all .2s; cursor: pointer; }
+.channel-card:hover { border-color: var(--color-primary-light); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.channel-card .ico { width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 12px; }
+.channel-card .name { font-size: 16px; font-weight: 600; margin: 8px 0 4px; }
+.channel-card .desc { font-size: 12px; color: var(--color-text-3); }
+.channel-card .status { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; margin-top: 8px; }
+.channel-card .status.on { background: var(--color-success-bg); color: var(--color-success); }
+.channel-card .status.off { background: var(--color-muted); color: var(--color-text-3); }
+</style>
+</head>
+<body style="background:var(--color-bg);padding:24px;">
+
+<div class="k-toolbar">
+  <div style="font-size:18px;font-weight:600;">📡 多渠道接入</div>
+  <div class="spacer"></div>
+  <button class="k-btn k-btn-primary" onclick="openAdd()">+ 新增渠道</button>
+</div>
+
+<div class="k-card">
+  <div class="k-card-title">已接入渠道</div>
+  <div id="ch-list" class="channel-grid"></div>
+</div>
+
+<div class="k-card">
+  <div class="k-card-title">渠道消息流水</div>
+  <table class="k-table">
+    <thead><tr><th>时间</th><th>渠道</th><th>方向</th><th>客户</th><th>内容</th></tr></thead>
+    <tbody id="msg-tbody"></tbody>
+  </table>
+</div>
+
+<script src="/admin/common.js"></script>
+<script src="/ui.js"></script>
+<script>
+if (!KefuAdmin.token) KefuAdmin.token = localStorage.getItem('kefu_token');
+if (!UI.token) UI.token = localStorage.getItem('kefu_token');
+
+const CHANNELS = [
+  { code: 'wechatmp',    name: '微信公众号',     ico: '💬', color: '#10B981', desc: '订阅号/服务号 接入' },
+  { code: 'wechatvideo', name: '微信视频号',     ico: '🎬', color: '#06B6D4', desc: '视频号直播弹幕' },
+  { code: 'douyin',      name: '抖音/抖音号',    ico: '🎵', color: '#0F172A', desc: '私信 + 直播评论' },
+  { code: 'email',       name: '邮件客服',       ico: '📧', color: '#3B82F6', desc: 'support@your.com' },
+  { code: 'line',        name: 'Line（日本/台湾）',ico: '💚', color: '#22C55E', desc: '海外客服' },
+  { code: 'whatsapp',    name: 'WhatsApp',       ico: '📱', color: '#25D366', desc: '海外客服' },
+];
+
+async function loadList() {
+  const j = await UI.api('GET', '/api/admin/channel/list');
+  const list = (j.data && j.data.list) || [];
+  const box = document.getElementById('ch-list');
+  box.innerHTML = '';
+  CHANNELS.forEach(ch => {
+    const exists = list.find(x => x.channel_code === ch.code);
+    const enabled = exists && exists.enabled == 1;
+    const card = document.createElement('div');
+    card.className = 'channel-card';
+    card.innerHTML = `
+      <div class="ico" style="background:${ch.color}15;color:${ch.color};">${ch.ico}</div>
+      <div class="name">${ch.name}</div>
+      <div class="desc">${ch.desc}</div>
+      <span class="status ${enabled ? 'on' : 'off'}">${enabled ? '● 已启用' : '○ 未启用'}</span>
+      <div style="margin-top:12px;display:flex;gap:6px;">
+        ${exists
+          ? `<button class="k-btn-mini" onclick="openConfig('${ch.code}','${ch.name}',${enabled})">配置</button>
+             <button class="k-btn-mini" onclick="removeCh(${exists.id})" style="color:var(--color-danger);">删除</button>`
+          : `<button class="k-btn-mini" onclick="openAdd('${ch.code}','${ch.name}')">+ 启用</button>`}
+      </div>`;
+    box.appendChild(card);
+  });
+}
+
+async function loadMessages() {
+  const j = await UI.api('GET', '/api/admin/channel/messages');
+  const list = (j.data && j.data.list) || [];
+  const tbody = document.getElementById('msg-tbody');
+  tbody.innerHTML = list.length ? list.map(m =>
+    `<tr>
+      <td class="text-muted">${UI.fmtDate(m.created_at)}</td>
+      <td><span class="k-tag k-tag-blue">${UI.escapeHtml(m.channel_code)}</span></td>
+      <td>${m.direction === 'in' ? '<span class="k-tag k-tag-orange">↓ 收</span>' : '<span class="k-tag k-tag-green">↑ 发</span>'}</td>
+      <td><code>${UI.escapeHtml(m.external_id || '-')}</code></td>
+      <td>${UI.escapeHtml((m.content || '').slice(0, 50))}</td>
+    </tr>`
+  ).join('') : '<tr><td colspan="5" class="k-empty">暂无消息</td></tr>';
+}
+
+function openAdd(code, name) {
+  UI.modal('启用渠道 ' + (name || ''),
+    `<div class="k-form-row">
+      <div class="item"><label>渠道标识</label><input id="m-code" class="k-input" value="${code || ''}" readonly></div>
+      <div class="item"><label>渠道名称</label><input id="m-name" class="k-input" value="${name || ''}"></div>
+    </div>
+    <div class="k-form-label">配置（JSON：appid/secret/webhook 等）</div>
+    <textarea id="m-cfg" class="k-textarea" rows="6" placeholder='{"appid":"xxx","secret":"xxx"}'></textarea>`,
+    async ok => {
+      if (!ok) return false;
+      const data = {
+        channel_code: document.getElementById('m-code').value,
+        channel_name: document.getElementById('m-name').value,
+        config: {},
+        enabled: 1,
+      };
+      try { data.config = JSON.parse(document.getElementById('m-cfg').value || '{}'); } catch (e) {}
+      const j = await UI.api('POST', '/api/admin/channel/create', data);
+      if (j.code !== 0) { UI.error(j.msg); return false; }
+      UI.success('已启用');
+      loadList();
+    }
+  );
+}
+
+function openConfig(code, name, enabled) {
+  UI.modal('配置 ' + name,
+    `<div class="k-form-row">
+      <div class="item"><label>启用</label><select id="m-en" class="k-select"><option value="1" ${enabled?'selected':''}>启用</option><option value="0" ${!enabled?'selected':''}>停用</option></select></div>
+    </div>
+    <div class="k-form-label">配置 JSON</div>
+    <textarea id="m-cfg" class="k-textarea" rows="8" placeholder='{}'></textarea>`,
+    async ok => {
+      if (!ok) return false;
+      const enabledV = document.getElementById('m-en').value;
+      let cfg = {};
+      try { cfg = JSON.parse(document.getElementById('m-cfg').value || '{}'); } catch (e) {}
+      const j = await UI.api('GET', '/api/admin/channel/list');
+      const item = j.data.list.find(x => x.channel_code === code);
+      if (item) {
+        await UI.api('POST', '/api/admin/channel/update', { id: item.id, enabled: enabledV, config: cfg });
+      }
+      UI.success('已保存');
+      loadList();
+    }
+  );
+}
+
+async function removeCh(id) {
+  if (!UI.confirm('确认删除？')) return;
+  const j = await UI.api('POST', '/api/admin/channel/delete', { id });
+  if (j.code !== 0) return UI.error(j.msg);
+  UI.success('已删除');
+  loadList();
+}
+
+loadList();
+loadMessages();
+setInterval(loadMessages, 15000);
+</script>
+</body>
+</html>

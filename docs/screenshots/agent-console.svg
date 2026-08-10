@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+  <defs>
+    <linearGradient id="gradA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5B5BF0"/>
+      <stop offset="50%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="#F8FAFC"/>
+  <!-- Top bar -->
+  <rect x="0" y="0" width="1200" height="48" fill="white"/>
+  <rect x="16" y="12" width="24" height="24" rx="6" fill="url(#gradA)"/>
+  <text x="48" y="29" font-size="14" font-weight="700" fill="#0F172A">kefu · 客服工作台</text>
+  <rect x="1100" y="12" width="80" height="24" rx="12" fill="#10B981" fill-opacity="0.12"/>
+  <circle cx="1112" cy="24" r="3" fill="#10B981"/>
+  <text x="1120" y="28" font-size="11" fill="#10B981" font-weight="600">在线</text>
+  <!-- 3 columns -->
+  <!-- Left: session list -->
+  <rect x="0" y="48" width="280" height="672" fill="white"/>
+  <rect x="0" y="48" width="280" height="40" fill="#FAFAFB"/>
+  <line x1="0" y1="88" x2="280" y2="88" stroke="#EEF2F7"/>
+  <text x="16" y="73" font-size="12" fill="#64748B">会话列表 (12)</text>
+  <text x="240" y="73" font-size="10" fill="#5B5BF0" font-weight="600">在线</text>
+  <!-- Search -->
+  <rect x="16" y="100" width="248" height="32" rx="8" fill="#F8FAFC"/>
+  <text x="28" y="120" font-size="11" fill="#94A3B8">🔍 搜索访客…</text>
+  <!-- Session items -->
+  <g transform="translate(0,144)" font-size="11">
+    <rect x="0" y="0" width="280" height="72" fill="white"/>
+    <rect x="0" y="0" width="3" height="72" fill="url(#gradA)"/>
+    <rect x="16" y="16" width="32" height="32" rx="10" fill="#5B5BF0"/>
+    <text x="56" y="28" fill="#0F172A" font-weight="600">访客 8c1d</text>
+    <text x="220" y="28" fill="#94A3B8" font-size="10">1 分钟前</text>
+    <text x="56" y="46" fill="#64748B">想咨询一下退款流程…</text>
+    <circle cx="246" cy="20" r="6" fill="#EF4444"/>
+    <text x="246" y="24" fill="white" font-size="8" font-weight="700" text-anchor="middle">3</text>
+    <line x1="0" y1="72" x2="280" y2="72" stroke="#F8FAFC"/>
+    <rect x="16" y="88" width="32" height="32" rx="10" fill="#0891B2"/>
+    <text x="56" y="100" fill="#0F172A" font-weight="600">访客 f2a3</text>
+    <text x="220" y="100" fill="#94A3B8" font-size="10">5 分钟前</text>
+    <text x="56" y="118" fill="#64748B">你好，我想查询订单状态</text>
+    <line x1="0" y1="144" x2="280" y2="144" stroke="#F8FAFC"/>
+    <rect x="16" y="160" width="32" height="32" rx="10" fill="#7C3AED"/>
+    <text x="56" y="172" fill="#0F172A" font-weight="600">访客 e5b7</text>
+    <text x="220" y="172" fill="#94A3B8" font-size="10">8 分钟前</text>
+    <text x="56" y="190" fill="#64748B">订单多久能发货？</text>
+    <line x1="0" y1="216" x2="280" y2="216" stroke="#F8FAFC"/>
+    <rect x="16" y="232" width="32" height="32" rx="10" fill="#10B981"/>
+    <text x="56" y="244" fill="#0F172A" font-weight="600">访客 9a2f</text>
+    <text x="220" y="244" fill="#94A3B8" font-size="10">12 分钟前</text>
+    <text x="56" y="262" fill="#64748B">请问有什么可以帮您？</text>
+  </g>
+  <!-- Middle: chat area -->
+  <rect x="280" y="48" width="640" height="672" fill="white"/>
+  <rect x="280" y="48" width="640" height="56" fill="white"/>
+  <line x1="280" y1="104" x2="920" y2="104" stroke="#EEF2F7"/>
+  <rect x="296" y="64" width="32" height="32" rx="10" fill="#5B5BF0"/>
+  <text x="336" y="76" fill="#0F172A" font-weight="600" font-size="13">访客 8c1d</text>
+  <text x="336" y="92" fill="#94A3B8" font-size="10">网页 · 等待回复</text>
+  <rect x="800" y="68" width="100" height="28" rx="8" fill="#F8FAFC"/>
+  <text x="816" y="86" fill="#64748B" font-size="11">↔ 转接</text>
+  <text x="864" y="86" fill="#64748B" font-size="11">✓ 关闭</text>
+  <!-- Chat messages -->
+  <rect x="296" y="124" width="36" height="36" rx="10" fill="#5B5BF0"/>
+  <rect x="344" y="124" width="240" height="56" rx="12" fill="white" stroke="#EEF2F7"/>
+  <circle cx="356" cy="140" r="3" fill="#5B5BF0"/>
+  <text x="364" y="144" font-size="10" fill="#5B5BF0" font-weight="600">智能客服 小 e</text>
+  <text x="356" y="166" font-size="11" fill="#0F172A">您好，我是智能客服小 e…</text>
+  <!-- Visitor (right) -->
+  <rect x="480" y="200" width="180" height="44" rx="12" fill="url(#gradA)"/>
+  <text x="496" y="226" fill="white" font-size="11">想咨询一下退款流程</text>
+  <rect x="668" y="200" width="36" height="36" rx="10" fill="#0EA5E9"/>
+  <!-- AI 2 -->
+  <rect x="296" y="266" width="36" height="36" rx="10" fill="#5B5BF0"/>
+  <rect x="344" y="266" width="220" height="44" rx="12" fill="white" stroke="#EEF2F7"/>
+  <circle cx="356" cy="282" r="3" fill="#5B5BF0"/>
+  <text x="364" y="286" font-size="10" fill="#5B5BF0" font-weight="600">智能客服 小 e</text>
+  <text x="356" y="302" font-size="11" fill="#0F172A">好的，正在为您查询…</text>
+  <!-- Handoff -->
+  <rect x="350" y="328" width="400" height="22" rx="11" fill="#FEF3C7" fill-opacity="0.4"/>
+  <text x="446" y="343" font-size="10" fill="#B45309" font-weight="600">⚠ 系统检测到关键词「人工」,已为您转接</text>
+  <!-- Human agent -->
+  <rect x="296" y="368" width="36" height="36" rx="10" fill="#10B981"/>
+  <rect x="344" y="368" width="280" height="56" rx="12" fill="#ECFDF5" stroke="#A7F3D0"/>
+  <circle cx="356" cy="384" r="3" fill="#10B981"/>
+  <text x="364" y="388" font-size="10" fill="#047857" font-weight="600">客服 小李 · 已接管</text>
+  <text x="356" y="410" font-size="11" fill="#064E3B">您好，我是人工客服小李…</text>
+  <!-- Quick reply -->
+  <g transform="translate(296,460)">
+    <rect x="0" y="0" width="624" height="32" fill="#FAFAFB" rx="8"/>
+    <text x="14" y="20" font-size="10" fill="#94A3B8">快捷回复：</text>
+    <rect x="84" y="6" width="60" height="20" rx="10" fill="white" stroke="#E2E8F0"/>
+    <text x="94" y="20" fill="#334155" font-size="10">问候语</text>
+    <rect x="150" y="6" width="80" height="20" rx="10" fill="white" stroke="#E2E8F0"/>
+    <text x="160" y="20" fill="#334155" font-size="10">退款流程</text>
+    <rect x="236" y="6" width="80" height="20" rx="10" fill="white" stroke="#E2E8F0"/>
+    <text x="246" y="20" fill="#334155" font-size="10">物流查询</text>
+    <rect x="322" y="6" width="80" height="20" rx="10" fill="white" stroke="#E2E8F0"/>
+    <text x="332" y="20" fill="#334155" font-size="10">投诉处理</text>
+  </g>
+  <!-- Input area -->
+  <rect x="296" y="510" width="624" height="44" fill="white" rx="8" stroke="#E2E8F0"/>
+  <text x="312" y="538" font-size="11" fill="#94A3B8">输入消息…</text>
+  <circle cx="900" cy="532" r="16" fill="url(#gradA)"/>
+  <path d="M893 525 L908 532 L908 540 L893 532 Z" fill="white"/>
+  <!-- Service notes -->
+  <rect x="296" y="572" width="624" height="120" rx="8" fill="#FAFAFB"/>
+  <text x="312" y="592" font-size="11" fill="#0F172A" font-weight="600">服务小记</text>
+  <text x="312" y="612" font-size="10" fill="#94A3B8">咨询分类</text>
+  <rect x="380" y="600" width="120" height="20" rx="4" fill="white" stroke="#E2E8F0"/>
+  <text x="392" y="614" font-size="10" fill="#334155">退款/售后</text>
+  <text x="312" y="640" font-size="10" fill="#94A3B8">是否解决</text>
+  <rect x="380" y="628" width="60" height="20" rx="4" fill="#10B981" fill-opacity="0.12"/>
+  <text x="396" y="642" font-size="10" fill="#10B981" font-weight="600">已解决</text>
+  <text x="312" y="668" font-size="10" fill="#94A3B8">备注</text>
+  <text x="380" y="668" font-size="10" fill="#64748B">客户对退款政策有疑问…</text>
+  <!-- Right: customer info -->
+  <rect x="920" y="48" width="280" height="672" fill="white"/>
+  <line x1="920" y1="48" x2="920" y2="720" stroke="#EEF2F7"/>
+  <text x="936" y="76" font-size="12" font-weight="600" fill="#0F172A">客户信息</text>
+  <rect x="936" y="96" width="248" height="60" rx="8" fill="#FAFAFB"/>
+  <rect x="952" y="108" width="36" height="36" rx="18" fill="url(#gradA)"/>
+  <text x="996" y="124" fill="#0F172A" font-weight="600" font-size="12">访客 8c1d</text>
+  <text x="996" y="140" fill="#94A3B8" font-size="10">首次咨询 · 普通客户</text>
+  <text x="936" y="180" font-size="11" fill="#94A3B8" font-weight="600">联系方式</text>
+  <text x="936" y="200" font-size="11" fill="#64748B">📧 guest@example.com</text>
+  <text x="936" y="216" font-size="11" fill="#64748B">🌐 IP: 192.168.1.100</text>
+  <text x="936" y="232" font-size="11" fill="#64748B">💬 浏览器: Chrome 125</text>
+  <line x1="936" y1="252" x2="1184" y2="252" stroke="#EEF2F7"/>
+  <text x="936" y="276" font-size="11" fill="#94A3B8" font-weight="600">历史会话 (3)</text>
+  <g transform="translate(936,288)" font-size="10">
+    <rect x="0" y="0" width="248" height="40" rx="6" fill="white" stroke="#E2E8F0"/>
+    <text x="12" y="16" fill="#0F172A" font-weight="600">订单查询问题</text>
+    <text x="12" y="32" fill="#94A3B8">2026-08-08 · 15 分钟</text>
+    <rect x="0" y="48" width="248" height="40" rx="6" fill="white" stroke="#E2E8F0"/>
+    <text x="12" y="64" fill="#0F172A" font-weight="600">会员权益咨询</text>
+    <text x="12" y="80" fill="#94A3B8">2026-08-05 · 8 分钟</text>
+    <rect x="0" y="96" width="248" height="40" rx="6" fill="white" stroke="#E2E8F0"/>
+    <text x="12" y="112" fill="#0F172A" font-weight="600">物流跟踪</text>
+    <text x="12" y="128" fill="#94A3B8">2026-08-01 · 12 分钟</text>
+  </g>
+  <line x1="936" y1="450" x2="1184" y2="450" stroke="#EEF2F7"/>
+  <text x="936" y="474" font-size="11" fill="#94A3B8" font-weight="600">客户标签</text>
+  <g transform="translate(936,484)">
+    <rect x="0" y="0" width="60" height="20" rx="10" fill="#5B5BF0" fill-opacity="0.08"/>
+    <text x="14" y="14" font-size="10" fill="#5B5BF0" font-weight="600">新客户</text>
+    <rect x="68" y="0" width="50" height="20" rx="10" fill="#10B981" fill-opacity="0.08"/>
+    <text x="80" y="14" font-size="10" fill="#10B981" font-weight="600">VIP</text>
+    <rect x="126" y="0" width="50" height="20" rx="10" fill="#F59E0B" fill-opacity="0.08"/>
+    <text x="140" y="14" font-size="10" fill="#F59E0B" font-weight="600">回头客</text>
+  </g>
+</svg>

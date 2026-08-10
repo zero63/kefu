@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F4F6FB"/>
+    </linearGradient>
+    <linearGradient id="heroGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5B5BF0"/>
+      <stop offset="50%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+    <linearGradient id="rad1" cx="10%" cy="0%" r="60%">
+      <stop offset="0%" stop-color="#5B5BF0" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#5B5BF0" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="400" fill="url(#rad1)"/>
+  <!-- Nav -->
+  <rect x="0" y="0" width="1200" height="60" fill="white" opacity="0.9"/>
+  <rect x="60" y="22" width="28" height="28" rx="7" fill="url(#heroGrad)"/>
+  <text x="100" y="40" font-size="16" font-weight="700" fill="#0F172A">kefu</text>
+  <text x="500" y="40" font-size="13" fill="#334155">核心功能</text>
+  <text x="580" y="40" font-size="13" fill="#334155">业务流程</text>
+  <text x="660" y="40" font-size="13" fill="#334155">角色入口</text>
+  <text x="740" y="40" font-size="13" fill="#334155">技术栈</text>
+  <rect x="990" y="22" width="70" height="32" rx="8" fill="none" stroke="#E2E8F0"/>
+  <text x="1015" y="42" font-size="12" fill="#0F172A">登录</text>
+  <rect x="1070" y="22" width="90" height="32" rx="8" fill="url(#heroGrad)"/>
+  <text x="1095" y="42" font-size="12" fill="white" font-weight="600">免费体验</text>
+  <!-- Eyebrow -->
+  <rect x="80" y="120" width="160" height="24" rx="12" fill="#5B5BF0" fill-opacity="0.08"/>
+  <circle cx="100" cy="132" r="3" fill="#5B5BF0"/>
+  <text x="110" y="136" font-size="11" fill="#5B5BF0" font-weight="600">AI-Native Customer Service</text>
+  <!-- H1 -->
+  <text x="80" y="190" font-size="48" font-weight="800" fill="#0F172A">让客服更</text>
+  <text x="80" y="240" font-size="48" font-weight="800" fill="url(#heroGrad)">智能、高效、可量化</text>
+  <!-- Lead -->
+  <text x="80" y="285" font-size="14" fill="#334155">基于百度千帆大模型的一站式智能客服平台。</text>
+  <text x="80" y="305" font-size="14" fill="#334155">AI 智能接待 · 关键词自动转人工 · 数据看板 · 工单流转</text>
+  <!-- CTAs -->
+  <rect x="80" y="345" width="120" height="44" rx="10" fill="url(#heroGrad)"/>
+  <text x="115" y="372" font-size="14" fill="white" font-weight="600">立即开始</text>
+  <rect x="220" y="345" width="140" height="44" rx="10" fill="white" stroke="#E2E8F0"/>
+  <text x="255" y="372" font-size="14" fill="#0F172A" font-weight="500">在线体验 Demo</text>
+  <!-- Hero meta -->
+  <g transform="translate(80,420)">
+    <circle cx="8" cy="8" r="7" fill="#10B981" fill-opacity="0.12"/>
+    <path d="M4 8 L7 11 L12 5" stroke="#10B981" stroke-width="1.8" fill="none"/>
+    <text x="22" y="12" font-size="11" fill="#64748B">多租户 SaaS 架构</text>
+  </g>
+  <g transform="translate(240,420)">
+    <circle cx="8" cy="8" r="7" fill="#10B981" fill-opacity="0.12"/>
+    <path d="M4 8 L7 11 L12 5" stroke="#10B981" stroke-width="1.8" fill="none"/>
+    <text x="22" y="12" font-size="11" fill="#64748B">三态消息可靠投递</text>
+  </g>
+  <!-- Right preview card -->
+  <g transform="translate(620,80)">
+    <rect x="0" y="0" width="520" height="380" rx="18" fill="white" stroke="#E2E8F0"/>
+    <rect x="0" y="0" width="520" height="40" rx="18" fill="#FAFAFB"/>
+    <rect x="0" y="22" width="520" height="18" fill="#FAFAFB"/>
+    <line x1="0" y1="40" x2="520" y2="40" stroke="#EEF2F7"/>
+    <circle cx="18" cy="20" r="4" fill="#10B981"/>
+    <text x="30" y="24" font-size="11" font-weight="600" fill="#0F172A">智能客服工作台 · 实时演示</text>
+    <text x="490" y="24" font-size="10" fill="#94A3B8">刚刚</text>
+    <!-- AI bubble -->
+    <rect x="20" y="60" width="36" height="36" rx="10" fill="#5B5BF0"/>
+    <rect x="68" y="60" width="220" height="56" rx="12" fill="white" stroke="#EEF2F7"/>
+    <circle cx="80" cy="76" r="3" fill="#5B5BF0"/>
+    <text x="88" y="80" font-size="10" fill="#5B5BF0" font-weight="600">智能客服 小 e</text>
+    <text x="80" y="100" font-size="11" fill="#0F172A">您好，我是智能客服小 e…</text>
+    <!-- Visitor bubble (right) -->
+    <rect x="280" y="135" width="180" height="44" rx="12" fill="url(#heroGrad)"/>
+    <text x="295" y="162" font-size="11" fill="white">你好，我想查询订单状态</text>
+    <rect x="468" y="135" width="36" height="36" rx="10" fill="#0EA5E9"/>
+    <!-- AI bubble 2 -->
+    <rect x="20" y="200" width="36" height="36" rx="10" fill="#5B5BF0"/>
+    <rect x="68" y="200" width="200" height="44" rx="12" fill="white" stroke="#EEF2F7"/>
+    <circle cx="80" cy="216" r="3" fill="#5B5BF0"/>
+    <text x="88" y="220" font-size="10" fill="#5B5BF0" font-weight="600">智能客服 小 e</text>
+    <text x="80" y="236" font-size="11" fill="#0F172A">好的，请提供您的订单号…</text>
+    <!-- Handoff -->
+    <rect x="100" y="262" width="320" height="20" rx="10" fill="#FEF3C7" fill-opacity="0.4"/>
+    <text x="180" y="275" font-size="10" fill="#B45309" font-weight="600">⚠ 系统检测到关键词「人工」,已为您转接</text>
+    <!-- Stats footer -->
+    <line x1="0" y1="332" x2="520" y2="332" stroke="#EEF2F7"/>
+    <rect x="20" y="345" width="36" height="24" rx="8" fill="#5B5BF0"/>
+    <text x="64" y="355" font-size="9" fill="#94A3B8">平均响应</text>
+    <text x="64" y="368" font-size="13" font-weight="700" fill="#0F172A">0.8 秒</text>
+    <rect x="266" y="345" width="36" height="24" rx="8" fill="#10B981"/>
+    <text x="310" y="355" font-size="9" fill="#94A3B8">解决率</text>
+    <text x="310" y="368" font-size="13" font-weight="700" fill="#0F172A">92.6%</text>
+  </g>
+  <!-- KPI -->
+  <g transform="translate(80,500)">
+    <rect x="0" y="0" width="1040" height="120" rx="16" fill="white" stroke="#E2E8F0"/>
+    <rect x="0" y="0" width="260" height="120" fill="none"/>
+    <line x1="260" y1="20" x2="260" y2="100" stroke="#EEF2F7"/>
+    <line x1="520" y1="20" x2="520" y2="100" stroke="#EEF2F7"/>
+    <line x1="780" y1="20" x2="780" y2="100" stroke="#EEF2F7"/>
+    <text x="30" y="50" font-size="32" font-weight="800" fill="url(#heroGrad)">99.9%</text>
+    <text x="30" y="80" font-size="13" fill="#334155">消息可靠投递</text>
+    <text x="30" y="98" font-size="10" fill="#94A3B8">三态消息 + 序号补差</text>
+    <text x="290" y="50" font-size="32" font-weight="800" fill="url(#heroGrad)">10×</text>
+    <text x="290" y="80" font-size="13" fill="#334155">客服人效提升</text>
+    <text x="550" y="50" font-size="32" font-weight="800" fill="url(#heroGrad)">200+</text>
+    <text x="550" y="80" font-size="13" fill="#334155">REST API 接口</text>
+    <text x="810" y="50" font-size="32" font-weight="800" fill="url(#heroGrad)">47+</text>
+    <text x="810" y="80" font-size="13" fill="#334155">数据表 / 模块</text>
+  </g>
+</svg>

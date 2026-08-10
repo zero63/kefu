@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>会话列表</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>body { margin: 0; padding: 24px; }</style>
+</head>
+<body>
+
+<div class="k-card k-reveal">
+  <div class="k-card-title">💬 会话管理
+    <div class="extra">
+      <input type="checkbox" id="auto" checked onchange="setupAuto()" />
+      <label for="auto" class="k-text-muted" style="font-size:13px;margin-left:-2px;">自动刷新</label>
+    </div>
+  </div>
+
+  <div class="k-toolbar">
+    <div class="tab-bar" style="display:flex;gap:0;border-bottom:1px solid var(--color-muted);">
+      <span class="tab active" data-tab="all" onclick="switchTab('all')" style="padding:8px 16px;cursor:pointer;border-bottom:2px solid transparent;">全部</span>
+      <span class="tab" data-tab="mine" onclick="switchTab('mine')" style="padding:8px 16px;cursor:pointer;border-bottom:2px solid transparent;">我的</span>
+      <span class="tab" data-tab="waiting" onclick="switchTab('waiting')" style="padding:8px 16px;cursor:pointer;border-bottom:2px solid transparent;">待接入</span>
+      <span class="tab" data-tab="closed" onclick="switchTab('closed')" style="padding:8px 16px;cursor:pointer;border-bottom:2px solid transparent;">已关闭</span>
+    </div>
+    <input id="kw" class="k-input" placeholder="搜索..." style="width:240px;margin-left:auto;" onkeydown="if(event.key==='Enter')loadList(1)" />
+  </div>
+
+  <div id="list" class="k-loading">加载中…</div>
+  <div id="pager"></div>
+</div>
+
+<style>
+.tab-bar .tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); font-weight: 500; }
+</style>
+
+<script src="/agent/common.js?v=2026"></script>
+<script>
+if (!KefuAgent.requireLogin()) throw new Error('not logged in');
+const A = KefuAgent;
+let curTab = 'all';
+let curPage = 1;
+let autoTimer = null;
+
+function switchTab(tab) {
+  curTab = tab;
+  A.qsa('.tab-bar .tab').forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === tab));
+  loadList(1);
+}
+
+async function loadList(page) {
+  curPage = page || curPage;
+  const params = new URLSearchParams({ size: 30, page: curPage, keyword: A.qs('#kw').value.trim() });
+  if (curTab === 'waiting') params.set('status', 'waiting');
+  else if (curTab === 'closed') params.set('status', 'closed');
+  const r = await A.api('GET', '/api/agent/session/list?' + params);
+  const box = A.qs('#list');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  let rows = (r.data && r.data.list) || [];
+  if (curTab === 'mine') rows = rows.filter(x => x.agent_id == A.employeeId);
+  // 修复：全部 tab 默认只看自己的 + 待接入的（避免客服看到所有团队的会话造成干扰）
+  if (curTab === 'all') rows = rows.filter(x => x.agent_id == A.employeeId || x.agent_id == 0 || x.status === 'waiting');
+  if (curTab === 'waiting') rows = rows.filter(x => x.agent_id == 0 || x.status === 'waiting');
+  if (!rows.length) { box.innerHTML = '<div class="k-empty">暂无会话</div>'; A.qs('#pager').innerHTML = ''; return; }
+  box.innerHTML = '<table class="k-table"><thead><tr><th>会话ID</th><th>客户</th><th>客服</th><th>状态</th><th>模式</th><th>消息</th><th>开始</th><th>操作</th></tr></thead><tbody>' +
+    rows.map(s => {
+      const st = { active: 'k-tag-success', waiting: 'k-tag-warning', closed: 'k-tag-gray' }[s.status] || 'k-tag-gray';
+      const isMine = s.agent_id == A.employeeId;
+      const modeBadge = s.serving_mode === 'ai' ? 'k-tag-ai' : 'k-tag-human';
+      return '<tr>' +
+        '<td><code class="k-mono" style="font-size:11px;">' + (s.session_id || '').slice(0, 20) + '…</code></td>' +
+        '<td>' + (s.customer_name || s.customer_id || '-') + '</td>' +
+        '<td>' + (isMine ? '<span class="k-tag k-tag-human">我</span> ' : '') + (s.agent_name || (s.agent_id ? '#' + s.agent_id : '未分配')) + '</td>' +
+        '<td><span class="k-tag ' + st + '">' + s.status + '</span></td>' +
+        '<td><span class="k-tag ' + modeBadge + '">' + (s.serving_mode === 'ai' ? '🤖 AI' : '👤 人工') + '</span></td>' +
+        '<td>' + (s.message_count || 0) + '</td>' +
+        '<td class="k-mono" style="font-size:12px;">' + A.fmtDate(s.created_at) + '</td>' +
+        '<td class="actions">' +
+          '<button class="k-btn-text" onclick="openChat(\'' + s.session_id + '\')">打开</button>' +
+          // 修复：所有未关闭的会话都可接管（即使已被别人接管，可强制接管）
+          (s.status !== 'closed' ? '<button class="k-btn-text" onclick="takeOver(\'' + s.session_id + '\')">' + (s.agent_id ? '抢接' : '接管') + '</button>' : '') +
+          (s.status !== 'closed' && s.agent_id == A.employeeId ? '<button class="k-btn-text danger" onclick="closeSession(\'' + s.session_id + '\')">关闭</button>' : '') +
+        '</td>' +
+      '</tr>';
+    }).join('') + '</tbody></table>';
+  const pager = A.qs('#pager');
+  pager.innerHTML = '';
+  if (A.renderPagination) pager.appendChild(A.renderPagination(r.data.total, curPage, r.data.size, p => loadList(p)));
+}
+
+function openChat(sid) {
+  try { parent.document.getElementById('content').src = '/agent/console.html?v=2026&session=' + sid; } catch (e) {}
+}
+
+async function takeOver(sid) {
+  const r = await A.api('POST', '/api/agent/session/assign', { session_id: sid, employee_id: A.employeeId });
+  A.toast(r.code === 0 ? '已接管' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+  if (r.code === 0) {
+    // 修复：接管成功后立即跳到 console.html 开聊（避免用户还要手动点导航）
+    setTimeout(() => {
+      try {
+        // 如果在父窗口的 iframe 内，刷新父窗口导航到接待
+        if (window.parent !== window) {
+          const navItem = window.parent.document.querySelector('.nav-item[data-page="console.html"]');
+          if (navItem) navItem.click();
+          // 切换后延迟把 session 参数写入 iframe src
+          setTimeout(() => {
+            const iframe = window.parent.document.getElementById('content');
+            if (iframe) iframe.src = '/agent/console.html?v=2026&session=' + encodeURIComponent(sid);
+          }, 300);
+        } else {
+          window.location.href = '/agent/console.html?v=2026&session=' + encodeURIComponent(sid);
+        }
+      } catch (e) {
+        window.location.href = '/agent/console.html?v=2026&session=' + encodeURIComponent(sid);
+      }
+    }, 600);
+    loadList(curPage);
+  }
+}
+
+async function closeSession(sid) {
+  if (!confirm('关闭会话？')) return;
+  const r = await A.api('POST', '/api/agent/session/close', { session_id: sid, reason: 'agent_close' });
+  A.toast(r.msg, r.code === 0 ? 'success' : 'error');
+  loadList(curPage);
+}
+
+function setupAuto() {
+  if (autoTimer) clearInterval(autoTimer);
+  if (A.qs('#auto').checked) autoTimer = setInterval(() => loadList(curPage), 15000);
+}
+
+loadList();
+setupAuto();
+</script>
+</body>
+</html>

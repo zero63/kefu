@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>员工管理</title>
+<link rel="stylesheet" href="/design-system.css" />
+  <link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .filter-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--color-border);border-radius:20px;font-size:12px;color:var(--color-text-2);cursor:pointer;background:var(--color-card);transition:all .15s}
+  .filter-chip:hover{border-color:var(--color-primary);color:var(--color-primary)}
+  .filter-chip.active{background:var(--color-primary);color:white;border-color:var(--color-primary)}
+  .dept-tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:6px;background:#DBEAFE;color:#1D4ED8;font-size:11px;font-weight:500}
+  .role-tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:6px;background:#F3E8FF;color:#7C3AED;font-size:11px;font-weight:500}
+  .role-tag.sys{background:#FEF3C7;color:#92400E}
+</style>
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="card">
+  <div class="card-title">👥 员工列表
+    <div class="extra">
+      <input id="kw" class="k-input" placeholder="搜索用户名/姓名" onkeydown="if(event.key==='Enter')loadList(1)" />
+      <button class="k-btn k-btn-primary" onclick="openCreate()">+ 新建员工</button>
+    </div>
+  </div>
+  <div class="toolbar" style="margin-bottom:12px">
+    <span class="filter-chip active" data-dept="0" onclick="filterDept(0, this)">全部</span>
+    <span id="dept-filter"></span>
+  </div>
+  <div id="list" class="k-loading">加载中...</div>
+  <div id="pager"></div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+// iframe 内 token 获取（多源 fallback）
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+let curPage = 1;
+let curDeptId = 0;
+let deptFlat = [];     // 部门平铺列表（用于下拉框）
+let roleFlat = [];     // 角色平铺列表（用于下拉框）
+
+// 加载部门和角色列表（联动数据源）
+async function loadDict() {
+  const [dr, rr] = await Promise.all([
+    A.api('GET', '/api/admin/dept/tree'),
+    A.api('GET', '/api/admin/role/list')
+  ]);
+  if (dr.code === 0) {
+    deptFlat = (dr.data && dr.data.flat) || [];
+    renderDeptFilter();
+  }
+  if (rr.code === 0) {
+    roleFlat = ((rr.data && rr.data.list) || []).filter(r => r.is_system == 0 || r.id <= 3);
+  }
+}
+
+function renderDeptFilter() {
+  const box = document.getElementById('dept-filter');
+  box.innerHTML = deptFlat.map(d =>
+    `<span class="filter-chip" data-dept="${d.id}" onclick="filterDept(${d.id}, this)">${escapeHtml(d.dept_name)} (${d.emp_count||0})</span>`
+  ).join('');
+}
+
+function filterDept(deptId, el) {
+  curDeptId = deptId;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  loadList(1);
+}
+
+async function loadList(page) {
+  curPage = page || curPage;
+  const kw = document.getElementById('kw').value.trim();
+  let url = '/api/admin/employee/list?page=' + curPage + '&keyword=' + encodeURIComponent(kw);
+  if (curDeptId > 0) url += '&dept_id=' + curDeptId;
+  const r = await A.api('GET', url);
+  const box = document.getElementById('list');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败：' + r.msg + '</div>'; return; }
+  const rows = (r.data && r.data.list) || [];
+  if (!rows.length) { box.innerHTML = '<div class="k-empty">暂无员工</div>'; document.getElementById('pager').innerHTML = ''; return; }
+
+  box.innerHTML = '<table class="k-table"><thead><tr><th>ID</th><th>用户名</th><th>姓名</th><th>工号</th><th>部门</th><th>角色</th><th>最大会话</th><th>状态</th><th>最近登录</th><th>操作</th></tr></thead><tbody>' + rows.map(e => {
+    const st = e.status == 1 ? '<span class="k-tag k-tag-green">启用</span>' : '<span class="k-tag k-tag-red">禁用</span>';
+    const deptName = e.dept_name ? `<span class="dept-tag">🏢 ${escapeHtml(e.dept_name)}</span>` : '<span class="k-tag">未分配</span>';
+    const roleName = e.role_name ? `<span class="role-tag ${e.role_is_system==1?'sys':''}">🎖 ${escapeHtml(e.role_name)}</span>` : '<span class="k-tag">未分配</span>';
+    return '<tr><td>' + e.id + '</td><td>' + e.username + '</td><td>' + (e.real_name || '-') + '</td><td>' + (e.employee_no || '-') + '</td><td>' + deptName + '</td><td>' + roleName + '</td><td>' + (e.max_sessions || 5) + '</td><td>' + st + '</td><td>' + (A.fmtDate ? A.fmtDate(e.last_login_at) : '-') + '</td><td class="actions"><button class="k-btn-text" onclick=\'openEdit(' + JSON.stringify(e).replace(/'/g, "\\'") + ')\'>编辑</button><button class="k-btn-text" onclick="resetPwd(' + e.id + ')">重置密码</button><button class="k-btn-text ' + (e.status == 1 ? 'danger' : '') + '" onclick="toggleStatus(' + e.id + ', ' + e.status + ')">' + (e.status == 1 ? '禁用' : '启用') + '</button></td></tr>';
+  }).join('') + '</tbody></table>';
+
+  const pager = document.getElementById('pager');
+  pager.innerHTML = '';
+  if (A.renderPagination) pager.appendChild(A.renderPagination(r.data.total, curPage, r.data.size, p => loadList(p)));
+}
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function buildDeptOptions(selected) {
+  return '<option value="0">— 未分配 —</option>' +
+    deptFlat.map(d => `<option value="${d.id}" ${selected==d.id?'selected':''}>${escapeHtml(d.dept_name)}</option>`).join('');
+}
+function buildRoleOptions(selected) {
+  return '<option value="0">— 未分配 —</option>' +
+    roleFlat.map(r => `<option value="${r.id}" ${selected==r.id?'selected':''}>${escapeHtml(r.role_name)}${r.is_system==1?' (内置)':''}</option>`).join('');
+}
+
+function openCreate() {
+  const html =
+    '<div class="form-row"><div class="form-item flex"><label>用户名 *</label><input class="k-input" name="username" /></div></div>' +
+    '<div class="form-row"><div class="form-item flex"><label>密码 *</label><input class="k-input" name="password" type="password" placeholder="至少 6 位" /></div></div>' +
+    '<div class="form-row"><div class="form-item"><label>姓名 *</label><input class="k-input" name="real_name" /></div><div class="form-item"><label>昵称</label><input class="k-input" name="nickname" /></div></div>' +
+    '<div class="form-row"><div class="form-item"><label>工号</label><input class="k-input" name="employee_no" /></div><div class="form-item"><label>邮箱</label><input class="k-input" name="email" /></div></div>' +
+    '<div class="form-row"><div class="form-item"><label>手机号</label><input class="k-input" name="phone" /></div><div class="form-item"><label>技能等级</label><input class="k-input" type="number" name="skill_level" value="1" /></div></div>' +
+    '<div class="form-row"><div class="form-item"><label>部门</label><select class="k-select" name="dept_id">' + buildDeptOptions(0) + '</select></div>' +
+    '<div class="form-item"><label>角色</label><select class="k-select" name="role_id">' + buildRoleOptions(0) + '</select></div></div>' +
+    '<div class="form-row"><div class="form-item"><label>最大会话数</label><input class="k-input" type="number" name="max_sessions" value="5" /></div></div>';
+  A.openModal('新建员工', html, async ok => {
+    if (!ok) return;
+    const data = A.formToObject(document.getElementById('modal-form-body'));
+    if (!data.username || !data.password || !data.real_name) { A.toast('必填项缺失', 'error'); return false; }
+    if (data.password.length < 6) { A.toast('密码至少 6 位', 'error'); return false; }
+    const r = await A.api('POST', '/api/admin/employee/create', data);
+    A.toast(r.code === 0 ? '创建成功' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+    if (r.code === 0) loadList();
+    return r.code === 0;
+  });
+}
+
+function openEdit(emp) {
+  const html =
+    '<input type="hidden" name="id" value="' + emp.id + '" />' +
+    '<div class="form-row"><div class="form-item"><label>用户名</label><input class="k-input" value="' + emp.username + '" disabled /></div>' +
+    '<div class="form-item"><label>姓名 *</label><input class="k-input" name="real_name" value="' + (emp.real_name || '') + '" /></div></div>' +
+    '<div class="form-row"><div class="form-item"><label>昵称</label><input class="k-input" name="nickname" value="' + (emp.nickname || '') + '" /></div>' +
+    '<div class="form-item"><label>工号</label><input class="k-input" name="employee_no" value="' + (emp.employee_no || '') + '" /></div></div>' +
+    '<div class="form-row"><div class="form-item"><label>邮箱</label><input class="k-input" name="email" value="' + (emp.email || '') + '" /></div>' +
+    '<div class="form-item"><label>手机号</label><input class="k-input" name="phone" value="' + (emp.phone || '') + '" /></div></div>' +
+    '<div class="form-row"><div class="form-item"><label>部门</label><select class="k-select" name="dept_id">' + buildDeptOptions(emp.dept_id) + '</select></div>' +
+    '<div class="form-item"><label>角色</label><select class="k-select" name="role_id">' + buildRoleOptions(emp.role_id) + '</select></div></div>' +
+    '<div class="form-row"><div class="form-item"><label>技能等级</label><input class="k-input" type="number" name="skill_level" value="' + (emp.skill_level || 1) + '" /></div>' +
+    '<div class="form-item"><label>最大会话数</label><input class="k-input" type="number" name="max_sessions" value="' + (emp.max_sessions || 5) + '" /></div></div>' +
+    '<div class="form-row"><div class="form-item"><label>状态</label><select class="k-select" name="status"><option value="1" ' + (emp.status==1?'selected':'') + '>启用</option><option value="0" ' + (emp.status==0?'selected':'') + '>禁用</option></select></div></div>' +
+    '<div style="font-size:12px;color:var(--color-text-3);margin-top:8px">💡 部门 / 角色选择会立即在「角色分配」「部门管理」中体现</div>';
+  A.openModal('编辑员工 #' + emp.id, html, async ok => {
+    if (!ok) return;
+    const r = await A.api('POST', '/api/admin/employee/update', A.formToObject(document.getElementById('modal-form-body')));
+    A.toast(r.code === 0 ? '已更新' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+    if (r.code === 0) loadList();
+    return r.code === 0;
+  });
+}
+
+async function resetPwd(id) {
+  const pwd = prompt('新密码（至少 6 位）：');
+  if (!pwd || pwd.length < 6) { A.toast('密码至少 6 位', 'warning'); return; }
+  const r = await A.api('POST', '/api/admin/employee/reset-pwd', { id: id, password: pwd });
+  A.toast(r.code === 0 ? '密码已重置' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+}
+
+async function del(id) {
+  if (!confirm('确认删除该员工？删除后不可恢复！')) return;
+  const r = await A.api('POST', '/api/admin/employee/delete', { id: id });
+  A.toast(r.msg, r.code === 0 ? 'success' : 'error');
+  loadList();
+}
+
+async function toggleStatus(id, currentStatus) {
+  const newStatus = currentStatus == 1 ? 0 : 1;
+  const action = newStatus == 1 ? '启用' : '禁用';
+  if (id == (A.user && A.user.id)) {
+    A.toast('不能操作自己', 'warning'); return;
+  }
+  if (!confirm('确定' + action + '该员工？')) return;
+  const r = await A.api('POST', '/api/admin/employee/update', { id: id, status: newStatus });
+  A.toast(r.msg, r.code === 0 ? 'success' : 'error');
+  if (r.code === 0) loadList();
+}
+
+(async () => { await loadDict(); await loadList(); })();
+</script>
+</body>
+</html>

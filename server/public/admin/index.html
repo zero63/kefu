@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+.app { display: flex; height: 100vh; }
+
+/* === L1 一级菜单（白色侧栏） === */
+.l1 { width: 220px; background: var(--color-card); border-right: 1px solid var(--color-border); flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; }
+.l1 .brand { padding: 0 20px; height: 64px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--color-border); font-size: 16px; font-weight: 600; color: var(--color-text); text-decoration: none; }
+.l1 .brand .logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #0EA5E9, #0284C7); display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; font-weight: 700; }
+.l1 .brand .ver { font-size: 10px; color: var(--color-text-3); margin-left: auto; }
+.l1 .grp { padding: 16px 20px 6px; color: var(--color-text-3); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+.l1 .nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 20px; color: var(--color-text-2); cursor: pointer; font-size: 14px; border-left: 3px solid transparent; transition: all var(--t-fast); text-decoration: none; }
+.l1 .nav-item:hover { background: var(--color-primary-bg); color: var(--color-primary); text-decoration: none; }
+.l1 .nav-item.active { background: var(--color-primary-bg); color: var(--color-primary); border-left-color: var(--color-primary); font-weight: 600; }
+.l1 .nav-item .ico { font-size: 16px; width: 22px; text-align: center; }
+
+/* === L2 二级菜单 === */
+.l2 { width: 220px; background: var(--color-card); border-right: 1px solid var(--color-border); flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; }
+.l2 .title { padding: 20px 22px 8px; }
+.l2 .title h3 { margin: 0; font-size: 16px; font-weight: 600; color: var(--color-text); letter-spacing: -0.01em; }
+.l2 .nav-item { display: block; padding: 10px 22px; color: var(--color-text-2); cursor: pointer; font-size: 13px; border-left: 3px solid transparent; transition: all var(--t-fast); }
+.l2 .nav-item:hover { color: var(--color-primary); background: var(--color-primary-bg); }
+.l2 .nav-item.active { background: var(--color-primary-bg); color: var(--color-primary); border-left-color: var(--color-primary); font-weight: 600; }
+
+/* === 右侧主区 === */
+.r-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+/* === 顶部 === */
+.r-top { height: 56px; background: var(--color-card); border-bottom: 1px solid var(--color-border); display: flex; align-items: center; padding: 0 24px; flex-shrink: 0; }
+.r-top .crumbs { color: var(--color-text-3); font-size: 13px; }
+.r-top .crumbs b { color: var(--color-text); }
+.r-top .spacer { flex: 1; }
+.r-top .top-actions { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--color-text-2); }
+.r-top .user { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 14px; border-radius: var(--r-md); transition: background var(--t-fast); color: var(--color-text-2); }
+.r-top .user:hover { background: var(--color-primary-bg); color: var(--color-primary); }
+.r-top .user .av { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #0EA5E9, #0284C7); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; }
+
+.r-body { flex: 1; overflow-y: auto; padding: 0; background: var(--color-bg); }
+.r-body iframe { width: 100%; height: 100%; border: 0; background: transparent; display: block; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- 一级菜单 -->
+  <aside class="l1">
+    <a class="brand" href="/admin/index.html">
+      <span class="logo">K</span>
+      <span>kefu 后台</span>
+      <span class="ver">v1.0</span>
+    </a>
+
+    <div class="grp">会话管理</div>
+    <a class="nav-item" data-l1="sessions" data-perm="session:live"><span class="ico">💬</span><span>当前会话</span></a>
+    <a class="nav-item" data-l1="history" data-perm="session:history"><span class="ico">📋</span><span>历史会话</span></a>
+    <a class="nav-item" data-l1="transfer" data-perm="session"><span class="ico">↔️</span><span>转接会话</span></a>
+
+    <div class="grp">数据报表</div>
+    <a class="nav-item active" data-l1="dashboard" data-perm="dashboard"><span class="ico">📊</span><span>实时数据</span></a>
+    <a class="nav-item" data-l1="history-data" data-perm="report"><span class="ico">📈</span><span>历史数据</span></a>
+    <a class="nav-item" data-l1="agent-report" data-perm="report"><span class="ico">👥</span><span>坐席报表</span></a>
+    <a class="nav-item" data-l1="quality" data-perm="quality"><span class="ico">📋</span><span>质检报告</span></a>
+    <a class="nav-item" data-l1="evaluate" data-perm="evaluate"><span class="ico">⭐</span><span>评价分析</span></a>
+
+    <div class="grp">客户管理</div>
+    <a class="nav-item" data-l1="agents" data-perm="employee:list"><span class="ico">🛡️</span><span>员工列表</span></a>
+    <a class="nav-item" data-l1="roles" data-perm="role:manage"><span class="ico">🎖️</span><span>角色分配</span></a>
+    <a class="nav-item" data-l1="depts" data-perm="dept:manage"><span class="ico">🏢</span><span>部门管理</span></a>
+    <a class="nav-item" data-l1="permissions" data-perm="permission:manage"><span class="ico">🔑</span><span>权限分配</span></a>
+    <a class="nav-item" data-l1="customers" data-perm="customer:list"><span class="ico">👤</span><span>客户管理</span></a>
+    <a class="nav-item" data-l1="leave-msg" data-perm="leave-msg"><span class="ico">📝</span><span>留言记录</span></a>
+    <a class="nav-item" data-l1="online" data-perm="session:live"><span class="ico">🟢</span><span>在线坐席</span></a>
+
+    <div class="grp">业务功能</div>
+    <a class="nav-item" data-l1="worksheet" data-perm="worksheet:list"><span class="ico">📝</span><span>工单系统</span></a>
+    <a class="nav-item" data-l1="sla-report" data-perm="worksheet:sla"><span class="ico">📊</span><span>SLA 报表</span></a>
+    <a class="nav-item" data-l1="tags" data-perm="tag:manage"><span class="ico">🏷️</span><span>标签管理</span></a>
+    <a class="nav-item" data-l1="blacklist" data-perm="customer:blacklist"><span class="ico">⛔</span><span>黑名单</span></a>
+
+    <div class="grp">营销分析</div>
+    <a class="nav-item" data-l1="channels" data-perm="session"><span class="ico">📨</span><span>多渠道接入</span></a>
+    <a class="nav-item" data-l1="customer-track" data-perm="customer:list"><span class="ico">🛤️</span><span>客户轨迹</span></a>
+    <a class="nav-item" data-l1="campaign"><span class="ico">📣</span><span>营销活动</span></a>
+    <a class="nav-item" data-l1="survey"><span class="ico">📋</span><span>满意度调研</span></a>
+    <a class="nav-item" data-l1="kb"><span class="ico">📚</span><span>知识库</span></a>
+    <a class="nav-item" data-l1="funnel" data-perm="report"><span class="ico">📉</span><span>漏斗分析</span></a>
+
+    <div class="grp">通讯</div>
+    <a class="nav-item" data-l1="inbox" data-perm="msg:inbox"><span class="ico">✉️</span><span>站内信箱</span></a>
+    <a class="nav-item" data-l1="leave-message" data-perm="leave-msg"><span class="ico">📝</span><span>访客留言</span></a>
+    <a class="nav-item" data-l1="collab"><span class="ico">👥</span><span>团队协作</span></a>
+
+    <div class="grp">系统设置</div>
+    <a class="nav-item" data-l1="ai-config" data-perm="ai"><span class="ico">🤖</span><span>AI 智能体</span></a>
+    <a class="nav-item" data-l1="sensitive" data-perm="sensitive:manage"><span class="ico">🚫</span><span>敏感词</span></a>
+    <a class="nav-item" data-l1="settings" data-perm="tenant:setting"><span class="ico">⚙️</span><span>系统设置</span></a>
+    <a class="nav-item" data-l1="integration"><span class="ico">🔌</span><span>系统集成</span></a>
+    <a class="nav-item" data-l1="integration-guide" href="/docs/integration-guide.md" target="_blank"><span class="ico">📖</span><span>接入指南</span></a>
+    <a class="nav-item" data-l1="visitor-style"><span class="ico">🎨</span><span>访客端样式</span></a>
+    <a class="nav-item" data-l1="visitor-fields"><span class="ico">📇</span><span>访客自定义字段</span></a>
+    <a class="nav-item" data-l1="diagnostics"><span class="ico">🩺</span><span>故障诊断</span></a>
+    <a class="nav-item" data-l1="op-log" data-perm="op-log:view"><span class="ico">📜</span><span>操作日志</span></a>
+  </aside>
+
+  <!-- 二级菜单 -->
+  <aside class="l2">
+    <div class="title"><h3 id="l2-title">实时数据</h3></div>
+    <div id="l2-items"></div>
+  </aside>
+
+  <!-- 右侧 -->
+  <main class="r-main">
+    <header class="r-top">
+      <div class="crumbs">
+        <span id="crumb-l1">📊 实时数据</span>
+        <span style="margin:0 8px;">/</span>
+        <b id="crumb-l2">实时数据</b>
+      </div>
+      <div class="spacer"></div>
+      <div class="top-actions">
+        <span title="刷新" onclick="document.getElementById('content').contentWindow.location.reload()" style="cursor:pointer;font-size:16px;">🔄</span>
+        <div class="user" onclick="logout()">
+          <span class="av" id="user-av">A</span>
+          <span id="user-name">admin</span>
+          <span style="font-size:11px;color:var(--color-text-3);">退出</span>
+        </div>
+      </div>
+    </header>
+    <div class="r-body">
+      <iframe id="content" src="/admin/overview.html"></iframe>
+    </div>
+  </main>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script src="/ui.js"></script>
+<script>
+// 同步从 localStorage 读取 token（admin/common.js 也定义了 KefuAdmin）
+if (!KefuAdmin.token) KefuAdmin.token = localStorage.getItem('kefu_token');
+if (!UI.token) UI.token = localStorage.getItem('kefu_token');
+try { KefuAdmin.user = UI.user = JSON.parse(localStorage.getItem('kefu_user') || 'null'); } catch (e) {}
+// 暴露到 window 让 iframe 拿
+window.KefuAdmin = KefuAdmin; window.UI = UI;
+if (!KefuAdmin.token) { location.href = '/admin/login.html'; }
+// 守卫：客服不能进超管后台
+const _role = parseInt((KefuAdmin.user && KefuAdmin.user.role_id) || 0);
+if (_role >= 3) { location.href = '/agent/index.html'; }
+
+// 加载当前用户权限（决定哪些菜单可见）
+window.__MY_PERMS__ = [];
+(async function loadMyPerms() {
+  try {
+    const r = await fetch('/api/admin/permission/my-permissions', {
+      headers: { 'Authorization': 'Bearer ' + KefuAdmin.token }
+    }).then(r => r.json());
+    if (r.code === 0) {
+      window.__MY_PERMS__ = r.data.permissions || [];
+      window.__MY_ALL_PERM__ = !!r.data.all;
+      applyPermFilter();
+    }
+  } catch (e) { console.error('加载权限失败', e); }
+})();
+
+function hasPerm(code) {
+  if (!code) return true; // 没设置权限码 = 默认可见
+  if (window.__MY_ALL_PERM__) return true;
+  return window.__MY_PERMS__.indexOf(code) >= 0;
+}
+
+function applyPermFilter() {
+  // 隐藏没权限的 L1 项
+  document.querySelectorAll('.l1 .nav-item[data-perm]').forEach(el => {
+    const code = el.getAttribute('data-perm');
+    if (!hasPerm(code)) el.style.display = 'none';
+  });
+  // 隐藏没权限的分组（如果分组下没有任何可见项）
+  document.querySelectorAll('.l1 .grp').forEach(g => {
+    let next = g.nextElementSibling;
+    let hasVisible = false;
+    while (next && !next.classList.contains('grp')) {
+      if (next.classList.contains('nav-item') && next.style.display !== 'none') {
+        hasVisible = true; break;
+      }
+      next = next.nextElementSibling;
+    }
+    g.style.display = hasVisible ? '' : 'none';
+  });
+  // 重新挂载默认 L1
+  const firstVisible = document.querySelector('.l1 .nav-item:not([style*="display: none"])');
+  if (firstVisible && !document.querySelector('.l1 .nav-item.active')) {
+    firstVisible.click();
+  }
+}
+
+const u = KefuAdmin.user || UI.user || {};
+document.getElementById('user-name').textContent = u.real_name || u.username || 'admin';
+document.getElementById('user-av').textContent = (u.real_name || u.username || 'A').slice(0, 1);
+
+function logout() { localStorage.clear(); location.href = '/admin/login.html'; }
+
+const navL1 = {
+  sessions: { title: '当前会话', crumb: '💬 当前会话', sub: [
+    { l2: 'active',  label: '进行中会话',   page: 'sessions-live.html' },
+    { l2: 'waiting', label: '等待中',       page: 'sessions-live.html?status=waiting' },
+  ]},
+  history: { title: '历史会话', crumb: '📋 历史会话', sub: [
+    { l2: 'list',   label: '会话历史',     page: 'sessions-history.html' },
+    { l2: 'closed', label: '已关闭',       page: 'sessions-history.html?status=closed' },
+  ]},
+  transfer: { title: '转接会话', crumb: '↔️ 转接会话', sub: [
+    { l2: 'pending', label: '待处理', page: 'sessions-history.html?type=transfer' },
+  ]},
+  dashboard: { title: '实时数据', crumb: '📊 实时数据', sub: [
+    { l2: 'overview', label: '实时数据', page: 'overview.html' },
+    { l2: 'trend',    label: '服务趋势', page: 'overview.html?tab=trend' },
+  ]},
+  'history-data': { title: '历史数据', crumb: '📈 历史数据', sub: [
+    { l2: 'trend',  label: '趋势分析',  page: 'reports.html' },
+    { l2: 'custom', label: '自定义报表', page: 'reports.html?tab=custom' },
+  ]},
+  'agent-report': { title: '坐席报表', crumb: '👥 坐席报表', sub: [
+    { l2: 'workload',   label: '坐席工作量', page: 'agent-report.html' },
+    { l2: 'quality',    label: '坐席质量',   page: 'agent-report.html?tab=quality' },
+    { l2: 'attendance', label: '坐席考勤',   page: 'agent-report.html?tab=attendance' },
+    { l2: 'dept',       label: '部门汇总',   page: 'agent-report.html?tab=dept' },
+  ]},
+  quality: { title: '质检报告', crumb: '📋 质检报告', sub: [
+    { l2: 'list',    label: '会话质检', page: 'quality.html' },
+    { l2: 'inspect', label: '一键抽检', page: 'quality.html?act=inspect' },
+  ]},
+  evaluate: { title: '评价分析', crumb: '⭐ 评价分析', sub: [
+    { l2: 'list', label: '评价列表', page: 'evaluates.html' },
+  ]},
+  agents: { title: '员工列表', crumb: '🛡️ 员工列表', sub: [
+    { l2: 'list',   label: '所有员工', page: 'employees.html' },
+    { l2: 'create', label: '新建员工', page: 'employees.html?act=create' },
+  ]},
+  roles: { title: '角色分配', crumb: '🎖️ 角色分配', sub: [
+    { l2: 'list', label: '角色管理', page: 'roles.html' },
+  ]},
+  online: { title: '在线坐席', crumb: '🟢 在线坐席', sub: [
+    { l2: 'online', label: '在线列表', page: 'agents-online.html' },
+  ]},
+  depts: { title: '部门管理', crumb: '🏢 部门管理', sub: [
+    { l2: 'list', label: '部门列表', page: 'depts.html' },
+  ]},
+  permissions: { title: '权限分配', crumb: '🔑 权限分配', sub: [
+    { l2: 'assign', label: '角色权限', page: 'role-permissions.html' },
+  ]},
+  worksheet: { title: '工单系统', crumb: '📝 工单系统', sub: [
+    { l2: 'list',     label: '工单列表', page: 'worksheet.html' },
+    { l2: 'received', label: '我接收的', page: 'worksheet.html?filter_id=my_received' },
+    { l2: 'processed',label: '我处理的', page: 'worksheet.html?filter_id=my_processed' },
+    { l2: 'followed', label: '我关注的', page: 'worksheet.html?filter_id=my_followed' },
+    { l2: 'template', label: '工单模板', page: 'worksheet.html?tab=template' },
+    { l2: 'field',    label: '自定义字段', page: 'worksheet.html?tab=field' },
+  ]},
+  'sla-report': { title: 'SLA 报表', crumb: '📊 SLA 报表', sub: [
+    { l2: 'report', label: 'SLA 报表', page: 'sla-report.html' },
+  ]},
+  customers: { title: '客户管理', crumb: '👤 客户管理', sub: [
+    { l2: 'list',   label: '客户列表', page: 'customers.html' },
+    { l2: 'group',  label: '客户分组', page: 'customers.html?tab=group' },
+  ]},
+  'leave-msg': { title: '留言记录', crumb: '📝 留言记录', sub: [
+    { l2: 'list', label: '留言列表', page: 'leave-msg.html' },
+  ]},
+  integration: { title: '系统集成', crumb: '🔌 系统集成', sub: [
+    { l2: 'developer', label: '开发者ID', page: 'integration.html?tab=developer' },
+    { l2: 'crm',       label: 'CRM 对接', page: 'integration.html?tab=crm' },
+    { l2: 'webhook',   label: '链接外接', page: 'integration.html?tab=webhook' },
+    { l2: 'widget',    label: '网页 Widget', page: 'integration.html?tab=widget' },
+    { l2: 'channel',   label: '多渠道API', page: 'integration.html?tab=channel' },
+  ]},
+  'visitor-style': { title: '访客端样式', crumb: '🎨 访客端样式', sub: [
+    { l2: 'config', label: '样式配置', page: 'visitor-style.html' },
+  ]},
+  'visitor-fields': { title: '访客自定义字段', crumb: '📇 访客自定义字段', sub: [
+    { l2: 'config', label: '字段管理', page: 'visitor-fields.html' },
+  ]},
+  channels: { title: '多渠道接入', crumb: '📨 多渠道接入', sub: [
+    { l2: 'list',     label: '渠道列表', page: 'channels.html' },
+    { l2: 'accounts', label: '账号绑定', page: 'channels.html#accounts' },
+    { l2: 'docs',     label: '接入文档', page: 'integration.html?tab=channel' },
+  ]},
+  diagnostics: { title: '故障诊断', crumb: '🩺 故障诊断', sub: [
+    { l2: 'check',   label: '一键巡检', page: 'diagnostics.html' },
+    { l2: 'history', label: '巡检历史', page: 'diagnostics.html#history' },
+  ]},
+  tags: { title: '标签管理', crumb: '🏷️ 标签管理', sub: [
+    { l2: 'list', label: '客户标签', page: 'tags.html' },
+  ]},
+  blacklist: { title: '黑名单', crumb: '⛔ 黑名单', sub: [
+    { l2: 'list', label: '黑名单列表', page: 'blacklist.html' },
+  ]},
+  inbox: { title: '站内信箱', crumb: '✉️ 站内信箱', sub: [
+    { l2: 'inbox', label: '收件箱', page: 'inbox.html' },
+  ]},
+  'leave-message': { title: '访客留言', crumb: '📝 访客留言', sub: [
+    { l2: 'list', label: '留言列表', page: 'leave-messages.html' },
+  ]},
+  'customer-track': { title: '客户轨迹', crumb: '🛤️ 客户轨迹', sub: [
+    { l2: 'timeline', label: '轨迹时间线', page: 'customer-track.html' },
+    { l2: 'field',    label: '自定义字段', page: 'customer-track.html?tab=field' },
+  ]},
+  campaign: { title: '营销活动', crumb: '📣 营销活动', sub: [
+    { l2: 'list', label: '活动列表', page: 'campaign.html' },
+  ]},
+  survey: { title: '满意度调研', crumb: '📋 满意度调研', sub: [
+    { l2: 'list', label: '调研列表', page: 'survey.html' },
+  ]},
+  kb: { title: '知识库', crumb: '📚 知识库', sub: [
+    { l2: 'list',   label: '问答管理', page: 'kb.html' },
+    { l2: 'stats',  label: '命中率统计', page: 'kb.html?tab=stats' },
+  ]},
+  funnel: { title: '漏斗分析', crumb: '📉 漏斗分析', sub: [
+    { l2: 'list',   label: '漏斗管理', page: 'funnel.html' },
+    { l2: 'source', label: '会话来源', page: 'funnel.html?tab=source' },
+  ]},
+  collab: { title: '团队协作', crumb: '👥 团队协作', sub: [
+    { l2: 'mention', label: '@提醒', page: 'collaboration.html' },
+    { l2: 'note',    label: '会话备注', page: 'collaboration.html?tab=note' },
+  ]},
+  'ai-config': { title: 'AI 智能体', crumb: '🤖 AI 智能体', sub: [
+    { l2: 'config', label: '千帆配置', page: 'ai-config.html' },
+    { l2: 'test',   label: '连通测试', page: 'ai-config.html?act=test' },
+  ]},
+  sensitive: { title: '敏感词', crumb: '🚫 敏感词', sub: [
+    { l2: 'list', label: '敏感词列表', page: 'sensitive.html' },
+    { l2: 'add',  label: '添加敏感词', page: 'sensitive.html?act=add' },
+  ]},
+  settings: { title: '系统设置', crumb: '⚙️ 系统设置', sub: [
+    { l2: 'tenant', label: '租户信息', page: 'settings.html' },
+  ]},
+  'op-log': { title: '操作日志', crumb: '📜 操作日志', sub: [
+    { l2: 'list', label: '操作日志', page: 'op-log.html' },
+  ]},
+};
+
+const l1Items = document.querySelectorAll('.l1 .nav-item');
+l1Items.forEach(it => it.onclick = e => {
+  e.preventDefault();
+  l1Items.forEach(x => x.classList.remove('active'));
+  it.classList.add('active');
+  selectL1(it.getAttribute('data-l1'));
+});
+
+function selectL1(key) {
+  const conf = navL1[key];
+  if (!conf) return;
+  document.getElementById('l2-title').textContent = conf.title;
+  document.getElementById('crumb-l1').textContent = conf.crumb;
+  // 过滤子菜单：无权限的子项不展示
+  const sub = (conf.sub || []).filter(s => hasPerm(s.perm));
+  if (!sub.length) return; // 子项全部无权限
+  document.getElementById('crumb-l2').textContent = sub[0].label;
+  const items = document.getElementById('l2-items');
+  items.innerHTML = '';
+  // 修复：iframe 加载统一带版本号，避免浏览器缓存旧页面（如旧版会话弹窗）
+  const withVer = p => '/admin/' + p + (p.indexOf('?') >= 0 ? '&' : '?') + 'v=20260808';
+  sub.forEach((s, i) => {
+    const a = document.createElement('a');
+    a.className = 'nav-item' + (i === 0 ? ' active' : '');
+    a.textContent = s.label;
+    a.href = 'javascript:void(0)';
+    a.onclick = () => {
+      items.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
+      a.classList.add('active');
+      document.getElementById('crumb-l2').textContent = s.label;
+      document.getElementById('content').src = withVer(s.page);
+    };
+    items.appendChild(a);
+  });
+  document.getElementById('content').src = withVer(sub[0].page);
+}
+
+const initial = location.hash.slice(1) || 'dashboard';
+const it = document.querySelector(`[data-l1="${initial}"]`);
+if (it) it.click(); else document.querySelector('[data-l1="dashboard"]').click();
+</script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>我的看板</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>body { margin: 0; padding: 24px; }</style>
+</head>
+<body>
+
+<div class="k-grid-auto k-mb-4" id="metrics">
+  <div class="k-metric k-reveal">
+    <div class="label"><span>我的会话</span><span class="ico">💬</span></div>
+    <div class="value" id="m-mine">-</div>
+    <div class="delta up">实时</div>
+  </div>
+  <div class="k-metric tint-success k-reveal-2">
+    <div class="label"><span>进行中</span><span class="ico">🟢</span></div>
+    <div class="value" id="m-active">-</div>
+    <div class="delta up">实时</div>
+  </div>
+  <div class="k-metric tint-warning k-reveal-3">
+    <div class="label"><span>等待中</span><span class="ico">⏰</span></div>
+    <div class="value" id="m-waiting">-</div>
+    <div class="delta up">实时</div>
+  </div>
+  <div class="k-metric tint-ai k-reveal-4">
+    <div class="label"><span>今日新增</span><span class="ico">✨</span></div>
+    <div class="value" id="m-today">-</div>
+    <div class="delta up">今日</div>
+  </div>
+</div>
+
+<div class="k-card k-reveal-2">
+  <div class="k-card-title">
+    今日数据
+    <div class="extra">实时刷新中</div>
+  </div>
+  <table class="k-table">
+    <thead><tr><th>项目</th><th>数值</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>累计会话</td><td><b id="t-sess">-</b></td><td>今日累计分配到我的会话</td></tr>
+      <tr><td>累计消息</td><td><b id="t-msg">-</b></td><td>客户 + 我的所有消息数</td></tr>
+      <tr><td>平均响应</td><td><b id="t-resp">-</b></td><td>消息平均响应时长</td></tr>
+      <tr><td>满意度</td><td><b id="t-satis">-</b></td><td>访客评价平均分</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="k-card k-reveal-3 k-mt-4">
+  <div class="k-card-title">💡 接待技巧
+    <div class="extra">实时更新</div>
+  </div>
+  <div class="k-grid-3">
+    <div>
+      <b style="color: var(--color-primary);">⚡ 快捷回复</b>
+      <p class="k-text-muted" style="font-size: 12px; line-height: 1.6; margin: 6px 0 0;">
+        遇到常见问题使用快捷回复模板（在接待页面预置），提升 30% 效率。
+      </p>
+    </div>
+    <div>
+      <b style="color: var(--color-accent);">🤖 AI 协作</b>
+      <p class="k-text-muted" style="font-size: 12px; line-height: 1.6; margin: 6px 0 0;">
+        客户接入时，查看 AI 历史对话上下文，无需重复问问题。
+      </p>
+    </div>
+    <div>
+      <b style="color: var(--color-warning);">⚠️ 监控告警</b>
+      <p class="k-text-muted" style="font-size: 12px; line-height: 1.6; margin: 6px 0 0;">
+        客户消息超过 30 秒未回复会自动标红，请优先处理。
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="/agent/common.js?v=2026"></script>
+<script>
+if (!KefuAgent.requireLogin()) throw new Error('not logged in');
+const A = KefuAgent;
+
+(async () => {
+  const r = await A.api('GET', '/api/agent/dashboard/realtime');
+  if (r.code !== 0) { document.getElementById('metrics').innerHTML = '<div class="k-empty">加载失败：' + r.msg + '</div>'; return; }
+  const d = r.data;
+  setVal('m-mine', d.my_sessions || 0);
+  setVal('m-active', d.active_sessions || 0);
+  setVal('m-waiting', d.waiting_sessions || 0);
+  setVal('m-today', d.today_sessions || 0);
+  setVal('t-sess', (d.my_today && d.my_today.sessions) || 0);
+  setVal('t-msg', (d.my_today && d.my_today.messages) || 0);
+  setVal('t-resp', (d.my_today && d.my_today.avg_response) || '-');
+  setVal('t-satis', (d.my_today && d.my_today.avg_score) || '-');
+})();
+function setVal(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+
+setInterval(async () => {
+  const r = await A.api('GET', '/api/agent/dashboard/realtime');
+  if (r.code === 0) {
+    const d = r.data;
+    setVal('m-mine', d.my_sessions || 0);
+    setVal('m-active', d.active_sessions || 0);
+    setVal('m-waiting', d.waiting_sessions || 0);
+    setVal('m-today', d.today_sessions || 0);
+  }
+}, 8000);
+</script>
+</body>
+</html>

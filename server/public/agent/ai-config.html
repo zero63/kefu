@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>AI 智能体配置 · 千帆</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+body { margin: 0; padding: 24px; }
+.config-card { max-width: 900px; margin: 0 auto; }
+.intro { padding: 16px 20px; background: linear-gradient(135deg, var(--color-primary-bg), var(--color-human-bg)); border-radius: var(--r-md); margin-bottom: 20px; border-left: 4px solid var(--color-primary); font-size: 13px; color: var(--color-text-2); }
+.intro a { color: var(--color-primary); }
+.intro strong { color: var(--color-primary); }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; }
+.toggle-info h2 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+.toggle-info p { margin: 0; font-size: 12px; color: var(--color-text-3); }
+.toggle-switch { width: 56px; height: 28px; background: var(--color-border); border-radius: 14px; position: relative; cursor: pointer; transition: background var(--t-fast); }
+.toggle-switch.on { background: var(--color-primary); }
+.toggle-switch .knob { position: absolute; top: 2px; left: 2px; width: 24px; height: 24px; background: white; border-radius: 50%; transition: left var(--t-fast); box-shadow: 0 2px 4px rgba(0,0,0,0.15); }
+.toggle-switch.on .knob { left: 30px; }
+</style>
+</head>
+<body>
+
+<div class="config-card">
+
+<div class="intro">
+  <strong>🤖 AI 智能体（千帆）</strong>：开启后，访客接入时会先与 AI 对话。触发关键词 / 负面情绪 / 轮数达到上限时自动转人工。
+  管理员先去 <a href="https://cloud.baidu.com/doc/qianfan-api/s/3m9b5lqft" target="_blank">千帆平台文档</a> 创建"在线服务"获取 API Key。
+</div>
+
+<div class="k-card k-reveal">
+  <div class="toggle-row">
+    <div class="toggle-info">
+      <h2>启用 AI 智能体</h2>
+      <p>关闭时，访客直接走人工接待路由（auto-assign）</p>
+    </div>
+    <div class="toggle-switch" id="enabled-switch" onclick="toggleEnabled()">
+      <div class="knob"></div>
+    </div>
+  </div>
+</div>
+
+<div class="k-card k-reveal-2">
+  <div class="k-card-title">⚙️ 千帆 API 配置</div>
+
+  <div class="k-form-row">
+    <div class="item flex">
+      <label>服务商</label>
+      <select class="k-select" id="provider">
+        <option value="qianfan">百度千帆智能体（推荐）</option>
+        <option value="mock">Mock（本地模拟）</option>
+      </select>
+    </div>
+    <div class="item flex">
+      <label>App ID（智能体应用 ID）</label>
+      <input class="k-input" id="app_id" placeholder="如：4f18ef84-d30d-4529-8d84-2487cad36906" />
+      <p class="k-text-muted" style="font-size:11px;margin:4px 0 0;">
+        📌 <a href="https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application" target="_blank" style="color:var(--color-primary)">千帆应用控制台 →</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="k-form-row">
+    <div class="item flex">
+      <label>API Key（Bearer Token）</label>
+      <input class="k-input" id="api_key" placeholder="bce-v3/..." />
+      <p class="k-text-muted" id="api_key_hint" style="font-size:11px;margin:4px 0 0;"></p>
+    </div>
+    <div class="item flex">
+      <label>Endpoint URL（可选）</label>
+      <input class="k-input" id="endpoint" placeholder="https://qianfan.baidubce.com/v2/app/conversation/runs" />
+    </div>
+  </div>
+
+  <div style="padding:10px 14px;background:#F0F9FF;border-radius:8px;font-size:12px;color:#0C4A6E;line-height:1.6;margin-bottom:10px">
+    💡 <strong>说明：</strong>系统只支持千帆智能体（App）模式：自动取访客最后一条消息作为 query 发送给 App。
+    <br>📖 <a href="https://cloud.baidu.com/doc/qianfan-api/s/Fm5cv42aq" target="_blank" style="color:var(--color-primary)">官方文档：App 对话接口</a>
+  </div>
+</div>
+
+<div class="k-card k-reveal-3">
+  <div class="k-card-title">🧠 AI 行为配置</div>
+
+  <div class="k-form-row">
+    <div class="item flex">
+      <label>系统提示词 (System Prompt)</label>
+      <textarea class="k-textarea" id="system_prompt" placeholder="你是一个客服助手..."></textarea>
+    </div>
+  </div>
+
+  <div class="k-form-row">
+    <div class="item flex">
+      <label>接待问候语 (Greeting)</label>
+      <textarea class="k-textarea" id="greeting" placeholder="你好，我是智能客服..."></textarea>
+    </div>
+  </div>
+
+  <div class="k-form-row">
+    <div class="item flex">
+      <label>转人工触发关键词（逗号分隔）</label>
+      <textarea class="k-textarea" id="keywords_handoff" placeholder="人工,人工客服,转人工,真人"></textarea>
+    </div>
+    <div class="item flex">
+      <label>负面情绪关键词</label>
+      <textarea class="k-textarea" id="negative_keywords" placeholder="投诉,退款,差评,不满意,愤怒"></textarea>
+    </div>
+  </div>
+
+  <div class="k-form-row">
+    <div class="item flex">
+      <label>启用负面情绪自动转人工</label>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+        <div class="toggle-switch" id="negative_sentiment_handoff-switch" onclick="toggleNegHandoff()">
+          <div class="knob"></div>
+        </div>
+        <span style="font-size:13px;color:var(--color-text-2);" id="negative_sentiment_handoff-label">关闭</span>
+      </div>
+    </div>
+    <div class="item flex">
+      <label>AI 接待最大轮数 <span style="color:var(--color-text-3);font-size:11px">(已弃用：仅保留字段，不再强制转人工)</span></label>
+      <input type="number" class="k-input" id="max_ai_rounds" min="1" value="8" disabled />
+    </div>
+    <div class="item flex">
+      <label>转人工关键词触发次数 <span style="color:var(--color-text-3);font-size:11px">(访客发送 N 次转人工关键词后自动转人工；默认 1 = 一次就转)</span></label>
+      <input type="number" class="k-input" id="handoff_keyword_count" min="1" value="1" />
+    </div>
+  </div>
+</div>
+
+<div class="k-card k-reveal-4">
+  <div class="k-card-title">🧪 测试连通性</div>
+  <div style="display:flex;gap:10px;">
+    <input class="k-input" id="test-msg" placeholder="输入测试消息，如：你能做什么？" />
+    <button class="k-btn k-btn-secondary" onclick="testAi()">发送测试</button>
+  </div>
+  <div class="k-mt-3" id="test-result" style="display:none;padding:14px;background:var(--color-bg);border-radius:var(--r-md);">
+    <pre id="test-result-body" style="white-space:pre-wrap;font-family:'Fira Code',monospace;font-size:12.5px;margin:0;"></pre>
+  </div>
+</div>
+
+<div class="k-flex k-gap-3 k-mt-4" style="justify-content:flex-end;">
+  <button class="k-btn k-btn-secondary" onclick="load()">重新加载</button>
+  <button class="k-btn k-btn-primary" onclick="save()">💾 保存配置</button>
+</div>
+
+<div id="status" class="k-mt-3" style="display:none;padding:12px;border-radius:var(--r-md);"></div>
+
+</div>
+
+<script src="/agent/common.js?v=20260806"></script>
+<script>
+if (!KefuAgent.requireLogin()) { top.location.href = '/agent/login.html'; throw new Error('not logged in'); }
+let cfg = {};
+let A = KefuAgent;
+
+async function api(method, url, data) {
+  return A.api(method, url, data);
+}
+
+function setStatus(msg, type) {
+  const e = document.getElementById('status');
+  e.textContent = msg;
+  e.style.display = 'block';
+  e.className = 'k-mt-3 ' +
+    (type === 'success' ? 'k-banner k-banner-success' :
+     type === 'error'   ? 'k-banner k-banner-danger' :
+                          'k-banner k-banner-info');
+  setTimeout(() => { e.style.display = 'none'; }, 4000);
+}
+
+function setSwitch(el, on, labelEl) {
+  el.classList.toggle('on', on);
+  if (labelEl) labelEl.textContent = on ? '开启' : '关闭';
+}
+
+function toggleEnabled() {
+  cfg.enabled = !cfg.enabled;
+  setSwitch(document.getElementById('enabled-switch'), cfg.enabled);
+}
+function toggleNegHandoff() {
+  cfg.negative_sentiment_handoff = !cfg.negative_sentiment_handoff;
+  setSwitch(document.getElementById('negative_sentiment_handoff-switch'), cfg.negative_sentiment_handoff, document.getElementById('negative_sentiment_handoff-label'));
+}
+
+async function load() {
+  const r = await api('GET', '/api/admin/ai/config');
+  if (r.code === 0) {
+    cfg = r.data;
+    paint();
+  } else if (r.code === 401) {
+    top.location.href = '/agent/login.html';
+  } else {
+    setStatus('加载配置失败：' + r.msg, 'error');
+  }
+}
+
+function paint() {
+  setSwitch(document.getElementById('enabled-switch'), !!cfg.enabled);
+  document.getElementById('provider').value = cfg.provider || 'qianfan';
+  document.getElementById('app_id').value = cfg.app_id || '';
+  document.getElementById('api_key').value = '';
+  document.getElementById('api_key').placeholder = cfg.api_key_masked || '输入 API Key';
+  document.getElementById('endpoint').value = cfg.endpoint || '';
+  document.getElementById('system_prompt').value = cfg.system_prompt || '';
+  document.getElementById('greeting').value = cfg.greeting || '';
+  document.getElementById('keywords_handoff').value = (cfg.keywords_handoff_arr || []).join(',');
+  document.getElementById('negative_keywords').value = (cfg.negative_keywords_arr || []).join(',');
+  document.getElementById('max_ai_rounds').value = cfg.max_ai_rounds || 8;
+  document.getElementById('handoff_keyword_count').value = cfg.handoff_keyword_count || 1;
+  setSwitch(document.getElementById('negative_sentiment_handoff-switch'), !!cfg.negative_sentiment_handoff, document.getElementById('negative_sentiment_handoff-label'));
+}
+
+async function save() {
+  const api_key_val = document.getElementById('api_key').value;
+  const data = {
+    enabled: cfg.enabled ? 1 : 0,
+    provider: document.getElementById('provider').value,
+    app_id: document.getElementById('app_id').value,
+    endpoint: document.getElementById('endpoint').value,
+    system_prompt: document.getElementById('system_prompt').value,
+    greeting: document.getElementById('greeting').value,
+    keywords_handoff: document.getElementById('keywords_handoff').value,
+    negative_keywords: document.getElementById('negative_keywords').value,
+    negative_sentiment_handoff: cfg.negative_sentiment_handoff ? 1 : 0,
+    max_ai_rounds: parseInt(document.getElementById('max_ai_rounds').value) || 8,
+    handoff_keyword_count: parseInt(document.getElementById('handoff_keyword_count').value) || 1,
+  };
+  // 只在用户输入了新 key 时才传，避免覆盖现有值
+  if (api_key_val) data.api_key = api_key_val;
+  const r = await api('POST', '/api/admin/ai/config/save', data);
+  if (r.code === 0) { setStatus('配置已保存', 'success'); cfg = r.data; paint(); }
+  else setStatus('保存失败：' + r.msg, 'error');
+}
+
+async function testAi() {
+  const msg = document.getElementById('test-msg').value.trim();
+  if (!msg) { setStatus('请输入测试消息', 'warning'); return; }
+  setStatus('正在调用千帆 API...', 'info');
+  const r = await api('POST', '/api/admin/ai/test', { content: msg });
+  const el = document.getElementById('test-result');
+  const body = document.getElementById('test-result-body');
+  if (r.code === 0) {
+    body.textContent = (r.data.reply || '') + '\n\n(tokens: ' + (r.data.tokens || 0) + ')';
+    el.style.display = 'block';
+    setStatus('✅ 调用成功', 'success');
+  } else {
+    body.textContent = r.msg;
+    el.style.display = 'block';
+    setStatus('❌ 调用失败', 'error');
+  }
+}
+
+load();
+</script>
+</body>
+</html>

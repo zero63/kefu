@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>kefu 客服工作台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+.wa-layout { display: flex; height: 100vh; overflow: hidden; }
+
+/* === 左侧 icon-bar（默认 60px，可折叠 0px） === */
+.wa-side { width: 60px; background: #0F0524; color: white; flex-shrink: 0; display: flex; flex-direction: column; transition: width 0.25s; position: relative; overflow: hidden; }
+.wa-side.collapsed { width: 0; }
+.wa-side .logo { width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 22px;
+  background: linear-gradient(135deg, #7C3AED, #5B21B6); color: white; flex-shrink: 0; }
+.wa-side .nav { flex: 1; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; }
+.wa-side .nav::-webkit-scrollbar { width: 4px; }
+.wa-side .nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 2px; }
+.wa-side .nav-item { display: flex; flex-direction: column; align-items: center; padding: 14px 0; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 11px; transition: all var(--t-fast); user-select: none; }
+.wa-side .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+.wa-side .nav-item.active { background: linear-gradient(135deg, rgba(124,58,237,0.25), transparent); color: white; position: relative; }
+.wa-side .nav-item.active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: #7C3AED; border-radius: 0 2px 2px 0; }
+.wa-side .nav-icon { font-size: 20px; margin-bottom: 4px; }
+.wa-side .user-block { padding: 12px 0; text-align: center; border-top: 1px solid rgba(255,255,255,0.06); }
+.wa-side .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #0891B2, #155E75); margin: 0 auto 4px; line-height: 32px; color: white; font-weight: 600; font-size: 12px; }
+
+/* 折叠/展开按钮（浮动在侧边栏右侧边缘） */
+.wa-collapse-btn { position: absolute; top: 50%; right: -14px; width: 14px; height: 56px; transform: translateY(-50%);
+  background: #0F0524; color: white; border: 1px solid rgba(255,255,255,0.12); border-left: 0; border-radius: 0 6px 6px 0;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; z-index: 9; }
+.wa-collapse-btn:hover { background: #1a0c33; }
+.wa-collapse-btn::before { content: '◀'; }
+.wa-side.collapsed .wa-collapse-btn::before { content: '▶'; }
+
+/* === 中间会话列表 (280px) === */
+.wa-list { width: 280px; background: var(--color-card); border-right: 1px solid var(--color-muted); display: flex; flex-direction: column; flex-shrink: 0; }
+.wa-list .top { padding: 14px 16px; border-bottom: 1px solid var(--color-muted); }
+.wa-list .top h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.wa-list .top .sub { font-size: 12px; color: var(--color-text-3); margin-top: 2px; }
+.wa-list .search { padding: 12px 16px; }
+.wa-list .search input { width: 100%; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--r-md); font-size: 13px; outline: none; }
+.wa-list .search input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 4px rgba(124,58,237,0.10); }
+.wa-list .items { flex: 1; overflow-y: auto; }
+.wa-list .item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid var(--color-muted); transition: all var(--t-fast); position: relative; }
+.wa-list .item:hover { background: var(--color-primary-bg); }
+.wa-list .item.active { background: var(--color-primary-bg); border-left: 3px solid var(--color-primary); }
+.wa-list .item .top { padding: 0; border: none; display: flex; justify-content: space-between; align-items: center; }
+.wa-list .item .name { font-weight: 600; font-size: 13px; }
+.wa-list .item .time { font-size: 11px; color: var(--color-text-3); }
+.wa-list .item .preview { font-size: 12px; color: var(--color-text-3); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; gap: 6px; align-items: center; }
+.wa-list .empty { padding: 40px 20px; text-align: center; color: var(--color-text-3); font-size: 13px; }
+
+/* === 右侧主区 === */
+.wa-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.wa-top { height: 56px; background: var(--color-card); border-bottom: 1px solid var(--color-muted); display: flex; align-items: center; padding: 0 20px; flex-shrink: 0; }
+.wa-top h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.wa-top .sub { font-size: 12px; color: var(--color-text-3); margin-left: 12px; }
+.wa-top .spacer { flex: 1; }
+.wa-top .top-actions { display: flex; align-items: center; gap: 12px; }
+.wa-top .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: var(--color-success-bg); color: var(--color-success); border-radius: var(--r-pill); font-size: 12px; font-weight: 500; }
+.wa-top .status-pill::before { content: ''; width: 8px; height: 8px; background: var(--color-success); border-radius: 50%; box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
+.wa-top .status-pill.offline { background: var(--color-muted); color: var(--color-text-3); }
+.wa-top .status-pill.offline::before { background: var(--color-text-3); box-shadow: none; }
+.wa-top .status-pill.busy { background: var(--color-warning-bg); color: var(--color-warning); }
+.wa-top .status-pill.busy::before { background: var(--color-warning); box-shadow: 0 0 0 3px rgba(245,158,11,0.2); }
+.wa-top select { padding: 5px 10px; border: 1px solid var(--color-border); border-radius: var(--r-md); font-size: 12px; background: var(--color-card); cursor: pointer; }
+.wa-top .user { display: flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: var(--r-md); cursor: pointer; transition: background var(--t-fast); }
+.wa-top .user:hover { background: var(--color-primary-bg); }
+.wa-top .user .av { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #0891B2, #155E75); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; }
+
+.wa-body { flex: 1; overflow: hidden; position: relative; }
+.wa-body iframe { width: 100%; height: 100%; border: 0; display: block; background: var(--color-bg); }
+</style>
+</head>
+<body>
+
+<div class="wa-layout">
+  <!-- 左侧 icon-bar -->
+  <aside class="wa-side" id="wa-side">
+    <div class="logo">K</div>
+    <div class="nav" id="nav-list">
+      <!-- 内置入口：仅当客服拥有对应权限时才渲染 -->
+      <div class="nav-item" data-page="dashboard.html" data-perm="dashboard"><div class="nav-icon">📊</div>看板</div>
+      <div class="nav-item" data-page="console.html" data-perm="console"><div class="nav-icon">💬</div>接待</div>
+      <div class="nav-item" data-page="sessions.html" data-perm="sessions"><div class="nav-icon">📋</div>会话</div>
+      <div class="nav-item" data-page="history.html" data-perm="history"><div class="nav-icon">📚</div>历史</div>
+      <div class="nav-item" data-page="leave-msg.html" data-perm="leave-msg"><div class="nav-icon">📨</div>留言</div>
+      <div class="nav-item" data-page="knowledge.html" data-perm="knowledge"><div class="nav-icon">📖</div>知识</div>
+      <div class="nav-item" data-page="customers.html" data-perm="customers"><div class="nav-icon">👤</div>客户</div>
+      <div class="nav-item" data-page="evaluations.html" data-perm="evaluations"><div class="nav-icon">⭐</div>评价</div>
+      <div class="nav-item" data-page="worksheets.html" data-perm="worksheets"><div class="nav-icon">📋</div>工单</div>
+      <div class="nav-item" data-page="blacklist.html" data-perm="blacklist"><div class="nav-icon">🚫</div>黑名单</div>
+      <div class="nav-item" data-page="ai-config.html" data-perm="ai-config"><div class="nav-icon">🤖</div>AI配置</div>
+      <div class="nav-item" data-page="profile.html" data-perm="profile" style="margin-top:auto;"><div class="nav-icon">⚙️</div>我的</div>
+    </div>
+    <div class="user-block">
+      <div class="user-avatar" id="user-av">?</div>
+    </div>
+    <div class="wa-collapse-btn" id="collapseBtn" onclick="toggleSidebar()" title="折叠/展开侧边栏"></div>
+  </aside>
+
+  <!-- 中间：会话列表（空，留给 iframe 内部使用） -->
+  <aside class="wa-list" id="wa-list">
+    <div class="top">
+      <h3>📊 看板</h3>
+      <div class="sub">我的工作台</div>
+    </div>
+    <div class="empty">请在右侧查看</div>
+  </aside>
+
+  <!-- 右侧主区 -->
+  <main class="wa-main">
+    <header class="wa-top">
+      <h2 id="page-title">我的看板</h2>
+      <span class="sub" id="page-sub">工作台首页</span>
+      <div class="spacer"></div>
+      <div class="top-actions">
+        <span class="status-pill" id="status-pill">在线</span>
+        <select id="status-switch" onchange="changeStatus()">
+          <option value="online">在线</option>
+          <option value="busy">忙碌</option>
+          <option value="away">离开</option>
+          <option value="offline">离线</option>
+        </select>
+        <div class="user" onclick="logout()">
+          <span class="av" id="user-av-top">?</span>
+          <span id="user-name">agent</span>
+        </div>
+      </div>
+    </header>
+    <div class="wa-body">
+      <iframe id="content" src="/agent/dashboard.html?v=20260806"></iframe>
+    </div>
+  </main>
+</div>
+
+<script src="/agent/common.js?v=20260806"></script>
+<script>
+if (!KefuAgent.restore()) {
+  location.href = '/agent/login.html?next=' + encodeURIComponent(location.pathname + location.search);
+}
+const _rc = parseInt((KefuAgent.user && KefuAgent.user.role_id) || 0);
+if (_rc <= 2) { location.href = '/admin/index.html'; }
+
+const u = KefuAgent.user || {};
+document.getElementById('user-name').textContent = u.real_name || u.username || 'agent';
+document.getElementById('user-av').textContent = (u.real_name || u.username || '?').slice(0, 1);
+document.getElementById('user-av-top').textContent = (u.real_name || u.username || '?').slice(0, 1);
+
+function logout() { KefuAgent.logout(); }
+
+// 折叠/展开侧边栏
+function toggleSidebar() {
+  const side = document.getElementById('wa-side');
+  side.classList.toggle('collapsed');
+  const collapsed = side.classList.contains('collapsed');
+  try { localStorage.setItem('kefu_sidebar_collapsed', collapsed ? '1' : '0'); } catch(e) {}
+}
+(function () {
+  try {
+    if (localStorage.getItem('kefu_sidebar_collapsed') === '1') {
+      document.getElementById('wa-side').classList.add('collapsed');
+    }
+  } catch(e) {}
+})();
+
+const titles = {
+  'dashboard.html':   { t: '我的看板',   s: '实时业务指标' },
+  'console.html':     { t: '在线接待',   s: 'AI/客户消息' },
+  'sessions.html':    { t: '会话列表',   s: '所有会话' },
+  'history.html':     { t: '历史会话',   s: '可重新接管' },
+  'customers.html':   { t: '客户档案',   s: '客户详情与历史' },
+  'profile.html':     { t: '我的',       s: '个人资料与设置' },
+  'knowledge.html':   { t: '知识库',     s: '智能问答素材' },
+  'worksheets.html':  { t: '工单管理',   s: '工单全流程' },
+  'leave-msg.html':   { t: '留言管理',   s: '客户留言列表' },
+  'evaluations.html': { t: '客户评价',   s: '满意度统计' },
+  'blacklist.html':   { t: '黑名单',     s: '屏蔽客户/IP' },
+  'ai-config.html':   { t: 'AI 智能体配置', s: '千帆 API + 关键词' },
+};
+
+/**
+ * 严格按权限渲染左侧菜单：
+ * - 内置导航项上标记 data-perm
+ * - 调用 /api/admin/permission/my-permissions 获取当前客服的权限码列表
+ * - 没权限的导航项直接 display:none
+ * - 如果一个权限都没拿到（比如超管切到工作台），隐藏整个侧边栏非必填项
+ */
+async function applyPermissionVisibility() {
+  // 加载 my-permissions（agent 端权限码列表）
+  let codes = [];
+  let isAll = false;
+  try {
+    const r = await KefuAgent.api('GET', '/api/admin/permission/my-permissions');
+    if (r && r.code === 0) {
+      codes = r.data.permissions || [];
+      isAll = !!r.data.all;   // 超管标记：后端 role_id=1 才返回 all=true
+    }
+  } catch (e) {}
+  if (isAll) {
+    // 超管/未登录兜底：全部展示
+    document.querySelectorAll('#nav-list .nav-item').forEach(it => it.style.display = '');
+    return;
+  }
+  // 修复：非超管严格按权限码过滤（codes 为空 = 只显示必留项，不再兜底全显示）
+  // 每个 nav-item 上有 data-perm（page|group code）
+  // 通用映射：page 命中以下任一权限码即视为有权限
+  // 修复：根据 kefu_permission 表实际存在的 permission_code 校正
+  //   - 会话管理主菜单 permission_code = 'session'
+  //   - 实时会话 permission_code = 'session:live'
+  //   - 历史会话 permission_code = 'session:history'
+  // 修复：dashboard 和 profile 是所有客服必有的（不需要单独授权）
+  const ALWAYS_VISIBLE = new Set(['dashboard.html', 'profile.html']);
+  // 修复：根据 kefu_permission 表实际 permission_code 校正
+  //   - 客户档案 → customer:list (id=33)
+  //   - 工单系统 → worksheet (id=101) 或 worksheet:list (id=102)
+  //   - 留言管理 → leave-msg (id=116)
+  //   - 黑名单   → customer:blacklist (id=35)
+  //   - 评价分析 → evaluate (id=7) 或  evaluate:list
+  //   - AI 配置  → ai (id=6) 或 ai:config
+  const pagePerms = {
+    'dashboard.html':   ['dashboard', 'sso:dashboard'],
+    'console.html':     ['session:live', 'console', 'sessions-live', 'session:receive', 'session'],
+    'sessions.html':    ['session', 'sessions', 'session:list'],
+    'history.html':     ['session:history', 'history', 'sessions-history'],
+    'leave-msg.html':   ['leave-msg', 'leavemsg', 'leavemsg:list', 'leavemsg:reply'],
+    'knowledge.html':   ['knowledge', 'knowledge:list'],
+    'customers.html':   ['customer:list', 'customers', 'customer', 'session:list'],
+    'evaluations.html': ['evaluate', 'evaluations', 'evaluates', 'evaluate:list'],
+    'worksheets.html':  ['worksheet', 'worksheets', 'worksheet:list'],
+    'blacklist.html':   ['customer:blacklist', 'blacklist', 'blacklist:list'],
+    'ai-config.html':   ['ai', 'ai:config', 'ai-config'],
+    'profile.html':     ['profile', 'self:profile'],
+  };
+  document.querySelectorAll('#nav-list .nav-item').forEach(it => {
+    const page = it.getAttribute('data-page');
+    if (ALWAYS_VISIBLE.has(page)) {
+      it.style.display = '';
+      return;
+    }
+    const perms = pagePerms[page] || [];
+    // 命中一个即视为有权限
+    const ok = perms.some(p => codes.indexOf(p) >= 0);
+    it.style.display = ok ? '' : 'none';
+  });
+}
+
+function bindNavItemClicks() {
+  document.querySelectorAll('#nav-list .nav-item').forEach(it => {
+    it.onclick = () => {
+      if (it.style.display === 'none') return;
+      document.querySelectorAll('#nav-list .nav-item').forEach(x => x.classList.remove('active'));
+      it.classList.add('active');
+      const p = it.getAttribute('data-page');
+      document.getElementById('content').src = '/agent/' + p + '?v=20260806';
+      const conf = titles[p] || { t: 'kefu', s: '' };
+      document.getElementById('page-title').textContent = conf.t;
+      document.getElementById('page-sub').textContent = conf.s;
+      location.hash = p;
+    };
+  });
+}
+bindNavItemClicks();
+applyPermissionVisibility();
+
+// 权限更新定期刷新（修复：不再依赖 localStorage 时间戳——超管后台保存时不会写，
+// 改为每 30 秒主动拉一次 my-permissions，新权限自动生效）
+let _lastPermCodes = '';
+setInterval(async function () {
+  try {
+    const r = await KefuAgent.api('GET', '/api/admin/permission/my-permissions');
+    if (r && r.code === 0) {
+      const sig = JSON.stringify((r.data && r.data.permissions) || []);
+      if (sig !== _lastPermCodes) {
+        _lastPermCodes = sig;
+        applyPermissionVisibility();
+      }
+    }
+  } catch (e) {}
+}, 30000);
+window.addEventListener('storage', function (e) {
+  if (e.key === 'kefu_perm_update') applyPermissionVisibility();
+});
+
+async function changeStatus() {
+  const s = document.getElementById('status-switch').value;
+  const r = await KefuAgent.api('POST', '/api/agent/status/switch', { status: s });
+  if (r.code === 0) {
+    const map = { online: '在线', busy: '忙碌', away: '离开', offline: '离线' };
+    const pill = document.getElementById('status-pill');
+    pill.textContent = map[s];
+    pill.classList.remove('offline', 'busy');
+    if (s === 'offline') pill.classList.add('offline');
+    if (s === 'busy') pill.classList.add('busy');
+    KefuAgent.toast('已切到 ' + map[s], 'success');
+  }
+}
+
+const initial = location.hash.slice(1) || 'dashboard.html';
+const it = document.querySelector('#nav-list .nav-item[data-page="' + initial + '"]');
+if (it && it.style.display !== 'none') it.click();
+else {
+  // fallback：找第一个可见的
+  const first = Array.from(document.querySelectorAll('#nav-list .nav-item')).find(x => x.style.display !== 'none');
+  if (first) first.click();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>登录 · kefu 管理后台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+body {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(14, 165, 233, 0.08), transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(20, 184, 166, 0.06), transparent 50%),
+    linear-gradient(180deg, var(--color-bg) 0%, #FFFFFF 100%);
+  padding: 32px 16px;
+}
+.login-box {
+  width: 420px;
+  background: var(--color-card);
+  border-radius: var(--r-xl);
+  padding: 40px 36px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+}
+.brand {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 28px;
+}
+.brand .logo-mark {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0EA5E9, #0284C7);
+  color: white; font-size: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700;
+}
+.brand h1 { margin: 0; font-size: 22px; font-weight: 700; color: var(--color-text); letter-spacing: -0.02em; }
+.brand .sub { font-size: 12px; color: var(--color-text-3); }
+
+h2 { font-size: 24px; margin: 0 0 8px; color: var(--color-text); letter-spacing: -0.02em; }
+.desc { font-size: 13px; color: var(--color-text-3); margin-bottom: 24px; }
+
+.k-form-item { margin-bottom: 16px; }
+.k-form-item label { display: block; font-size: 13px; font-weight: 500; color: var(--color-text-2); margin-bottom: 6px; }
+.k-form-item input { width: 100%; padding: 11px 14px; }
+
+.btn-row { margin-top: 8px; }
+.btn-row .k-btn-primary { width: 100%; justify-content: center; padding: 12px; font-size: 15px; font-weight: 600; }
+
+.demo-tip {
+  margin-top: 24px; padding: 14px 16px;
+  background: var(--color-primary-bg); border-radius: var(--r-md);
+  font-size: 12px; color: var(--color-text-2); line-height: 1.7;
+  border: 1px solid var(--color-primary-light);
+}
+.demo-tip b { color: var(--color-primary); }
+.demo-tip code { background: white; color: var(--color-primary); padding: 2px 6px; border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 11px; border: 1px solid var(--color-border); }
+</style>
+</head>
+<body>
+<div class="login-box k-reveal">
+  <div class="brand">
+    <span class="logo-mark">K</span>
+    <div>
+      <h1>kefu</h1>
+      <div class="sub">AI 智能客服系统</div>
+    </div>
+  </div>
+  <h2>欢迎回来 👋</h2>
+  <p class="desc">登录后进入管理后台 / 客服工作台</p>
+
+  <div class="k-form-item">
+    <label>用户名</label>
+    <input id="u" class="k-input" placeholder="用户名" />
+  </div>
+  <div class="k-form-item">
+    <label>密码</label>
+    <input id="p" type="password" class="k-input" placeholder="密码" />
+  </div>
+  <div class="k-form-item">
+    <label>租户 code</label>
+    <input id="t" class="k-input" value="demo" />
+  </div>
+
+  <div class="btn-row">
+    <button class="k-btn k-btn-primary" onclick="doLogin()">登 录</button>
+  </div>
+
+  <div class="demo-tip">
+    <b>🧪 测试账号</b>（请用对应账号登录对应后台）<br/>
+    超管：<code>admin / admin123</code> → 管理后台<br/>
+    客服：<code>agent01 / admin123</code>、<code>agent02 / admin123</code> → 客服工作台<br/>
+    租户：<code>demo</code>
+  </div>
+</div>
+
+<script src="/ui.js"></script>
+<script>
+document.getElementById('p').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+const A = UI;
+
+async function doLogin() {
+  const u = document.getElementById('u').value.trim();
+  const p = document.getElementById('p').value;
+  const t = document.getElementById('t').value.trim() || 'demo';
+  if (!u || !p) { UI.toast('请填写用户名和密码', 'warning'); return; }
+  try {
+    const j = await fetch('/api/common/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p, tenant_code: t }),
+    }).then(r => r.json());
+    if (j.code !== 0) { UI.toast('登录失败：' + j.msg, 'error'); return; }
+    const user = j.data.user;
+    const tk = j.data.token;
+    localStorage.setItem('kefu_token', tk);
+    localStorage.setItem('kefu_user', JSON.stringify(user));
+    const role = parseInt(user.role_id || 0);
+    const next = new URLSearchParams(location.search).get('next');
+    // 安全检查：next 必须以 /admin/ 开头（防止开放重定向）
+    const safeNext = next && next.indexOf('/admin') === 0 && !/[\n\r<>"']/.test(next) ? next : null;
+    if (safeNext) {
+      if (role >= 3) location.href = '/agent/index.html';
+      else { localStorage.setItem('kefu_token', tk); localStorage.setItem('kefu_user', JSON.stringify(user)); location.href = safeNext; }
+    } else if (role >= 3) {
+      location.href = '/agent/index.html';
+    } else {
+      localStorage.setItem('kefu_token', tk);
+      localStorage.setItem('kefu_user', JSON.stringify(user));
+      location.href = '/admin/index.html';
+    }
+  } catch (e) { UI.toast('登录失败：' + e.message, 'error'); }
+}
+</script>
+</body>
+</html>

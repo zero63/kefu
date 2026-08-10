@@ -1,0 +1,22 @@
+{
+    "name": "kefu/server",
+    "description": "微信小程序智能客服系统后端",
+    "type": "project",
+    "require": {
+        "php": ">=7.3",
+        "workerman/workerman": "^4.1",
+        "workerman/webman-framework": "^1.5",
+        "firebase/php-jwt": "^6.0",
+        "monolog/monolog": "2.0",
+        "psr/log": "1.0.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "app\\": "./app/"
+        },
+        "files": [
+            "support/helpers.php",
+            "app/helpers.php"
+        ]
+    }
+}

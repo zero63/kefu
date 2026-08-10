@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>知识库 · kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+.kb-grid { display: grid; grid-template-columns: 220px 1fr 1fr; gap: 16px; }
+.tree-item { padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: all .15s; }
+.tree-item:hover { background: var(--color-primary-bg); }
+.tree-item.active { background: var(--color-primary-bg); color: var(--color-primary); font-weight: 600; }
+.test-panel { background: var(--color-primary-bg); padding: 16px; border-radius: 12px; margin-bottom: 16px; }
+.test-panel h3 { margin: 0 0 12px; font-size: 14px; }
+</style>
+</head>
+<body style="background:var(--color-bg);padding:24px;">
+
+<div class="k-toolbar">
+  <div style="font-size:18px;font-weight:600;">📚 知识库管理</div>
+  <div class="spacer"></div>
+  <button class="k-btn k-btn-primary" onclick="openCreate()">+ 新增问答</button>
+</div>
+
+<!-- 命中率统计 -->
+<div class="k-grid-4" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;">
+  <div class="k-metric"><div class="label">总查询</div><div class="value" id="m-total">-</div></div>
+  <div class="k-metric"><div class="label">命中次数</div><div class="value" id="m-hit">-</div></div>
+  <div class="k-metric"><div class="label">命中率</div><div class="value" id="m-rate">-</div></div>
+  <div class="k-metric"><div class="label">意图数</div><div class="value" id="m-intent">-</div></div>
+</div>
+
+<!-- 问一问测试 -->
+<div class="test-panel">
+  <h3>🧪 问一问测试</h3>
+  <div style="display:flex;gap:8px;">
+    <input id="test-q" class="k-input" placeholder="输入问题，测试匹配..." style="flex:1;">
+    <button class="k-btn k-btn-primary" onclick="runTest()">测试</button>
+  </div>
+  <div id="test-result" style="margin-top:12px;"></div>
+</div>
+
+<!-- 分类 + 问答列表 -->
+<div class="kb-grid">
+  <div class="k-card">
+    <div class="k-card-title">分类
+      <button class="k-btn-text" onclick="openCat()">+</button>
+    </div>
+    <div id="tree"></div>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">问答 <span class="extra" id="filter-info"></span></div>
+    <table class="k-table">
+      <thead><tr><th>问题</th><th>意图</th><th>命中</th><th>未中</th><th style="text-align:right;">操作</th></tr></thead>
+      <tbody id="q-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">意图管理</div>
+    <button class="k-btn k-btn-primary k-btn-mini" style="margin-bottom:12px;" onclick="openIntent()">+ 新增意图</button>
+    <table class="k-table">
+      <thead><tr><th>编码</th><th>名称</th><th>动作</th></tr></thead>
+      <tbody id="i-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="/admin/common.js"></script>
+<script src="/ui.js"></script>
+<script>
+if (!KefuAdmin.token) KefuAdmin.token = localStorage.getItem('kefu_token');
+if (!UI.token) UI.token = localStorage.getItem('kefu_token');
+
+let currentCat = 0;
+
+async function loadStats() {
+  const j = await UI.api('GET', '/api/admin/kb/stats');
+  if (j.code === 0) {
+    const d = j.data;
+    document.getElementById('m-total').textContent = (d.total || 0).toLocaleString();
+    document.getElementById('m-hit').textContent = (d.hit_total || 0).toLocaleString();
+    document.getElementById('m-rate').textContent = (d.hit_rate || 0) + '%';
+    document.getElementById('m-intent').textContent = (d.intents || []).length;
+  }
+}
+
+async function loadCategories() {
+  const j = await UI.api('GET', '/api/admin/kb/category/list');
+  const list = (j.data && j.data.list) || [];
+  const tree = document.getElementById('tree');
+  tree.innerHTML = `<div class="tree-item ${currentCat==0?'active':''}" onclick="selectCat(0)">全部</div>` +
+    list.map(c => `<div class="tree-item ${currentCat==c.id?'active':''}" onclick="selectCat(${c.id})">
+      ${UI.escapeHtml(c.name)}
+    </div>`).join('');
+}
+
+function selectCat(id) {
+  currentCat = id;
+  loadCategories();
+  loadQuestions();
+}
+
+async function loadQuestions() {
+  const url = '/api/admin/kb/list' + (currentCat ? '?category_id=' + currentCat : '');
+  const j = await UI.api('GET', url);
+  const list = (j.data && j.data.list) || [];
+  const tbody = document.getElementById('q-tbody');
+  document.getElementById('filter-info').textContent = list.length + ' 条';
+  tbody.innerHTML = list.length ? list.map(q =>
+    `<tr>
+      <td><b>${UI.escapeHtml(q.question.slice(0, 40))}</b><br>
+        <span class="text-muted">${UI.escapeHtml((q.answer || '').slice(0, 60))}</span></td>
+      <td><span class="k-tag k-tag-blue">${UI.escapeHtml(q.intent || '-')}</span></td>
+      <td>${q.hit_count}</td>
+      <td class="text-muted">${q.miss_count}</td>
+      <td style="text-align:right;">
+        <button class="k-btn-text" onclick="editQ(${q.id})">编辑</button>
+        <button class="k-btn-text" onclick="removeQ(${q.id})" style="color:var(--color-danger);">删除</button>
+      </td>
+    </tr>`
+  ).join('') : '<tr><td colspan="5" class="k-empty">暂无问答</td></tr>';
+}
+
+async function loadIntents() {
+  const j = await UI.api('GET', '/api/admin/kb/intent/list');
+  const list = (j.data && j.data.list) || [];
+  document.getElementById('i-tbody').innerHTML = list.length ? list.map(i =>
+    `<tr>
+      <td><code>${UI.escapeHtml(i.intent_code)}</code></td>
+      <td>${UI.escapeHtml(i.intent_name)}</td>
+      <td><span class="k-tag k-tag-blue">${UI.escapeHtml(i.action)}</span></td>
+    </tr>`
+  ).join('') : '<tr><td colspan="3" class="k-empty">暂无意图</td></tr>';
+}
+
+async function runTest() {
+  const q = document.getElementById('test-q').value.trim();
+  if (!q) return;
+  const j = await UI.api('POST', '/api/admin/kb/test', { question: q });
+  const hits = (j.data && j.data.hits) || [];
+  document.getElementById('test-result').innerHTML = hits.length
+    ? hits.map(h => `<div class="k-card" style="background:white;margin-bottom:8px;">
+        <div style="font-weight:600;">${UI.escapeHtml(h.question)}</div>
+        <div class="text-muted" style="font-size:12px;margin-top:4px;">${UI.escapeHtml(h.answer)}</div>
+        <div class="text-muted" style="font-size:11px;margin-top:6px;">命中 ${h.hit_count} · 未中 ${h.miss_count} · 意图 ${UI.escapeHtml(h.intent || '-')}</div>
+      </div>`).join('')
+    : '<div class="k-empty">未匹配到答案</div>';
+  loadStats();
+}
+
+function openCreate() {
+  UI.modal('新增问答',
+    `<div class="k-form-row">
+      <div class="item flex"><label>问题</label><input id="q-q" class="k-input" placeholder="怎么重置密码？"></div>
+    </div>
+    <div class="k-form-row">
+      <div class="item flex"><label>答案</label><textarea id="q-a" class="k-textarea" rows="4" placeholder="请到 设置 → 账号安全..."></textarea></div>
+    </div>
+    <div class="k-form-row">
+      <div class="item"><label>关键词（逗号分隔）</label><input id="q-k" class="k-input" placeholder="密码,重置,忘记"></div>
+      <div class="item"><label>意图标识</label><input id="q-i" class="k-input" placeholder="reset_password"></div>
+    </div>
+    <div class="k-form-row">
+      <div class="item"><label>分类</label>
+        <select id="q-c" class="k-select"><option value="0">无</option></select>
+      </div>
+      <div class="item"><label>多轮后续问题</label>
+        <input id="q-f" class="k-input" placeholder='[{"text":"是否已解决？"}]'>
+      </div>
+    </div>`,
+    async ok => {
+      if (!ok) return false;
+      const data = {
+        question: document.getElementById('q-q').value,
+        answer:   document.getElementById('q-a').value,
+        keywords: document.getElementById('q-k').value,
+        intent:   document.getElementById('q-i').value,
+        category_id: document.getElementById('q-c').value,
+        follow_up: [],
+      };
+      try { data.follow_up = JSON.parse(document.getElementById('q-f').value || '[]'); } catch (e) {}
+      const j = await UI.api('POST', '/api/admin/kb/create', data);
+      if (j.code !== 0) { UI.error(j.msg); return false; }
+      UI.success('已创建');
+      loadQuestions();
+    }
+  );
+  // 填充分类下拉
+  UI.api('GET', '/api/admin/kb/category/list').then(j => {
+    const sel = document.getElementById('q-c');
+    (j.data.list || []).forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id; opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+async function editQ(id) {
+  // 简化：复用 openCreate，但需要先获取详情
+  UI.warn('编辑功能待完善（可删除后重新创建）');
+}
+
+async function removeQ(id) {
+  if (!UI.confirm('确认删除？')) return;
+  const j = await UI.api('POST', '/api/admin/kb/delete', { id });
+  if (j.code !== 0) return UI.error(j.msg);
+  UI.success('已删除');
+  loadQuestions();
+}
+
+function openCat() {
+  UI.modal('新增分类', '<div class="k-form-row"><div class="item flex"><label>分类名</label><input id="c-n" class="k-input"></div></div>',
+    async ok => {
+      if (!ok) return false;
+      const j = await UI.api('POST', '/api/admin/kb/category/create', { name: document.getElementById('c-n').value });
+      if (j.code !== 0) { UI.error(j.msg); return false; }
+      UI.success('已创建');
+      loadCategories();
+    }
+  );
+}
+
+function openIntent() {
+  UI.modal('新增意图',
+    `<div class="k-form-row">
+      <div class="item"><label>编码</label><input id="i-c" class="k-input" placeholder="refund_request"></div>
+      <div class="item"><label>名称</label><input id="i-n" class="k-input" placeholder="退款申请"></div>
+    </div>
+    <div class="k-form-row">
+      <div class="item"><label>动作</label>
+        <select id="i-a" class="k-select">
+          <option value="reply">自动回复</option>
+          <option value="handoff">转人工</option>
+          <option value="api">调用 API</option>
+        </select>
+      </div>
+    </div>`,
+    async ok => {
+      if (!ok) return false;
+      const j = await UI.api('POST', '/api/admin/kb/intent/create', {
+        intent_code: document.getElementById('i-c').value,
+        intent_name: document.getElementById('i-n').value,
+        action:      document.getElementById('i-a').value,
+      });
+      if (j.code !== 0) { UI.error(j.msg); return false; }
+      UI.success('已创建');
+      loadIntents();
+    }
+  );
+}
+
+loadStats();
+loadCategories();
+loadQuestions();
+loadIntents();
+</script>
+</body>
+</html>

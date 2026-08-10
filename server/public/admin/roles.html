@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>角色分配</title>
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+  .dept-tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:6px;background:#DBEAFE;color:#1D4ED8;font-size:11px;font-weight:500}
+  .role-tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:6px;background:#F3E8FF;color:#7C3AED;font-size:11px;font-weight:500}
+  .role-tag.sys{background:#FEF3C7;color:#92400E}
+  .filter-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--color-border);border-radius:20px;font-size:12px;color:var(--color-text-2);cursor:pointer;background:var(--color-card);transition:all .15s}
+  .filter-chip:hover{border-color:var(--color-primary);color:var(--color-primary)}
+  .filter-chip.active{background:var(--color-primary);color:white;border-color:var(--color-primary)}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .batch-bar{display:flex;gap:8px;align-items:center;padding:10px 14px;background:var(--color-primary-bg);border-radius:6px;margin-bottom:10px;font-size:12px}
+  input[type=checkbox].emp-cb{width:16px;height:16px;cursor:pointer;accent-color:var(--color-primary)}
+</style>
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="card">
+  <div class="card-title">🛡 系统角色
+    <div class="extra">
+      <a class="k-btn k-btn-mini k-btn-primary" href="/admin/role-permissions.html" target="_blank">🔑 角色权限管理 →</a>
+    </div>
+  </div>
+  <div id="role-list" class="k-loading">加载中...</div>
+</div>
+
+<div class="card">
+  <div class="card-title">员工角色分配
+    <div class="extra">
+      <input id="kw" class="k-input" placeholder="搜索" onkeydown="if(event.key==='Enter')loadEmployees(1)" />
+    </div>
+  </div>
+  <div class="toolbar" style="margin-bottom:10px">
+    <span class="filter-chip active" data-dept="0" onclick="filterDept(0, this)">全部</span>
+    <span id="dept-filter"></span>
+  </div>
+  <div id="batch-bar" class="batch-bar" style="display:none">
+    <span>已选 <b id="batch-count">0</b> 名员工</span>
+    <span style="flex:1"></span>
+    <span>批量调整部门：</span>
+    <select id="batch-dept" class="k-select" style="width:160px"></select>
+    <button class="k-btn k-btn-mini k-btn-primary" onclick="batchAssignDept()">确定</button>
+    <button class="k-btn k-btn-mini" onclick="clearBatch()">取消</button>
+  </div>
+  <div id="emp-list" class="k-loading">加载中...</div>
+  <div id="emp-pager"></div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+let roleMap = {};
+let deptFlat = [];
+let empPage = 1;
+let curDeptId = 0;
+let selectedEmpIds = new Set();
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function loadRoles() {
+  const r = await A.api('GET', '/api/admin/role/list');
+  const box = document.getElementById('role-list');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  const rows = (r.data && r.data.list) || [];
+  roleMap = {};
+  if (!rows.length) { box.innerHTML = '<div class="k-empty">暂无角色，请到「权限分配」新建</div>'; return; }
+  box.innerHTML =
+    '<table class="k-table"><thead><tr><th>ID</th><th>编码</th><th>名称</th><th>说明</th><th>员工数</th><th>类型</th></tr></thead><tbody>' +
+    rows.map(r => {
+      roleMap[r.id] = r.role_name;
+      return '<tr>' +
+        '<td>' + r.id + '</td>' +
+        '<td><code>' + escapeHtml(r.role_code || '-') + '</code></td>' +
+        '<td><b>' + escapeHtml(r.role_name) + '</b></td>' +
+        '<td>' + escapeHtml(r.description || '-') + '</td>' +
+        '<td><span class="k-tag k-tag-blue">' + (r.emp_count || 0) + '</span></td>' +
+        '<td>' + (r.is_system == 1 ? '<span class="k-tag k-tag-orange">系统内置</span>' : '<span class="k-tag">自定义</span>') + '</td>' +
+      '</tr>';
+    }).join('') + '</tbody></table>';
+}
+
+async function loadDepts() {
+  const r = await A.api('GET', '/api/admin/dept/tree');
+  if (r.code !== 0) return;
+  deptFlat = (r.data && r.data.flat) || [];
+  renderDeptFilter();
+  // 批量部门下拉
+  document.getElementById('batch-dept').innerHTML =
+    '<option value="0">— 未分配 —</option>' +
+    deptFlat.map(d => `<option value="${d.id}">${escapeHtml(d.dept_name)}</option>`).join('');
+}
+
+function renderDeptFilter() {
+  document.getElementById('dept-filter').innerHTML = deptFlat.map(d =>
+    `<span class="filter-chip" data-dept="${d.id}" onclick="filterDept(${d.id}, this)">${escapeHtml(d.dept_name)} (${d.emp_count||0})</span>`
+  ).join('');
+}
+
+function filterDept(d, el) {
+  curDeptId = d;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  loadEmployees(1);
+}
+
+async function loadEmployees(page) {
+  empPage = page || empPage;
+  const kw = document.getElementById('kw').value.trim();
+  let url = '/api/admin/employee/list?page=' + empPage + '&keyword=' + encodeURIComponent(kw);
+  if (curDeptId > 0) url += '&dept_id=' + curDeptId;
+  const r = await A.api('GET', url);
+  const box = document.getElementById('emp-list');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  const rows = (r.data && r.data.list) || [];
+  if (!rows.length) { box.innerHTML = '<div class="k-empty">暂无员工</div>'; return; }
+
+  // 角色下拉选项（从数据库动态加载的所有角色，含"未分配"）
+  const roleOpts = '<option value="0">— 未分配 —</option>' +
+    Object.keys(roleMap).map(rid =>
+      `<option value="${rid}">${escapeHtml(roleMap[rid])}</option>`
+    ).join('');
+  // 部门下拉
+  const deptOpts = '<option value="0">— 未分配 —</option>' +
+    deptFlat.map(d => `<option value="${d.id}">${escapeHtml(d.dept_name)}</option>`).join('');
+
+  const html = '<table class="k-table"><thead><tr><th><input type="checkbox" onchange="toggleAll(this.checked)" /></th><th>ID</th><th>用户名</th><th>姓名</th><th>当前部门</th><th>当前角色</th><th>分配部门</th><th>分配角色</th><th>操作</th></tr></thead><tbody>' +
+    rows.map(e => {
+      const deptSelId = 'dept-' + e.id;
+      const roleSelId = 'role-' + e.id;
+      const curDept = e.dept_id || 0;
+      const curRole = e.role_id || 0;
+      return (
+        '<tr>' +
+          `<td><input type="checkbox" class="emp-cb" data-id="${e.id}" ${selectedEmpIds.has(e.id)?'checked':''} onchange="onEmpCb(this)" /></td>` +
+          `<td>${e.id}</td>` +
+          `<td>${escapeHtml(e.username || '')}</td>` +
+          `<td>${escapeHtml(e.real_name || '-')}</td>` +
+          `<td>${e.dept_name ? `<span class="dept-tag">${escapeHtml(e.dept_name)}</span>` : '<span class="k-tag">未分配</span>'}</td>` +
+          `<td>${e.role_name ? `<span class="role-tag ${e.is_system==1?'sys':''}">${escapeHtml(e.role_name)}</span>` : '<span class="k-tag">未分配</span>'}</td>` +
+          `<td><select class="k-select" id="${deptSelId}" style="width:140px" data-cur="${curDept}">${deptOpts}</select></td>` +
+          `<td><select class="k-select" id="${roleSelId}" style="width:140px" data-cur="${curRole}">${roleOpts}</select></td>` +
+          `<td><button class="k-btn k-btn-primary k-btn-mini" onclick="assign(${e.id})">保存</button></td>` +
+        '</tr>'
+      );
+    }).join('') + '</tbody></table>';
+  box.innerHTML = html;
+
+  // 在 innerHTML 之后，对每个下拉设置默认值（避免在 HTML 字符串里拼脚本被吃）
+  rows.forEach(e => {
+    const ds = document.getElementById('dept-' + e.id);
+    const rs = document.getElementById('role-' + e.id);
+    if (ds) ds.value = e.dept_id || 0;
+    if (rs) rs.value = e.role_id || 0;
+  });
+
+  const pager = document.getElementById('emp-pager');
+  pager.innerHTML = '';
+  if (A.renderPagination) pager.appendChild(A.renderPagination(r.data.total, empPage, r.data.size, p => loadEmployees(p)));
+}
+
+function onEmpCb(cb) {
+  const id = parseInt(cb.dataset.id);
+  if (cb.checked) selectedEmpIds.add(id); else selectedEmpIds.delete(id);
+  document.getElementById('batch-bar').style.display = selectedEmpIds.size > 0 ? 'flex' : 'none';
+  document.getElementById('batch-count').textContent = selectedEmpIds.size;
+}
+function toggleAll(checked) {
+  document.querySelectorAll('.emp-cb').forEach(cb => {
+    cb.checked = checked;
+    onEmpCb(cb);
+  });
+}
+function clearBatch() {
+  selectedEmpIds.clear();
+  document.getElementById('batch-bar').style.display = 'none';
+  document.querySelectorAll('.emp-cb').forEach(cb => cb.checked = false);
+}
+
+async function assign(eid) {
+  const roleId = parseInt(document.getElementById('role-' + eid).value);
+  const deptId = parseInt(document.getElementById('dept-' + eid).value);
+  const r = await A.api('POST', '/api/admin/role/assign', { employee_id: eid, role_id: roleId, dept_id: deptId });
+  A.toast(r.code === 0 ? '已分配' : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+  if (r.code === 0) loadEmployees(empPage);
+}
+
+async function batchAssignDept() {
+  if (!selectedEmpIds.size) { A.toast('请先勾选员工', 'warning'); return; }
+  const deptId = parseInt(document.getElementById('batch-dept').value);
+  const r = await A.api('POST', '/api/admin/role/assign-dept', { employee_ids: [...selectedEmpIds], dept_id: deptId });
+  A.toast(r.code === 0 ? (r.msg || '已批量调整') : '失败：' + r.msg, r.code === 0 ? 'success' : 'error');
+  if (r.code === 0) {
+    clearBatch();
+    loadEmployees(empPage);
+    loadDepts(); // 部门员工数会变
+  }
+}
+
+(async () => { await loadDepts(); await loadRoles(); await loadEmployees(); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>历史会话 · kefu 客服工作台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+  body { margin: 0; padding: 24px; background: #F8FAFC; font-family: -apple-system, "PingFang SC", sans-serif; }
+  .page-head { display: flex; align-items: center; justify-content: space-between; max-width: 1200px; margin: 0 auto 20px; }
+  .page-head h1 { font-size: 22px; color: #0F172A; margin: 0; font-weight: 700; }
+  .page-head .actions { display: flex; gap: 10px; }
+
+  .filter-bar { background: white; padding: 16px 20px; border-radius: 12px; max-width: 1200px; margin: 0 auto 16px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto auto; gap: 12px; align-items: end; }
+  @media (max-width: 880px) { .filter-bar { grid-template-columns: 1fr 1fr; } }
+  .filter-bar .item label { display: block; font-size: 11px; color: #64748B; margin-bottom: 6px; font-weight: 500; }
+  .filter-bar .item input,
+  .filter-bar .item select { width: 100%; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; background: white; }
+  .filter-bar .item input:focus,
+  .filter-bar .item select:focus { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.08); }
+  .filter-bar button { padding: 9px 18px; }
+
+  .history-list { background: white; border-radius: 12px; max-width: 1200px; margin: 0 auto; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); overflow: hidden; }
+  .history-list table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .history-list thead { background: #F8FAFC; }
+  .history-list thead th { padding: 12px 14px; text-align: left; color: #475569; font-weight: 600; font-size: 12px; border-bottom: 1px solid #E2E8F0; }
+  .history-list tbody td { padding: 12px 14px; border-bottom: 1px solid #F1F5F9; color: #334155; vertical-align: middle; }
+  .history-list tbody tr:hover { background: #FAFAFA; }
+  .history-list .col-id { color: #7C3AED; font-family: ui-monospace, monospace; font-size: 12px; }
+  .history-list .col-content { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-list .close-reason { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; }
+  .close-reason.timeout       { background: #FEF3C7; color: #B45309; }
+  .close-reason.customer_leave{ background: #DBEAFE; color: #1D4ED8; }
+  .close-reason.agent_leave   { background: #FEE2E2; color: #B91C1C; }
+  .close-reason.no_response   { background: #F3F4F6; color: #4B5563; }
+  .close-reason.resolved      { background: #D1FAE5; color: #047857; }
+  .can-reopen-btn { padding: 6px 14px; font-size: 12px; }
+  .empty-state { padding: 60px 20px; text-align: center; color: #94A3B8; }
+  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: #FAFAFA; border-top: 1px solid #F1F5F9; }
+  .pagination .info { font-size: 12px; color: #64748B; }
+  .pagination .pager { display: flex; gap: 4px; }
+  .pagination .pager button { padding: 4px 10px; font-size: 12px; }
+  .pagination .pager button.active { background: #7C3AED; color: white; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>📜 历史会话</h1>
+  <div class="actions">
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;">
+      <input type="checkbox" id="onlyMine" checked /> 仅显示我接管的
+    </label>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <div class="item">
+    <label>搜索</label>
+    <input id="q" placeholder="会话 ID / 客户名 / 客户号" />
+  </div>
+  <div class="item">
+    <label>开始日期</label>
+    <input id="from" type="date" />
+  </div>
+  <div class="item">
+    <label>结束日期</label>
+    <input id="to" type="date" />
+  </div>
+  <div class="item">
+    <label>渠道</label>
+    <select id="channel">
+      <option value="">全部</option>
+      <option value="widget">Web 浮窗</option>
+      <option value="h5">H5</option>
+      <option value="api">API</option>
+      <option value="wechat">微信</option>
+      <option value="douyin">抖音</option>
+    </select>
+  </div>
+  <button class="k-btn k-btn-ghost" onclick="resetFilter()">重置</button>
+  <button class="k-btn k-btn-primary" onclick="loadList(1)">查询</button>
+</div>
+
+<div class="history-list">
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 200px;">会话 ID</th>
+        <th>客户</th>
+        <th style="width: 110px;">渠道</th>
+        <th style="width: 100px;">关闭原因</th>
+        <th style="width: 130px;">原客服</th>
+        <th style="width: 130px;">关闭时间</th>
+        <th style="width: 160px;">操作</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr><td colspan="7" class="empty-state">加载中...</td></tr>
+    </tbody>
+  </table>
+  <div class="pagination">
+    <div class="info" id="pageInfo">共 0 条</div>
+    <div class="pager" id="pager"></div>
+  </div>
+</div>
+
+<script src="/agent/common.js?v=2026"></script>
+<script>
+if (!KefuAgent.requireLogin()) throw new Error('not logged in');
+const A = KefuAgent;
+let _page = 1, _size = 20, _total = 0;
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDate(s) { return s ? A.fmtDate(s) : '-'; }
+
+async function loadList(page) {
+  _page = page || 1;
+  const params = new URLSearchParams({
+    mine_only: document.getElementById('onlyMine').checked ? 1 : 0,
+    page: _page,
+    size: _size,
+    q: document.getElementById('q').value.trim(),
+    from: document.getElementById('from').value,
+    to: document.getElementById('to').value,
+    channel: document.getElementById('channel').value,
+  });
+  const r = await A.api('GET', '/api/agent/history/sessions?' + params.toString());
+  if (r.code !== 0) { A.toast('加载失败：' + r.msg, 'error'); return; }
+  _total = r.data.total || 0;
+  renderRows(r.data.list || []);
+  renderPager();
+}
+
+function renderRows(list) {
+  const tbody = document.getElementById('tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无历史会话</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(r => {
+    const reason = r.close_reason || 'resolved';
+    const reasonText = { timeout: '超时', customer_leave: '客户离开', agent_leave: '客服离开', no_response: '无响应', resolved: '已完结' }[reason] || reason;
+    const canReopen = r.can_reopen == 1;
+    return '<tr>' +
+      '<td class="col-id" title="' + esc(r.session_id) + '">' + esc((r.session_id || '').slice(0, 22)) + '</td>' +
+      '<td>' + esc(r.customer_name || r.customer_external_id || ('客户#' + r.customer_id)) + '</td>' +
+      '<td>' + esc(r.channel || '-') + '</td>' +
+      '<td><span class="close-reason ' + esc(reason) + '">' + esc(reasonText) + '</span></td>' +
+      '<td>' + esc(r.agent_name || '-') + (r.agent_no ? ' <span style="color:#94A3B8;font-size:11px;">(' + esc(r.agent_no) + ')</span>' : '') + '</td>' +
+      '<td>' + fmtDate(r.closed_at) + '</td>' +
+      '<td>' + (canReopen
+        ? '<button class="k-btn k-btn-primary can-reopen-btn" onclick="reopen(\'' + esc(r.session_id) + '\')">重新接管</button>'
+        : '<span style="color:#94A3B8;font-size:12px;">不可重接</span>') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderPager() {
+  const pages = Math.max(1, Math.ceil(_total / _size));
+  const pager = document.getElementById('pager');
+  pager.innerHTML = '';
+  const items = [];
+  items.push({ p: Math.max(1, _page - 1), label: '‹', disabled: _page <= 1 });
+  for (let i = 1; i <= pages && i <= 8; i++) items.push({ p: i, label: i });
+  items.push({ p: Math.min(pages, _page + 1), label: '›', disabled: _page >= pages });
+  items.forEach(it => {
+    const b = document.createElement('button');
+    b.className = 'k-btn ' + (it.p === _page ? 'k-btn-primary active' : 'k-btn-ghost');
+    b.textContent = it.label;
+    b.disabled = it.disabled;
+    b.onclick = () => loadList(it.p);
+    pager.appendChild(b);
+  });
+  document.getElementById('pageInfo').textContent = '共 ' + _total + ' 条 / 第 ' + _page + ' / ' + pages + ' 页';
+}
+
+async function reopen(sessionId) {
+  if (!confirm('确定要重新接管此会话吗？\n会话将被重新激活，您可以继续与客户对话。')) return;
+  const r = await A.api('POST', '/api/agent/history/reopen', { session_id: sessionId });
+  if (r.code === 0) {
+    A.toast('已重新接管', 'success');
+    loadList(_page);
+  } else {
+    A.toast('接管失败：' + r.msg, 'error');
+  }
+}
+
+function resetFilter() {
+  document.getElementById('q').value = '';
+  document.getElementById('from').value = '';
+  document.getElementById('to').value = '';
+  document.getElementById('channel').value = '';
+  document.getElementById('onlyMine').checked = true;
+  loadList(1);
+}
+
+loadList(1);
+</script>
+</body>
+</html>

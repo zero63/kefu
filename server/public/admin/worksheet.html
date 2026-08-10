@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>工单系统 · kefu 管理后台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+@media (max-width:760px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+.stat-card{padding:18px 20px;border-radius:10px;background:#fff;border:1px solid var(--color-border);transition:all .15s}
+.stat-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.06)}
+.stat-card .sc-label{font-size:12px;color:var(--color-text-3);margin-bottom:6px}
+.stat-card .sc-value{font-size:28px;font-weight:700;color:var(--color-text)}
+.stat-card .sc-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;float:right}
+
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;padding:12px;background:var(--color-bg-2);border-radius:8px}
+.filter-bar select,.filter-bar input{padding:6px 10px;border:1px solid var(--color-border);border-radius:6px;font-size:13px;background:#fff}
+
+.ws-table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden}
+.ws-table th{background:var(--color-bg-2);padding:12px 14px;font-weight:600;font-size:13px;color:var(--color-text-2);text-align:left;border-bottom:1px solid var(--color-border)}
+.ws-table td{padding:12px 14px;border-bottom:1px solid var(--color-border-light);font-size:13px}
+.ws-table tr:hover{background:var(--color-bg-2)}
+.k-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.k-pill-open{background:#FEF3C7;color:#B45309}
+.k-pill-pending{background:#DBEAFE;color:#1D4ED8}
+.k-pill-resolved{background:#D1FAE5;color:#047857}
+.k-pill-closed{background:#F1F5F9;color:#475569}
+.k-pill-low{background:#F1F5F9;color:#475569}
+.k-pill-medium{background:#DBEAFE;color:#1D4ED8}
+.k-pill-high{background:#FEF3C7;color:#B45309}
+.k-pill-urgent{background:#FEE2E2;color:#B91C1C}
+
+.detail-mask{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:999}
+.detail-mask.open{display:flex}
+.detail-box{background:#fff;border-radius:12px;width:min(800px,90vw);max-height:90vh;overflow:hidden;display:flex;flex-direction:column}
+.detail-head{padding:18px 22px;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center}
+.detail-head h3{margin:0;font-size:16px}
+.detail-body{padding:20px 22px;overflow-y:auto;flex:1}
+.reply-list{border-top:1px solid var(--color-border-light);padding-top:14px;margin-top:14px}
+.reply{padding:10px 14px;background:var(--color-bg-2);border-radius:8px;margin-bottom:8px}
+.reply .r-head{display:flex;justify-content:space-between;font-size:12px;color:var(--color-text-3);margin-bottom:6px}
+.reply .r-name{font-weight:600;color:var(--color-primary)}
+.reply .r-content{color:var(--color-text-2);line-height:1.6}
+.detail-foot{padding:14px 22px;border-top:1px solid var(--color-border);display:flex;gap:8px}
+.detail-foot textarea{flex:1;padding:8px 12px;border:1px solid var(--color-border);border-radius:6px;font-size:13px;min-height:50px;resize:vertical;font-family:inherit}
+</style>
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="stats-grid" id="stats-grid">
+  <div class="stat-card k-loading" style="grid-column:span 4">加载中…</div>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <span style="display:inline-flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      工单列表
+      <span id="filter-label" style="margin-left:8px;"></span>
+    </span>
+    <div class="extra">
+      <a class="k-btn k-btn-secondary k-btn-mini" href="/admin/worksheet.html">全部</a>
+      <a class="k-btn k-btn-secondary k-btn-mini" href="/admin/worksheet.html?filter_id=my_received">我接收的</a>
+      <a class="k-btn k-btn-secondary k-btn-mini" href="/admin/worksheet.html?filter_id=my_processed">我处理的</a>
+      <a class="k-btn k-btn-secondary k-btn-mini" href="/admin/worksheet.html?filter_id=my_followed">我关注的</a>
+      <a class="k-btn k-btn-secondary k-btn-mini" href="/admin/sla-report.html">📊 SLA 报表</a>
+      <button class="k-btn k-btn-secondary k-btn-mini" onclick="openFieldModal()">🧩 自定义字段</button>
+      <button class="k-btn k-btn-primary" onclick="openCreate()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新建工单
+      </button>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <select id="f-status">
+      <option value="">全部状态</option>
+      <option value="open">待处理</option>
+      <option value="pending">处理中</option>
+      <option value="resolved">已解决</option>
+      <option value="closed">已关闭</option>
+    </select>
+    <select id="f-priority">
+      <option value="">全部优先级</option>
+      <option value="urgent">紧急</option>
+      <option value="high">高</option>
+      <option value="medium">中</option>
+      <option value="low">低</option>
+    </select>
+    <input id="f-keyword" placeholder="工单号 / 标题 / 客户名" />
+    <button class="k-btn k-btn-primary" onclick="loadList(1)">查询</button>
+    <button class="k-btn" onclick="resetFilter()">重置</button>
+  </div>
+
+  <table class="ws-table">
+    <thead>
+      <tr>
+        <th style="width:120px">工单号</th>
+        <th>标题</th>
+        <th style="width:80px">优先级</th>
+        <th style="width:90px">状态</th>
+        <th style="width:120px">处理人</th>
+        <th style="width:120px">客户</th>
+        <th style="width:140px">创建时间</th>
+        <th style="width:80px">操作</th>
+      </tr>
+    </thead>
+    <tbody id="ws-tbody"><tr><td colspan="8" style="text-align:center;padding:40px">加载中…</td></tr></tbody>
+  </table>
+
+  <div id="pager" style="margin-top:14px;display:flex;justify-content:space-between;align-items:center"></div>
+</div>
+
+<!-- 工单详情弹窗 -->
+<div id="detail-mask" class="detail-mask" onclick="if(event.target.id==='detail-mask')closeDetail()">
+  <div class="detail-box">
+    <div class="detail-head">
+      <h3 id="detail-title">工单详情</h3>
+      <button class="k-btn k-btn-mini" onclick="closeDetail()">×</button>
+    </div>
+    <div class="detail-body" id="detail-body"></div>
+    <div class="detail-foot">
+      <textarea id="reply-content" placeholder="输入回复…"></textarea>
+      <button class="k-btn k-btn-primary" onclick="submitReply()">回复</button>
+    </div>
+  </div>
+</div>
+
+<!-- 自定义字段管理弹窗 -->
+<div id="field-mask" class="detail-mask" onclick="if(event.target.id==='field-mask')closeFieldModal()">
+  <div class="detail-box" style="width:min(720px,90vw)">
+    <div class="detail-head">
+      <h3>🧩 工单自定义字段管理</h3>
+      <button class="k-btn k-btn-mini" onclick="closeFieldModal()">×</button>
+    </div>
+    <div class="detail-body">
+      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+        <span style="font-size:13px;color:var(--color-text-3)">添加自定义字段，工单可按这些字段收集信息</span>
+        <span style="flex:1"></span>
+        <button class="k-btn k-btn-mini" onclick="toggleAddFieldForm()">+ 新增字段</button>
+      </div>
+      <div id="field-add-form" style="display:none;background:var(--color-bg-2);padding:12px;border-radius:8px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="k-form-item" style="margin:0"><label>字段标识（英文/下划线）</label><input id="fld-key" class="k-input" placeholder="例如：order_no" /></div>
+          <div class="k-form-item" style="margin:0"><label>字段名称</label><input id="fld-name" class="k-input" placeholder="例如：订单号" /></div>
+          <div class="k-form-item" style="margin:0"><label>字段类型</label>
+            <select id="fld-type" class="k-input" onchange="onFieldTypeChange()">
+              <option value="text">文本</option>
+              <option value="textarea">多行文本</option>
+              <option value="number">数字</option>
+              <option value="date">日期</option>
+              <option value="select">下拉选择</option>
+              <option value="radio">单选</option>
+              <option value="checkbox">多选</option>
+            </select>
+          </div>
+          <div class="k-form-item" style="margin:0"><label>是否必填</label>
+            <select id="fld-required" class="k-input">
+              <option value="0">否</option>
+              <option value="1">是</option>
+            </select>
+          </div>
+        </div>
+        <div id="fld-options-wrap" class="k-form-item" style="display:none;margin-top:10px">
+          <label>选项（每行一个）</label>
+          <textarea id="fld-options" class="k-input" rows="3" placeholder="选项1&#10;选项2&#10;选项3"></textarea>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+          <button class="k-btn k-btn-mini" onclick="toggleAddFieldForm()">取消</button>
+          <button class="k-btn k-btn-primary k-btn-mini" onclick="submitAddField()">保存字段</button>
+        </div>
+      </div>
+      <table class="ws-table">
+        <thead>
+          <tr>
+            <th style="width:140px">字段标识</th>
+            <th>字段名称</th>
+            <th style="width:90px">类型</th>
+            <th style="width:80px">必填</th>
+            <th style="width:80px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="field-tbody"><tr><td colspan="5" style="text-align:center;padding:30px">加载中…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="detail-foot" style="justify-content:flex-end">
+      <button class="k-btn" onclick="closeFieldModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新建工单弹窗 -->
+<div id="create-mask" class="detail-mask" onclick="if(event.target.id==='create-mask')closeCreate()">
+  <div class="detail-box" style="width:min(560px,90vw)">
+    <div class="detail-head">
+      <h3>新建工单</h3>
+      <button class="k-btn k-btn-mini" onclick="closeCreate()">×</button>
+    </div>
+    <div class="detail-body">
+      <div class="k-form-item"><label>标题 <span style="color:#EF4444">*</span></label><input id="c-title" class="k-input" placeholder="简要描述问题" /></div>
+      <div class="k-form-item"><label>内容 <span style="color:#EF4444">*</span></label><textarea id="c-content" class="k-input" rows="4" placeholder="详细说明"></textarea></div>
+      <div class="k-form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="k-form-item"><label>优先级</label>
+          <select id="c-priority" class="k-input">
+            <option value="low">低</option>
+            <option value="medium" selected>中</option>
+            <option value="high">高</option>
+            <option value="urgent">紧急</option>
+          </select>
+        </div>
+        <div class="k-form-item"><label>来源</label>
+          <select id="c-source" class="k-input">
+            <option value="manual">手动创建</option>
+            <option value="chat">会话转工单</option>
+            <option value="email">邮件</option>
+            <option value="api">API</option>
+          </select>
+        </div>
+      </div>
+      <div class="k-form-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="k-form-item"><label>客户 ID</label><input id="c-customer-id" class="k-input" /></div>
+        <div class="k-form-item"><label>客户名</label><input id="c-customer-name" class="k-input" /></div>
+      </div>
+      <div class="k-form-item"><label>会话 ID（可选）</label><input id="c-session-id" class="k-input" /></div>
+      <div class="k-form-item"><label>分配给</label><input id="c-assigned-to" class="k-input" placeholder="客服ID（数字）" /></div>
+      <div style="border-top:1px dashed var(--color-border);margin:14px 0;padding-top:14px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px">📎 自定义字段</div>
+        <div id="c-custom-fields"></div>
+      </div>
+    </div>
+    <div class="detail-foot" style="justify-content:flex-end">
+      <button class="k-btn" onclick="closeCreate()">取消</button>
+      <button class="k-btn k-btn-primary" onclick="submitCreate()">创建</button>
+    </div>
+  </div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+let page = 1, size = 20, total = 0;
+let currentDetailId = 0;
+const filterId = new URLSearchParams(location.search).get('filter_id') || 'all';
+const filterNames = {
+  all: '',
+  my_received: '<span class="k-tag k-tag-primary">我接收的</span>',
+  my_processed: '<span class="k-tag k-tag-primary">我处理的</span>',
+  my_followed: '<span class="k-tag k-tag-primary">我关注的</span>',
+  my_assigned: '<span class="k-tag k-tag-primary">我分配的</span>',
+};
+document.getElementById('filter-label').innerHTML = filterNames[filterId] || '';
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+const STATUS_LABEL = { open: '待处理', pending: '处理中', resolved: '已解决', closed: '已关闭' };
+const PRIORITY_LABEL = { urgent: '紧急', high: '高', medium: '中', low: '低' };
+
+async function loadStats() {
+  const r = await A.api('GET', '/api/admin/worksheet/stats');
+  if (r.code !== 0) return;
+  const d = r.data || {};
+  const items = [
+    { key: 'open', label: '待处理', color: '#F59E0B', bg: '#FEF3C7' },
+    { key: 'pending', label: '处理中', color: '#3B82F6', bg: '#DBEAFE' },
+    { key: 'resolved', label: '已解决', color: '#10B981', bg: '#D1FAE5' },
+    { key: 'closed', label: '已关闭', color: '#64748B', bg: '#F1F5F9' },
+  ];
+  document.getElementById('stats-grid').innerHTML = items.map(it => `
+    <div class="stat-card">
+      <div class="sc-icon" style="background:${it.bg};color:${it.color}">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+      </div>
+      <div class="sc-label">${it.label}</div>
+      <div class="sc-value">${d[it.key] || 0}</div>
+    </div>
+  `).join('');
+}
+
+async function loadList(p) {
+  page = p || 1;
+  const params = new URLSearchParams({
+    page, size,
+    status: document.getElementById('f-status').value,
+    priority: document.getElementById('f-priority').value,
+    keyword: document.getElementById('f-keyword').value,
+    filter_id: filterId,
+  });
+  const r = await A.api('GET', '/api/admin/worksheet/list?' + params.toString());
+  const tb = document.getElementById('ws-tbody');
+  if (r.code !== 0) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#EF4444">加载失败</td></tr>'; return; }
+  const list = (r.data && r.data.list) || [];
+  total = (r.data && r.data.total) || 0;
+  if (!list.length) { tb.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--color-text-3)">暂无工单</td></tr>'; }
+  else {
+    tb.innerHTML = list.map(w => `
+      <tr>
+        <td><code style="font-family:monospace;color:var(--color-primary)">${escapeHtml(w.ticket_no)}</code></td>
+        <td><strong>${escapeHtml(w.title)}</strong></td>
+        <td><span class="k-pill k-pill-${w.priority}">${PRIORITY_LABEL[w.priority]||w.priority}</span></td>
+        <td><span class="k-pill k-pill-${w.status}">${STATUS_LABEL[w.status]||w.status}</span></td>
+        <td>${escapeHtml(w.assigned_to_name || '— 未分配 —')}</td>
+        <td>${escapeHtml(w.customer_name || w.customer_id || '-')}</td>
+        <td style="font-size:12px;color:var(--color-text-3)">${escapeHtml(w.created_at)}</td>
+        <td>
+          <button class="k-btn k-btn-mini" onclick="openDetail(${w.id})">查看</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+  renderPager();
+}
+
+function renderPager() {
+  const tp = Math.max(1, Math.ceil(total / size));
+  document.getElementById('pager').innerHTML = `
+    <span style="font-size:12px;color:var(--color-text-3)">共 ${total} 条 / 第 ${page} / ${tp} 页</span>
+    <div>
+      <button class="k-btn k-btn-mini" ${page<=1?'disabled':''} onclick="loadList(${page-1})">上一页</button>
+      <button class="k-btn k-btn-mini" ${page>=tp?'disabled':''} onclick="loadList(${page+1})">下一页</button>
+    </div>
+  `;
+}
+
+function resetFilter() {
+  document.getElementById('f-status').value = '';
+  document.getElementById('f-priority').value = '';
+  document.getElementById('f-keyword').value = '';
+  loadList(1);
+}
+
+async function openDetail(id) {
+  currentDetailId = id;
+  document.getElementById('detail-mask').classList.add('open');
+  const body = document.getElementById('detail-body');
+  body.innerHTML = '<div style="text-align:center;padding:30px">加载中…</div>';
+  const r = await A.api('GET', '/api/admin/worksheet/detail?id=' + id);
+  if (r.code !== 0) { body.innerHTML = '<div style="text-align:center;padding:30px;color:#EF4444">加载失败</div>'; return; }
+  const ws = (r.data && r.data.worksheet) || {};
+  const replies = (r.data && r.data.replies) || [];
+  const customFields = (r.data && r.data.custom_fields) || [];
+
+  // 自定义字段 HTML
+  let customFieldsHtml = '';
+  if (customFields.length) {
+    customFieldsHtml = '<div style="background:var(--color-bg-2);padding:12px 14px;border-radius:8px;margin-bottom:14px">';
+    customFieldsHtml += '<strong style="display:block;margin-bottom:8px;font-size:13px">📎 自定义字段</strong>';
+    customFieldsHtml += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:13px">';
+    customFields.forEach(cf => {
+      let v = cf.value;
+      if (Array.isArray(v)) v = v.join('、');
+      if (!v && v !== 0) v = '<span style="color:var(--color-text-3)">—</span>';
+      customFieldsHtml += `<div><span style="color:var(--color-text-3)">${escapeHtml(cf.field_name)}：</span>${escapeHtml(String(v))}</div>`;
+    });
+    customFieldsHtml += '</div></div>';
+  }
+  document.getElementById('detail-title').innerHTML = `
+    <code style="color:var(--color-primary);font-family:monospace;margin-right:8px">${escapeHtml(ws.ticket_no)}</code>
+    ${escapeHtml(ws.title)}
+    <span class="k-pill k-pill-${ws.status}" style="margin-left:8px">${STATUS_LABEL[ws.status]||ws.status}</span>
+  `;
+  body.innerHTML = `
+    <div style="background:var(--color-bg-2);padding:14px;border-radius:8px;margin-bottom:14px;line-height:1.7">
+      <strong style="display:block;margin-bottom:6px">原始描述：</strong>
+      ${escapeHtml(ws.content)}
+    </div>
+    ${customFieldsHtml}
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px;margin-bottom:14px">
+      <div><span style="color:var(--color-text-3)">客户：</span>${escapeHtml(ws.customer_name || ws.customer_id || '-')}</div>
+      <div><span style="color:var(--color-text-3)">处理人：</span>${escapeHtml(ws.assigned_to_name || '未分配')}</div>
+      <div><span style="color:var(--color-text-3)">优先级：</span><span class="k-pill k-pill-${ws.priority}">${PRIORITY_LABEL[ws.priority]||ws.priority}</span></div>
+      <div><span style="color:var(--color-text-3)">创建人：</span>${escapeHtml(ws.created_by_name || '-')}</div>
+      <div><span style="color:var(--color-text-3)">来源：</span>${escapeHtml(ws.source)}</div>
+      <div><span style="color:var(--color-text-3)">创建时间：</span>${escapeHtml(ws.created_at)}</div>
+    </div>
+    <div class="reply-list">
+      <strong style="display:block;margin-bottom:8px">回复记录（${replies.length}）</strong>
+      ${replies.length ? replies.map(rp => `
+        <div class="reply">
+          <div class="r-head">
+            <span><span class="r-name">${escapeHtml(rp.replier_name || '系统')}</span> · ${escapeHtml(rp.created_at)}</span>
+            <span>${rp.reply_type === 'note' ? '<span class="k-pill k-pill-gray">内部备注</span>' : ''}</span>
+          </div>
+          <div class="r-content">${escapeHtml(rp.content)}</div>
+        </div>
+      `).join('') : '<div style="color:var(--color-text-3);font-size:13px">暂无回复</div>'}
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px">
+      <button class="k-btn k-btn-mini" onclick="closeWs(${ws.id})">关闭工单</button>
+      <button class="k-btn k-btn-mini" onclick="reopenWs(${ws.id})">重新打开</button>
+    </div>
+  `;
+}
+
+function closeDetail() {
+  document.getElementById('detail-mask').classList.remove('open');
+  currentDetailId = 0;
+}
+
+async function submitReply() {
+  const content = document.getElementById('reply-content').value.trim();
+  if (!content) { A.toast('请输入回复内容', 'warning'); return; }
+  if (!currentDetailId) return;
+  const r = await A.api('POST', '/api/admin/worksheet/reply', {
+    worksheet_id: currentDetailId, content: content, reply_type: 'reply'
+  });
+  if (r.code === 0) {
+    A.toast('已回复', 'success');
+    document.getElementById('reply-content').value = '';
+    openDetail(currentDetailId);
+  } else {
+    A.toast('回复失败：' + r.msg, 'error');
+  }
+}
+
+async function closeWs(id) {
+  if (!confirm('确认关闭该工单？')) return;
+  const r = await A.api('POST', '/api/admin/worksheet/close', { id: id });
+  if (r.code === 0) { A.toast('已关闭', 'success'); closeDetail(); loadList(page); loadStats(); }
+}
+async function reopenWs(id) {
+  const r = await A.api('POST', '/api/admin/worksheet/reopen', { id: id });
+  if (r.code === 0) { A.toast('已重新打开', 'success'); closeDetail(); loadList(page); loadStats(); }
+}
+
+function openCreate() { document.getElementById('create-mask').classList.add('open'); }
+function closeCreate() { document.getElementById('create-mask').classList.remove('open'); }
+
+async function submitCreate() {
+  const title = document.getElementById('c-title').value.trim();
+  const content = document.getElementById('c-content').value.trim();
+  if (!title || !content) { A.toast('标题和内容必填', 'warning'); return; }
+  const r = await A.api('POST', '/api/admin/worksheet/create', {
+    title, content,
+    priority: document.getElementById('c-priority').value,
+    source: document.getElementById('c-source').value,
+    customer_id: document.getElementById('c-customer-id').value.trim(),
+    customer_name: document.getElementById('c-customer-name').value.trim(),
+    session_id: document.getElementById('c-session-id').value.trim(),
+    assigned_to: parseInt(document.getElementById('c-assigned-to').value) || 0,
+  });
+  if (r.code === 0) {
+    A.toast('工单已创建：' + (r.data && r.data.ticket_no), 'success');
+    closeCreate();
+    document.getElementById('c-title').value = '';
+    document.getElementById('c-content').value = '';
+    loadList(1);
+    loadStats();
+  } else {
+    A.toast('创建失败：' + r.msg, 'error');
+  }
+}
+
+(async () => { await loadStats(); await loadList(1); })();
+
+/* ==================== 自定义字段管理 ==================== */
+let customFields = [];
+const FIELD_TYPE_LABEL = { text:'文本', textarea:'多行', number:'数字', date:'日期', select:'下拉', radio:'单选', checkbox:'多选' };
+
+async function loadCustomFields() {
+  const r = await A.api('GET', '/api/admin/worksheet/field/list');
+  if (r.code === 0) customFields = r.data.list || [];
+  else customFields = [];
+  renderFieldTable();
+  renderCustomFieldsInCreate();
+}
+
+function renderFieldTable() {
+  const tb = document.getElementById('field-tbody');
+  if (!customFields.length) {
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--color-text-3)">暂无字段，点击「+ 新增字段」添加</td></tr>';
+    return;
+  }
+  tb.innerHTML = customFields.map(f => `
+    <tr>
+      <td><code style="font-family:monospace;color:var(--color-primary)">${escapeHtml(f.field_key)}</code></td>
+      <td>${escapeHtml(f.field_name)}</td>
+      <td><span class="k-pill" style="background:var(--color-bg-2)">${FIELD_TYPE_LABEL[f.field_type]||f.field_type}</span></td>
+      <td>${f.required ? '<span style="color:#EF4444">✓ 必填</span>' : '<span style="color:var(--color-text-3)">选填</span>'}</td>
+      <td><button class="k-btn k-btn-mini k-btn-danger" onclick="deleteField(${f.id}, '${escapeHtml(f.field_key)}')">删除</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderCustomFieldsInCreate() {
+  const wrap = document.getElementById('c-custom-fields');
+  if (!wrap) return;
+  if (!customFields.length) {
+    wrap.innerHTML = '<div style="font-size:12px;color:var(--color-text-3);padding:6px 0">（未配置自定义字段，可点击页面顶部"🧩 自定义字段"按钮添加）</div>';
+    return;
+  }
+  wrap.innerHTML = customFields.map(f => {
+    const req = f.required ? '<span style="color:#EF4444">*</span>' : '';
+    let input = '';
+    if (f.field_type === 'textarea') {
+      input = `<textarea id="cf-${f.field_key}" class="k-input" rows="2" placeholder="请输入${escapeHtml(f.field_name)}"></textarea>`;
+    } else if (f.field_type === 'select') {
+      const opts = parseOptions(f);
+      input = `<select id="cf-${f.field_key}" class="k-input"><option value="">请选择</option>${opts.map(o=>`<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('')}</select>`;
+    } else if (f.field_type === 'radio') {
+      const opts = parseOptions(f);
+      input = `<div>${opts.map((o,i)=>`<label style="margin-right:12px"><input type="radio" name="cf-${f.field_key}" value="${escapeHtml(o)}" /> ${escapeHtml(o)}</label>`).join('')}</div>`;
+    } else if (f.field_type === 'checkbox') {
+      const opts = parseOptions(f);
+      input = `<div>${opts.map((o,i)=>`<label style="margin-right:12px"><input type="checkbox" name="cf-${f.field_key}" value="${escapeHtml(o)}" /> ${escapeHtml(o)}</label>`).join('')}</div>`;
+    } else if (f.field_type === 'number') {
+      input = `<input id="cf-${f.field_key}" class="k-input" type="number" placeholder="请输入${escapeHtml(f.field_name)}" />`;
+    } else if (f.field_type === 'date') {
+      input = `<input id="cf-${f.field_key}" class="k-input" type="date" />`;
+    } else {
+      input = `<input id="cf-${f.field_key}" class="k-input" placeholder="请输入${escapeHtml(f.field_name)}" />`;
+    }
+    return `<div class="k-form-item"><label>${escapeHtml(f.field_name)} ${req}</label>${input}</div>`;
+  }).join('');
+}
+
+function parseOptions(f) {
+  // options_json 可能是 string 或 array
+  if (!f.options_json) return [];
+  if (Array.isArray(f.options_json)) return f.options_json;
+  try {
+    const parsed = JSON.parse(f.options_json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) { return []; }
+}
+
+function openFieldModal() {
+  document.getElementById('field-mask').classList.add('open');
+  loadCustomFields();
+}
+function closeFieldModal() {
+  document.getElementById('field-mask').classList.remove('open');
+  document.getElementById('field-add-form').style.display = 'none';
+}
+function toggleAddFieldForm() {
+  const el = document.getElementById('field-add-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  // 清空
+  document.getElementById('fld-key').value = '';
+  document.getElementById('fld-name').value = '';
+  document.getElementById('fld-type').value = 'text';
+  document.getElementById('fld-required').value = '0';
+  document.getElementById('fld-options').value = '';
+  onFieldTypeChange();
+}
+function onFieldTypeChange() {
+  const t = document.getElementById('fld-type').value;
+  const needsOpts = ['select', 'radio', 'checkbox'].includes(t);
+  document.getElementById('fld-options-wrap').style.display = needsOpts ? 'block' : 'none';
+}
+
+async function submitAddField() {
+  const field_key = document.getElementById('fld-key').value.trim();
+  const field_name = document.getElementById('fld-name').value.trim();
+  const field_type = document.getElementById('fld-type').value;
+  const required = document.getElementById('fld-required').value;
+  const optsText = document.getElementById('fld-options').value.trim();
+  if (!field_key || !field_name) { A.toast('字段标识和名称必填', 'warning'); return; }
+  if (!/^[a-z][a-z0-9_]{0,30}$/.test(field_key)) { A.toast('字段标识格式错误（以小写字母开头，仅含字母数字下划线）', 'warning'); return; }
+  const options = (field_type === 'select' || field_type === 'radio' || field_type === 'checkbox')
+    ? optsText.split('\n').map(s => s.trim()).filter(Boolean)
+    : [];
+  if (['select','radio','checkbox'].includes(field_type) && options.length === 0) {
+    A.toast('下拉/单选/多选字段必须配置至少一个选项', 'warning'); return;
+  }
+  const r = await A.api('POST', '/api/admin/worksheet/field/create', {
+    field_key, field_name, field_type, required, options
+  });
+  if (r.code === 0) {
+    A.toast('已添加字段', 'success');
+    toggleAddFieldForm();
+    loadCustomFields();
+  } else {
+    A.toast('添加失败：' + r.msg, 'error');
+  }
+}
+
+async function deleteField(id, key) {
+  if (!confirm(`确定删除自定义字段"${key}"？\n删除后所有工单中此字段的数据也会被删除。`)) return;
+  const r = await A.api('POST', '/api/admin/worksheet/field/delete', { id: id });
+  if (r.code === 0) {
+    A.toast('已删除', 'success');
+    loadCustomFields();
+  } else {
+    A.toast('删除失败：' + r.msg, 'error');
+  }
+}
+
+/* ==================== 修改后的 submitCreate：收集自定义字段 ==================== */
+async function submitCreate() {
+  const title = document.getElementById('c-title').value.trim();
+  const content = document.getElementById('c-content').value.trim();
+  if (!title || !content) { A.toast('标题和内容必填', 'warning'); return; }
+  // 收集自定义字段值
+  const customValues = {};
+  for (const f of customFields) {
+    if (f.field_type === 'checkbox') {
+      const checked = [...document.querySelectorAll(`[name="cf-${f.field_key}"]:checked`)].map(el => el.value);
+      customValues[f.field_key] = checked;
+    } else if (f.field_type === 'radio') {
+      const r = document.querySelector(`[name="cf-${f.field_key}"]:checked`);
+      customValues[f.field_key] = r ? r.value : '';
+    } else {
+      const el = document.getElementById('cf-' + f.field_key);
+      if (el) customValues[f.field_key] = el.value;
+    }
+    // 必填校验
+    if (f.required) {
+      const v = customValues[f.field_key];
+      const empty = (Array.isArray(v) && v.length === 0) || (!Array.isArray(v) && !v);
+      if (empty) { A.toast(`字段"${f.field_name}"必填`, 'warning'); return; }
+    }
+  }
+  const r = await A.api('POST', '/api/admin/worksheet/create', {
+    title, content,
+    priority: document.getElementById('c-priority').value,
+    source: document.getElementById('c-source').value,
+    customer_id: document.getElementById('c-customer-id').value.trim(),
+    customer_name: document.getElementById('c-customer-name').value.trim(),
+    session_id: document.getElementById('c-session-id').value.trim(),
+    assigned_to: parseInt(document.getElementById('c-assigned-to').value) || 0,
+    custom_fields: customValues,
+  });
+  if (r.code === 0) {
+    A.toast('工单已创建：' + (r.data && r.data.ticket_no), 'success');
+    closeCreate();
+    document.getElementById('c-title').value = '';
+    document.getElementById('c-content').value = '';
+    loadList(1);
+    loadStats();
+  } else {
+    A.toast('创建失败：' + r.msg, 'error');
+  }
+}
+
+/* ==================== 修改 openCreate：加载字段 + 重置值 ==================== */
+async function openCreateNew() {
+  document.getElementById('create-mask').classList.add('open');
+  await loadCustomFields();
+  document.querySelectorAll('[id^="cf-"]').forEach(el => { if (el.type !== 'checkbox' && el.type !== 'radio') el.value = ''; });
+  document.querySelectorAll('[name^="cf-"]').forEach(el => { el.checked = false; });
+}
+openCreate = openCreateNew;
+</script>
+</body>
+</html>

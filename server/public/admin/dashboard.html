@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>数据看板</title>
+<link rel="stylesheet" href="/design-system.css" />
+  <link rel="stylesheet" href="/admin/admin2.css" />
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="metric-row" id="metric-row">
+  <div class="k-loading">加载中...</div>
+</div>
+
+<div class="card">
+  <div class="card-title">近 30 天会话趋势
+    <div class="extra"><span class="text-muted">更新于 <span id="upd"></span></span></div>
+  </div>
+  <div id="trend-chart" class="k-loading">加载中...</div>
+</div>
+
+<div class="chart-row two">
+  <div class="card">
+    <div class="card-title">会话渠道分布</div>
+    <div id="channel-chart" class="k-loading">加载中...</div>
+  </div>
+  <div class="card">
+    <div class="card-title">24 小时时段分布</div>
+    <div id="hourly-chart" class="k-loading">加载中...</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">客服业务排行（近 30 天）</div>
+  <div id="agent-rank" class="k-loading">加载中...</div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.restore()) location.href = '/admin/login.html';
+const A = KefuAdmin;
+A.token = parent.KefuAdmin ? parent.KefuAdmin.token : A.token;
+
+document.getElementById('upd').textContent = new Date().toLocaleTimeString();
+
+(async () => {
+  await loadOverview();
+  await loadTrend();
+  await loadChannel();
+  await loadHourly();
+  await loadAgentRank();
+})();
+
+async function loadOverview() {
+  const r = await A.api('GET', '/api/admin/report/overview');
+  if (r.code !== 0) return;
+  const d = r.data;
+  const today = d.today || {};
+  const active = d.active || {};
+  const agents = d.agents || {};
+  // 字段兼容：today_satisfaction / online_agents / ai_active_sessions 在新版本被平铺出来
+  const satisfaction = (today.satisfaction_rate != null) ? today.satisfaction_rate : (d.today_satisfaction || 0);
+  const onlineAgents = (agents.online_agents != null) ? agents.online_agents : (d.online_agents || 0);
+  const aiActive = (active.ai_active_sessions != null) ? active.ai_active_sessions : (d.ai_active_sessions || 0);
+
+  const cards = [
+    { label: '今日新会话',   value: today.new_sessions || 0, tint: 'tint-blue' },
+    { label: '进行中会话',   value: active.active_sessions || 0, tint: 'tint-green' },
+    { label: '今日消息量',   value: today.total_messages || 0, tint: 'tint-blue' },
+    { label: '今日满意度',   value: (satisfaction || 0) + '%', tint: 'tint-orange' },
+    { label: '在线客服',     value: (onlineAgents || 0) + ' 人', tint: 'tint-green' },
+    { label: '今日待回复',   value: active.waiting_sessions || 0, tint: 'tint-red' },
+    { label: '今日访客数',   value: today.new_visitors || 0, tint: 'tint-blue' },
+    { label: 'AI 接待中',    value: aiActive || 0, tint: 'tint-orange' },
+  ];
+  const row = document.getElementById('metric-row');
+  row.classList.remove('k-loading'); row.innerHTML = '';
+  cards.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'metric-card ' + c.tint;
+    el.innerHTML = '<div class="label">' + c.label + '</div><div class="value">' + c.value + '</div>';
+    row.appendChild(el);
+  });
+}
+
+async function loadTrend() {
+  const r = await A.api('GET', '/api/admin/report/trend/sessions?start_date=' + A.daysAgo(29) + '&end_date=' + A.today());
+  if (r.code !== 0) return;
+  const list = (r.data && r.data.list) || r.data || [];
+  drawLine('trend-chart', list, 'sessions', 'date');
+}
+
+async function loadChannel() {
+  const r = await A.api('GET', '/api/admin/report/channel');
+  if (r.code !== 0) return;
+  drawBars('channel-chart', (r.data && r.data.list) || [], 'channel', 'count', '渠道');
+}
+
+async function loadHourly() {
+  const r = await A.api('GET', '/api/admin/report/hourly?start_date=' + A.today() + '&end_date=' + A.today());
+  if (r.code !== 0) return;
+  drawBars('hourly-chart', (r.data && r.data.list) || r.data || [], 'hour', 'count', '小时');
+}
+
+async function loadAgentRank() {
+  const r = await A.api('GET', '/api/admin/report/agent-rank?start_date=' + A.daysAgo(29) + '&end_date=' + A.today());
+  const box = document.getElementById('agent-rank');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  const rows = (r.data && r.data.list) || [];
+  if (!rows.length) { box.innerHTML = '<div class="k-empty">暂无数据</div>'; return; }
+  box.innerHTML = '<table class="k-table"><thead><tr><th>#</th><th>客服</th><th>用户名</th><th>会话数</th><th>消息数</th><th>平均首响(s)</th><th>平均分</th><th>满意度</th></tr></thead><tbody>' + rows.map((r, i) =>
+    '<tr><td>' + (i+1) + '</td><td>' + (r.real_name || '-') + '</td><td>' + (r.username || '-') + '</td><td>' + (r.session_count || 0) + '</td><td>' + (r.message_count || 0) + '</td><td>' + Math.round(r.avg_first_sec || 0) + '</td><td>' + (r.avg_score || 0) + '</td><td>' + (r.satisfaction_rate || 0) + '%</td></tr>'
+  ).join('') + '</tbody></table>';
+}
+
+function drawLine(id, list, valueKey, labelKey) {
+  const box = document.getElementById(id);
+  box.classList.remove('k-loading');
+  if (!list.length) { box.innerHTML = '<div class="k-empty">暂无数据</div>'; return; }
+  const W = box.clientWidth - 40, H = 280, P = 40;
+  const values = list.map(d => +d[valueKey] || 0);
+  const max = Math.max(...values, 1);
+  const xs = list.map((d, i) => P + (i * (W - P * 2)) / Math.max(1, list.length - 1));
+  const ys = values.map(v => H - P - (v / max) * (H - P * 2));
+  const path = xs.map((x, i) => (i === 0 ? 'M' : 'L') + x + ',' + ys[i]).join(' ');
+  const fillPath = path + ' L' + xs[xs.length-1] + ',' + (H-P) + ' L' + xs[0] + ',' + (H-P) + ' Z';
+  const labels = list.map((d, i) => i % Math.ceil(list.length / 8) === 0 ? '<text x="' + xs[i] + '" y="' + (H - 14) + '" text-anchor="middle" font-size="10" fill="#909399">' + ((d[labelKey] || '').slice(5)) + '</text>' : '').join('');
+  box.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" style="width:100%;height:' + H + 'px">' +
+    '<defs><linearGradient id="gl" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#1989fa" stop-opacity="0.3"/><stop offset="1" stop-color="#1989fa" stop-opacity="0"/></linearGradient></defs>' +
+    '<path d="' + fillPath + '" fill="url(#gl)"/><path d="' + path + '" stroke="#1989fa" stroke-width="2" fill="none"/>' +
+    xs.map((x, i) => '<circle cx="' + x + '" cy="' + ys[i] + '" r="3" fill="#1989fa"/>').join('') + labels + '</svg>';
+}
+
+function drawBars(id, list, labelKey, valueKey, prefix) {
+  const box = document.getElementById(id);
+  box.classList.remove('k-loading');
+  if (!list.length) { box.innerHTML = '<div class="k-empty">暂无数据</div>'; return; }
+  const max = Math.max(...list.map(d => +d[valueKey] || 0), 1);
+  box.innerHTML = list.map(d => {
+    const v = +d[valueKey] || 0;
+    const pct = Math.max(2, v / max * 100);
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;">' +
+      '<div style="width:80px;color:#606266;">' + (prefix ? prefix + ': ' : '') + (d[labelKey] || '') + '</div>' +
+      '<div style="flex:1;background:#ecf5ff;border-radius:3px;height:18px;">' +
+      '<div style="background:#1989fa;height:100%;width:' + pct + '%;border-radius:3px;"></div></div>' +
+      '<div style="width:50px;text-align:right;">' + v + '</div></div>';
+  }).join('');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>权限分配 · kefu 管理后台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+.perm-layout{display:grid;grid-template-columns:280px 1fr;gap:20px}
+@media (max-width:900px){.perm-layout{grid-template-columns:1fr}}
+.role-card{padding:14px;border:1px solid var(--color-border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+.role-card:hover{border-color:var(--color-primary);background:var(--color-primary-bg)}
+.role-card.active{border-color:var(--color-primary);background:var(--color-primary-bg);box-shadow:0 0 0 3px rgba(124,58,237,.1)}
+.role-card .rc-name{font-weight:600;margin-bottom:4px}
+.role-card .rc-meta{font-size:12px;color:var(--color-text-3);display:flex;gap:8px;align-items:center}
+
+.perm-tree{padding:8px 0}
+.perm-node{padding:6px 0}
+.perm-node .pl-label{display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background .12s}
+.perm-node .pl-label:hover{background:var(--color-primary-bg)}
+.perm-node input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--color-primary)}
+.perm-node .pl-name{font-weight:500}
+.perm-node .pl-code{font-size:11px;color:var(--color-text-3);font-family:'Fira Code',monospace}
+.perm-children{margin-left:24px;border-left:1px dashed var(--color-border);padding-left:14px}
+.k-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.k-pill-blue{background:var(--color-primary-bg);color:var(--color-primary)}
+.k-pill-gray{background:#F1F5F9;color:#475569}
+.k-btn-danger{background:#EF4444;color:#fff}
+.k-btn-danger:hover{background:#DC2626}
+</style>
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="card">
+  <div class="card-title">
+    <span style="display:inline-flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary)"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      权限分配
+    </span>
+    <div class="extra" style="font-size:12px;color:var(--color-text-3)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      选择左侧角色，勾选右侧权限
+    </div>
+  </div>
+
+  <div class="perm-layout">
+    <!-- 左侧角色列表 -->
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-weight:600;font-size:13px;color:var(--color-text-2)">角色列表</span>
+        <button class="k-btn k-btn-mini k-btn-primary" onclick="openRoleDialog()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          新建
+        </button>
+      </div>
+      <div id="role-list" class="k-loading">加载中…</div>
+    </div>
+
+    <!-- 右侧权限树 -->
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-weight:600;font-size:13px;color:var(--color-text-2)">
+          当前角色：<span id="current-role-name" style="color:var(--color-primary)">— 请选择角色 —</span>
+          <span id="current-role-meta" class="k-pill k-pill-gray" style="margin-left:8px"></span>
+        </span>
+        <div>
+          <button class="k-btn k-btn-mini" onclick="checkAll()">全选</button>
+          <button class="k-btn k-btn-mini" onclick="uncheckAll()">清空</button>
+          <button class="k-btn k-btn-mini k-btn-primary" onclick="saveAssign()">保存分配</button>
+        </div>
+      </div>
+      <div id="perm-tree" class="k-loading">加载中…</div>
+    </div>
+  </div>
+</div>
+
+<!-- 新建角色弹窗 -->
+<div id="role-dialog" class="k-dialog-mask" style="display:none">
+  <div class="k-dialog" style="max-width:480px">
+    <div class="k-dialog-title">新建角色</div>
+    <div class="k-dialog-body">
+      <div class="k-form-item">
+        <label>角色编码 <span style="color:#EF4444">*</span></label>
+        <input id="new-role-code" class="k-input" placeholder="例：custom_role（英文+下划线）" />
+      </div>
+      <div class="k-form-item">
+        <label>角色名称 <span style="color:#EF4444">*</span></label>
+        <input id="new-role-name" class="k-input" placeholder="例：质检员" />
+      </div>
+      <div class="k-form-item">
+        <label>说明</label>
+        <textarea id="new-role-desc" class="k-input" rows="3" placeholder="选填：角色的职责说明"></textarea>
+      </div>
+    </div>
+    <div class="k-dialog-foot">
+      <button class="k-btn" onclick="closeRoleDialog()">取消</button>
+      <button class="k-btn k-btn-primary" onclick="createRole()">创建</button>
+    </div>
+  </div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+let roles = [];
+let perms = [];
+let currentRoleId = 0;
+let selectedIds = new Set();
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function loadRoles() {
+  const r = await A.api('GET', '/api/admin/role/list');
+  const box = document.getElementById('role-list');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  roles = (r.data && r.data.list) || [];
+  if (!roles.length) { box.innerHTML = '<div class="k-empty">暂无角色</div>'; return; }
+  box.innerHTML = roles.map(r => `
+    <div class="role-card ${r.id == currentRoleId ? 'active' : ''}" data-id="${r.id}" onclick="selectRole(${r.id})">
+      <div class="rc-name">${escapeHtml(r.role_name)}</div>
+      <div class="rc-meta">
+        <span class="k-pill ${r.is_system==1?'k-pill-blue':'k-pill-gray'}">${r.is_system==1?'系统':'自定义'}</span>
+        <code style="font-size:11px">${escapeHtml(r.role_code)}</code>
+        ${r.is_system != 1 ? `<button class="k-btn k-btn-mini k-btn-danger" onclick="event.stopPropagation();deleteRole(${r.id},'${escapeHtml(r.role_name)}')" style="margin-left:auto">删除</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadPerms() {
+  const r = await A.api('GET', '/api/admin/permission/list');
+  const box = document.getElementById('perm-tree');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  perms = (r.data && r.data.list) || [];
+  // 不立即渲染，等选中角色后渲染
+}
+
+async function selectRole(rid) {
+  currentRoleId = rid;
+  // 更新卡片样式
+  document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.role-card[data-id="${rid}"]`).classList.add('active');
+  // 更新标题
+  const role = roles.find(r => r.id == rid);
+  document.getElementById('current-role-name').textContent = role.role_name;
+  document.getElementById('current-role-meta').textContent = role.is_system == 1 ? '系统内置' : '自定义';
+  document.getElementById('current-role-meta').className = 'k-pill ' + (role.is_system==1?'k-pill-blue':'k-pill-gray');
+
+  // 拉取已分配
+  const box = document.getElementById('perm-tree');
+  box.classList.add('k-loading');
+  box.innerHTML = '加载中…';
+  if (role.is_system == 1) {
+    box.innerHTML = '<div class="k-empty" style="padding:40px">⚠ 系统内置角色不允许修改权限</div>';
+    box.classList.remove('k-loading');
+    return;
+  }
+  const r = await A.api('GET', '/api/admin/permission/get-by-role?role_id=' + rid);
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  selectedIds = new Set((r.data && r.data.ids) || []);
+  renderPermTree();
+}
+
+function renderPermTree() {
+  const roots = perms.filter(p => !p.parent_id || p.parent_id == 0);
+  const byParent = {};
+  perms.forEach(p => {
+    const pid = p.parent_id || 0;
+    if (!byParent[pid]) byParent[pid] = [];
+    byParent[pid].push(p);
+  });
+  Object.values(byParent).forEach(arr => arr.sort((a,b) => (a.sort||0)-(b.sort||0) || a.id-b.id));
+  const walk = (nodes, lvl) => {
+    let h = '';
+    nodes.forEach(n => {
+      const checked = selectedIds.has(n.id) ? 'checked' : '';
+      const isLeaf = !byParent[n.id];
+      h += `<div class="perm-node">
+        <div class="pl-label">
+          <input type="checkbox" data-id="${n.id}" ${checked} onchange="onPermToggle(${n.id}, this.checked, this)" />
+          <span class="pl-name">${escapeHtml(n.permission_name)}</span>
+          <span class="pl-code">${escapeHtml(n.permission_code)}</span>
+          ${n.type == 'button' ? '<span class="k-pill k-pill-gray">按钮</span>' : '<span class="k-pill k-pill-blue">菜单</span>'}
+        </div>`;
+      if (byParent[n.id]) {
+        h += '<div class="perm-children">' + walk(byParent[n.id], lvl+1) + '</div>';
+      }
+      h += '</div>';
+    });
+    return h;
+  };
+  document.getElementById('perm-tree').innerHTML = '<div class="perm-tree">' + walk(roots, 0) + '</div>';
+}
+
+// 切换时同步父子节点
+function onPermToggle(id, checked, el) {
+  if (checked) selectedIds.add(id);
+  else selectedIds.delete(id);
+  // 父勾选 → 所有子勾选；父取消 → 所有子取消
+  const all = document.querySelectorAll(`#perm-tree input[data-id]`);
+  // 同步子
+  document.querySelectorAll(`#perm-tree .perm-node`).forEach(node => {
+    const cb = node.querySelector(':scope > .pl-label > input');
+    // 简化：仅在当前父节点的子级勾选同步
+  });
+  // 同步子节点（递归）
+  syncChildren(id, checked);
+  // 同步父节点（全选时勾选父，部分选时不取消）
+  syncParent(id);
+}
+
+function syncChildren(parentId, checked) {
+  document.querySelectorAll(`#perm-tree input[data-id]`).forEach(cb => {
+    const pid = perms.find(p => p.id == cb.dataset.id);
+    if (pid && pid.parent_id == parentId) {
+      cb.checked = checked;
+      if (checked) selectedIds.add(pid.id);
+      else selectedIds.delete(pid.id);
+      syncChildren(pid.id, checked);
+    }
+  });
+}
+
+function syncParent(childId) {
+  const child = perms.find(p => p.id == childId);
+  if (!child || !child.parent_id) return;
+  const parentId = child.parent_id;
+  const siblings = perms.filter(p => p.parent_id == parentId);
+  const allChecked = siblings.every(s => selectedIds.has(s.id));
+  const cb = document.querySelector(`#perm-tree input[data-id="${parentId}"]`);
+  if (cb) {
+    cb.checked = allChecked;
+    if (allChecked) selectedIds.add(parentId);
+    else selectedIds.delete(parentId);
+  }
+  syncParent(parentId);
+}
+
+function checkAll() {
+  selectedIds = new Set(perms.map(p => p.id));
+  document.querySelectorAll('#perm-tree input').forEach(cb => cb.checked = true);
+}
+function uncheckAll() {
+  selectedIds = new Set();
+  document.querySelectorAll('#perm-tree input').forEach(cb => cb.checked = false);
+}
+
+async function saveAssign() {
+  if (!currentRoleId) { A.toast('请先选择角色', 'warning'); return; }
+  const ids = Array.from(selectedIds);
+  const r = await A.api('POST', '/api/admin/permission/assign', { role_id: currentRoleId, permission_ids: ids });
+  if (r.code === 0) {
+    A.toast('已保存（' + ids.length + ' 项权限）', 'success');
+  } else {
+    A.toast('保存失败：' + r.msg, 'error');
+  }
+}
+
+function openRoleDialog() { document.getElementById('role-dialog').style.display = 'flex'; }
+function closeRoleDialog() { document.getElementById('role-dialog').style.display = 'none'; }
+
+async function createRole() {
+  const code = document.getElementById('new-role-code').value.trim();
+  const name = document.getElementById('new-role-name').value.trim();
+  if (!code || !name) { A.toast('编码和名称必填', 'warning'); return; }
+  const r = await A.api('POST', '/api/admin/permission/role/create', {
+    role_code: code, role_name: name, description: document.getElementById('new-role-desc').value.trim()
+  });
+  if (r.code === 0) {
+    A.toast('已创建', 'success');
+    closeRoleDialog();
+    document.getElementById('new-role-code').value = '';
+    document.getElementById('new-role-name').value = '';
+    document.getElementById('new-role-desc').value = '';
+    loadRoles();
+  } else {
+    A.toast('创建失败：' + r.msg, 'error');
+  }
+}
+
+async function deleteRole(id, name) {
+  if (!confirm('确认删除角色「' + name + '」？\n（若已被员工使用，需先调整员工）')) return;
+  const r = await A.api('POST', '/api/admin/permission/role/delete', { id: id });
+  if (r.code === 0) {
+    A.toast('已删除', 'success');
+    if (currentRoleId == id) {
+      currentRoleId = 0;
+      document.getElementById('perm-tree').innerHTML = '<div class="k-empty" style="padding:40px">— 请选择角色 —</div>';
+    }
+    loadRoles();
+  } else {
+    A.toast('删除失败：' + r.msg, 'error');
+  }
+}
+
+(async () => { await loadRoles(); await loadPerms(); })();
+</script>
+</body>
+</html>

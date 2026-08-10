@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>实时数据 · 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+</head>
+<body style="margin:0;">
+
+<div style="padding:24px;">
+
+  <!-- 8 metric -->
+  <div class="k-grid-auto" id="metric">
+    <div class="k-metric tint-primary k-reveal">
+      <div class="label"><span>正在咨询人数</span><span class="ico">💬</span></div>
+      <div class="value" id="m-active">-</div>
+      <div class="delta up">↑ 实时</div>
+    </div>
+    <div class="k-metric tint-warning k-reveal-2">
+      <div class="label"><span>排队等待</span><span class="ico">⏰</span></div>
+      <div class="value" id="m-waiting">-</div>
+      <div class="delta down">-</div>
+    </div>
+    <div class="k-metric tint-accent k-reveal-3">
+      <div class="label"><span>今日消息量</span><span class="ico">📨</span></div>
+      <div class="value" id="m-msgs">-</div>
+      <div class="delta up">vs 昨日</div>
+    </div>
+    <div class="k-metric tint-success k-reveal-4">
+      <div class="label"><span>今日满意度</span><span class="ico">⭐</span></div>
+      <div class="value" id="m-satis">-</div>
+      <div class="delta up">↑ 实测</div>
+    </div>
+    <div class="k-metric tint-ai k-reveal">
+      <div class="label"><span>AI 接待中</span><span class="ico">🤖</span></div>
+      <div class="value" id="m-ai">-</div>
+      <div class="delta up">千帆</div>
+    </div>
+    <div class="k-metric tint-success k-reveal-2">
+      <div class="label"><span>在线客服</span><span class="ico">🟢</span></div>
+      <div class="value" id="m-online">-</div>
+      <div class="delta up">实时</div>
+    </div>
+    <div class="k-metric k-reveal-3">
+      <div class="label"><span>今日新增会话</span><span class="ico">✨</span></div>
+      <div class="value" id="m-newsess">-</div>
+      <div class="delta up">今日</div>
+    </div>
+    <div class="k-metric tint-warning k-reveal-4">
+      <div class="label"><span>今日访客</span><span class="ico">👥</span></div>
+      <div class="value" id="m-visitors">-</div>
+      <div class="delta up">今日</div>
+    </div>
+  </div>
+
+  <!-- 24h 趋势 -->
+  <div class="k-card k-reveal-2">
+    <div class="k-card-title">📈 服务数据趋势
+      <div class="extra">
+        <select id="trend-preset" class="k-select" onchange="onTrendPresetChange()" style="width:120px;">
+          <option value="0" selected>今日</option>
+          <option value="1">昨日</option>
+          <option value="7">最近 7 天</option>
+          <option value="14">最近 14 天</option>
+          <option value="30">最近 30 天</option>
+          <option value="custom">自定义</option>
+        </select>
+        <span id="trend-custom" style="display:none">
+          <input id="trend-start" type="date" class="k-input" style="width:130px" />
+          <span class="k-text-muted">~</span>
+          <input id="trend-end" type="date" class="k-input" style="width:130px" />
+        </span>
+        <select id="trend-metric" class="k-select" style="width:120px;">
+          <option value="sessions">会话数</option>
+          <option value="messages">消息数</option>
+          <option value="visitors">访客数</option>
+          <option value="tickets">工单数</option>
+        </select>
+        <button class="k-btn k-btn-mini" onclick="loadTrend()">查询</button>
+      </div>
+    </div>
+    <div id="trend" style="height: 320px;position:relative;"><div class="k-loading">加载中…</div></div>
+  </div>
+
+  <!-- 客服活动 -->
+  <div class="k-card k-reveal-3">
+    <div class="k-card-title">📊 客服活动报表
+      <div class="extra">
+        <!-- 修复：增加"今日"选项 + 自定义日期范围（不只7天/30天） -->
+        <select id="rank-range" class="k-select" onchange="onRankRangeChange()" style="width:120px;">
+          <option value="0">今日</option>
+          <option value="1">昨日</option>
+          <option value="3">最近 3 天</option>
+          <option value="7">最近 7 天</option>
+          <option value="14">最近 14 天</option>
+          <option value="30" selected>最近 30 天</option>
+          <option value="custom">自定义</option>
+        </select>
+        <span id="rank-custom-range" style="display:none">
+          <input id="rank-start" type="date" class="k-input" style="width:130px" />
+          <span class="k-text-muted">~</span>
+          <input id="rank-end" type="date" class="k-input" style="width:130px" />
+        </span>
+        <input id="kw" class="k-input" placeholder="检索客服名" style="width:180px;" onkeydown="if(event.key==='Enter')loadRank()" />
+        <button class="k-btn k-btn-mini" onclick="loadRank()">查询</button>
+      </div>
+    </div>
+    <div id="agent-activity" class="k-loading">加载中…</div>
+  </div>
+
+  <!-- 评价 + 分配 -->
+  <div class="k-grid-auto k-reveal-4">
+    <div class="k-card">
+      <div class="k-card-title">访客满意度分布</div>
+      <div id="eval-chart" style="height: 240px;"><div class="k-loading">加载中…</div></div>
+    </div>
+    <div class="k-card">
+      <div class="k-card-title">会话模式分配</div>
+      <div id="alloc-chart" style="height: 240px;"><div class="k-loading">加载中…</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="/ui.js"></script>
+<script>
+(function(){
+  if (!UI.token) {
+    UI.token = localStorage.getItem('kefu_token');
+    try { UI.user = JSON.parse(localStorage.getItem('kefu_user') || 'null'); } catch (e) {}
+  }
+  if (!UI.token) { top.location.href = '/admin/login.html'; }
+})();
+
+(async () => {
+  await loadMetrics();
+  await loadTrend();
+  await loadRank();
+  await loadEvalChart();
+  await loadAllocChart();
+  // 修复：实时数据自动刷新（每 30 秒）
+  setInterval(async () => {
+    await loadMetrics();
+    await loadTrend();
+    await loadAllocChart();
+  }, 30000);
+})();
+document.getElementById('trend-end').value = todayDate();
+document.getElementById('trend-start').value = daysAgo(29);
+
+async function loadMetrics() {
+  const r = await UI.api('GET', '/api/admin/report/overview');
+  if (r.code !== 0) return;
+  const d = r.data;
+  const a = d.active || {};
+  const t = d.today || {};
+  setVal('m-active', a.active_sessions || 0);
+  setVal('m-waiting', a.waiting_sessions || 0);
+  setVal('m-msgs', t.total_messages || t.new_sessions || 0);
+  setVal('m-satis', (d.today_satisfaction || 0) + '%');
+  setVal('m-ai', d.ai_active_sessions || 0);
+  setVal('m-online', d.online_agents || 0);
+  setVal('m-newsess', (t.new_sessions || 0));
+  setVal('m-visitors', (t.new_visitors || 0));
+}
+function setVal(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = v;
+}
+
+async function loadTrend() {
+  const preset = document.getElementById('trend-preset').value;
+  let start, end;
+  if (preset === 'custom') {
+    start = document.getElementById('trend-start').value;
+    end = document.getElementById('trend-end').value;
+    if (!start || !end) { UI.toast('请选择起始/结束日期', 'error'); return; }
+  } else {
+    const days = parseInt(preset, 10);
+    if (days === 0) { start = end = todayDate(); }
+    else if (days === 1) { start = end = daysAgo(1); }
+    else { start = daysAgo(days - 1); end = todayDate(); }
+  }
+  const metric = document.getElementById('trend-metric').value;
+  const box = document.getElementById('trend');
+  box.classList.remove('k-loading'); box.innerHTML = '';
+  // 修复：单日（今日/昨日）按 24 小时分布展示，趋势随时间"动起来"
+  if (start === end) {
+    const r = await UI.api('GET', '/api/admin/report/hourly?start_date=' + start + '&end_date=' + end);
+    const list = (r.data && (r.data.list || r.data)) || [];
+    const hours = list.map(x => ({ hour: +(x.hour !== undefined ? x.hour : 0), cnt: +(x.cnt || 0) }));
+    draw24h(box, hours, metric, start, end);
+    return;
+  }
+  const r = await UI.api('GET', '/api/admin/report/trend/' + metric + '?start_date=' + start + '&end_date=' + end);
+  const list = (r.data && (r.data.list || r.data)) || [];
+  // 修复：接口只返回有数据的天，需补齐日期范围内每一天（否则折线点不连续）
+  const map = {};
+  list.forEach(x => { map[x.d || x.date] = +(x.v || x.cnt || 0); });
+  const days = [];
+  for (let d = new Date(start + 'T00:00:00'), e = new Date(end + 'T00:00:00'); d <= e; d.setDate(d.getDate() + 1)) {
+    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    days.push({ date: key, cnt: map[key] || 0 });
+  }
+  draw24h(box, days, metric, start, end);
+}
+function onTrendPresetChange() {
+  const v = document.getElementById('trend-preset').value;
+  document.getElementById('trend-custom').style.display = v === 'custom' ? '' : 'none';
+  if (v !== 'custom') loadTrend();
+}
+
+async function loadRank() {
+  return _loadRankImpl();
+}
+function onRankRangeChange() {
+  const v = document.getElementById('rank-range').value;
+  document.getElementById('rank-custom-range').style.display = v === 'custom' ? '' : 'none';
+  if (v !== 'custom') loadRank();
+}
+async function _loadRankImpl() {
+  const range = document.getElementById('rank-range').value;
+  let start, end;
+  if (range === 'custom') {
+    start = document.getElementById('rank-start').value;
+    end = document.getElementById('rank-end').value;
+    if (!start || !end) { UI.toast('请选择自定义起始/结束日期', 'error'); return; }
+  } else {
+    const days = parseInt(range, 10);
+    if (days === 0) start = end = todayDate();
+    else if (days === 1) start = end = daysAgo(1);
+    else { start = daysAgo(days - 1); end = todayDate(); }
+  }
+  const r = await UI.api('GET', '/api/admin/report/agent-rank?start_date=' + start + '&end_date=' + end);
+  const box = document.getElementById('agent-activity');
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  const rows = (r.data && r.data.list) || [];
+  if (!rows.length) { box.innerHTML = '<div class="k-empty">暂无数据</div>'; return; }
+  box.innerHTML = '<table class="k-table"><thead><tr>' +
+    '<th>客服</th><th>状态</th><th>当前会话</th><th>累计会话</th><th>累计消息</th><th>首响(s)</th><th>平均响应</th><th>满意度</th><th>在线时长</th>' +
+    '</tr></thead><tbody>' + rows.map(r => '<tr>' +
+      '<td><strong>' + (r.real_name || r.username || '-') + '</strong></td>' +
+      '<td><span class="k-dot k-dot-online"></span>在线</td>' +
+      '<td>' + (r.session_count || 0) + '</td>' +
+      '<td>' + (r.session_count || 0) + '</td>' +
+      '<td>' + (r.message_count || 0) + '</td>' +
+      '<td class="k-mono">' + Math.round(r.avg_first_sec || 0) + 's</td>' +
+      '<td class="k-mono">' + Math.round(r.avg_response_sec || 0) + 's</td>' +
+      '<td><span class="k-tag k-tag-success">' + (r.satisfaction_rate || 0) + '%</span></td>' +
+      '<td class="k-mono">' + (r.online_time || '-') + '</td>' +
+    '</tr>').join('') + '</tbody></table>';
+}
+
+async function loadEvalChart() {
+  const r = await UI.api('GET', '/api/admin/evaluate/stats');
+  const box = document.getElementById('eval-chart');
+  box.classList.remove('k-loading');
+  if (r.code !== 0 || !r.data) { box.innerHTML = '<div class="k-empty">暂无评价</div>'; return; }
+  const d = r.data;
+  const items = [
+    { label: '满意', val: d.satisfied || 0, color: '#10B981' },
+    { label: '一般', val: d.neutral || 0, color: '#F59E0B' },
+    { label: '不满意', val: d.dissatisfied || 0, color: '#DC2626' },
+  ];
+  const total = items.reduce((s, x) => s + x.val, 0);
+  if (!total) { box.innerHTML = '<div class="k-empty">暂无评价</div>'; return; }
+  box.innerHTML = drawRing(items, total) + legend(items);
+}
+
+async function loadAllocChart() {
+  const r = await UI.api('GET', '/api/agent/session/list?size=300');
+  const box = document.getElementById('alloc-chart');
+  box.classList.remove('k-loading');
+  if (r.code !== 0 || !r.data || !r.data.list) { box.innerHTML = '<div class="k-empty">暂无会话</div>'; return; }
+  const rows = r.data.list;
+  const ai = rows.filter(x => x.serving_mode === 'ai').length;
+  const hu = rows.length - ai;
+  const items = [
+    { label: '人工服务', val: hu, color: '#0891B2' },
+    { label: 'AI 服务', val: ai, color: '#7C3AED' },
+  ];
+  box.innerHTML = drawRing(items, rows.length) + legend(items);
+}
+
+function draw24h(box, hours, metric, start, end) {
+  // 修复：通用趋势图（不再固定 24 小时）
+  // - hours: 数组，每项含 {date/cnt} 或 {hour/cnt}
+  // - metric: 指标名（用于 Y 轴单位）
+  if (!hours.length) { box.innerHTML = '<div class="k-empty">暂无数据</div>'; return; }
+  // 兼容 24h hourly (含 hour) 与 trend ({date, cnt})
+  const isHourly = hours[0] && hours[0].hour !== undefined;
+  const data = isHourly ? new Array(24).fill(0).map((_, i) => {
+    const m = hours.find(h => +h.hour === i);
+    return m ? +m.cnt : 0;
+  }) : hours.map(h => +h.cnt);
+
+  const W = 1000, H = 320, P = 40;
+  const max = Math.max(...data, 1);
+  const N = data.length;
+  const xs = data.map((_, i) => P + (i * (W - P * 2)) / Math.max(1, N - 1));
+  const ys = data.map(v => H - P - (v / max) * (H - P * 2));
+  const path = xs.map((x, i) => (i === 0 ? 'M' : 'L') + x + ',' + ys[i]).join(' ');
+  const fill = path + ' L' + xs[xs.length - 1] + ',' + (H - P) + ' L' + xs[0] + ',' + (H - P) + ' Z';
+
+  // X 轴标签
+  let labels = '';
+  if (isHourly) {
+    labels = xs.map((x, i) => i % 4 === 0 ? '<text x="' + x + '" y="' + (H - 14) + '" text-anchor="middle" font-size="11" fill="#6B7280">' + i + ':00</text>' : '').join('');
+  } else {
+    const step = Math.max(1, Math.ceil(N / 8));
+    labels = xs.map((x, i) => i % step === 0 ? '<text x="' + x + '" y="' + (H - 14) + '" text-anchor="middle" font-size="11" fill="#6B7280">' + (hours[i].date || '').slice(5) + '</text>' : '').join('');
+  }
+
+  const gridLines = [0.25, 0.5, 0.75].map(p => '<line x1="' + P + '" y1="' + (H - P - (H - P * 2) * p) + '" x2="' + (W - P) + '" y2="' + (H - P - (H - P * 2) * p) + '" stroke="#ECEEF9" stroke-width="1"/>').join('');
+  const dots = xs.map((x, i) => '<circle cx="' + x + '" cy="' + ys[i] + '" r="3.5" fill="#7C3AED"><title>' + (isHourly ? (i + ':00') : (hours[i].date || '')) + ' — ' + data[i] + (metric ? ' ' + metric : '') + '</title></circle>').join('');
+  const sum = data.reduce((a, b) => a + b, 0);
+  const titleHtml = '<div style="position:absolute;top:8px;right:16px;font-size:12px;color:#6B7280;">📊 ' + (start || '') + ' ~ ' + (end || '') + ' · 合计 <b style="color:#7C3AED;">' + sum + '</b></div>';
+  box.innerHTML = titleHtml + '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%">' +
+    '<defs><linearGradient id="kpg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#7C3AED" stop-opacity="0.30"/><stop offset="1" stop-color="#7C3AED" stop-opacity="0"/></linearGradient></defs>' +
+    gridLines +
+    '<path d="' + fill + '" fill="url(#kpg)"/>' +
+    '<path d="' + path + '" stroke="#7C3AED" stroke-width="2.5" fill="none"/>' +
+    dots + labels + '</svg>';
+}
+
+function drawRing(items, total) {
+  let acc = 0;
+  const segs = items.map(x => {
+    const start = acc / total * 360; acc += x.val;
+    const end = acc / total * 360;
+    const large = end - start > 180 ? 1 : 0;
+    const sx = 150 + 90 * Math.cos((start - 90) * Math.PI / 180);
+    const sy = 150 + 90 * Math.sin((start - 90) * Math.PI / 180);
+    const ex = 150 + 90 * Math.cos((end - 90) * Math.PI / 180);
+    const ey = 150 + 90 * Math.sin((end - 90) * Math.PI / 180);
+    return '<path d="M150,150 L' + sx + ',' + sy + ' A90,90 0 ' + large + ',1 ' + ex + ',' + ey + ' Z" fill="' + x.color + '"/>';
+  }).join('');
+  return '<svg viewBox="0 0 300 260" preserveAspectRatio="xMidYMid meet" style="width:100%;height:200px;">' +
+    segs + '<circle cx="150" cy="150" r="55" fill="white"/>' +
+    '<text x="150" y="148" text-anchor="middle" font-size="28" font-weight="700" fill="#1E1B4B">' + total + '</text>' +
+    '<text x="150" y="172" text-anchor="middle" font-size="11" fill="#6B7280">总计</text></svg>';
+}
+
+function legend(items) {
+  return '<div style="display:flex;justify-content:space-around;font-size:13px;margin-top:6px;">' + items.map(x => {
+    return '<div><span style="display:inline-block;width:10px;height:10px;background:' + x.color + ';border-radius:2px;margin-right:6px;"></span>' + x.label + ' <b>' + x.val + '</b></div>';
+  }).join('') + '</div>';
+}
+
+function todayDate() { return new Date().toISOString().slice(0, 10); }
+function daysAgo(n) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
+
+setInterval(loadMetrics, 10000);
+</script>
+</body>
+</html>

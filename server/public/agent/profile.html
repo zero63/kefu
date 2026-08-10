@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>我的 · kefu 客服工作台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+  body { margin: 0; padding: 24px; background: #F8FAFC; font-family: -apple-system, "PingFang SC", sans-serif; }
+  .profile-hero {
+    background: linear-gradient(135deg, #7C3AED, #5B21B6);
+    color: white; border-radius: 14px; padding: 28px 32px;
+    display: flex; align-items: center; gap: 24px; max-width: 880px;
+    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.15);
+  }
+  .profile-hero .avatar-box { position: relative; }
+  .profile-hero .avatar-box .avatar {
+    width: 88px; height: 88px; border-radius: 50%;
+    background-size: cover; background-position: center;
+    border: 3px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 32px; font-weight: 600;
+  }
+  .profile-hero .upload-btn {
+    position: absolute; right: -4px; bottom: -4px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #F59E0B; border: 3px solid white;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 14px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    transition: transform .15s;
+  }
+  .profile-hero .upload-btn:hover { transform: scale(1.1); }
+  .profile-hero .info h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; }
+  .profile-hero .info .meta { font-size: 13px; opacity: 0.85; display: flex; gap: 14px; flex-wrap: wrap; }
+  .profile-hero .info .meta .item { display: inline-flex; align-items: center; gap: 4px; }
+
+  .profile-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; max-width: 880px; margin-top: 20px; }
+  @media (max-width: 760px) { .profile-grid { grid-template-columns: 1fr; } }
+
+  .form-card { background: white; border-radius: 12px; padding: 22px 24px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
+  .form-card .card-title { font-size: 15px; font-weight: 600; margin: 0 0 18px; color: #0F172A; display: flex; align-items: center; gap: 8px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+  .form-row .item label { display: block; font-size: 12px; color: #475569; margin-bottom: 6px; font-weight: 500; }
+  .form-row .item label .req { color: #DC2626; margin-left: 2px; }
+  .form-row .item input,
+  .form-row .item textarea { width: 100%; padding: 9px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; transition: border-color .15s; font-family: inherit; }
+  .form-row .item input:focus,
+  .form-row .item textarea:focus { border-color: #7C3AED; box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.08); }
+  .form-row .item textarea { resize: vertical; min-height: 60px; }
+  .form-row .item .hint { font-size: 11px; color: #94A3B8; margin-top: 4px; }
+  .form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+
+  .stat-card { background: white; border-radius: 12px; padding: 22px 24px; box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04); }
+  .stat-card .card-title { font-size: 15px; font-weight: 600; margin: 0 0 14px; color: #0F172A; display: flex; align-items: center; gap: 8px; }
+  .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #E2E8F0; font-size: 13px; }
+  .stat-row:last-child { border-bottom: 0; }
+  .stat-row .label { color: #64748B; }
+  .stat-row .value { color: #0F172A; font-weight: 500; }
+
+  .hidden-input { display: none; }
+  .avatar-preview { transition: opacity .2s; opacity: 1; }
+  .avatar-preview.saving { opacity: 0.5; }
+</style>
+</head>
+<body>
+
+<!-- 顶部英雄区：头像 + 基础信息 -->
+<div class="profile-hero">
+  <div class="avatar-box">
+    <div class="avatar avatar-preview" id="avatarImg">?</div>
+    <div class="upload-btn" onclick="document.getElementById('avatarFile').click()" title="更换头像">📷</div>
+    <input type="file" id="avatarFile" class="hidden-input" accept="image/png,image/jpeg,image/gif,image/webp" onchange="uploadAvatar(this.files[0])" />
+  </div>
+  <div class="info">
+    <h2 id="h_realName">-</h2>
+    <div class="meta">
+      <span class="item">🆔 工号 <b id="h_empNo" style="margin-left:2px;">-</b></span>
+      <span class="item">🎭 角色 <b id="h_role" style="margin-left:2px;">-</b></span>
+      <span class="item">🏢 部门 <b id="h_dept" style="margin-left:2px;">-</b></span>
+      <span class="item">📅 登录时间 <b id="h_loginAt" style="margin-left:2px;">-</b></span>
+    </div>
+  </div>
+</div>
+
+<div class="profile-grid">
+  <!-- 左侧：可编辑表单 -->
+  <div class="form-card">
+    <div class="card-title">✏️ 编辑个人资料</div>
+    <div class="form-row">
+      <div class="item">
+        <label>姓名 <span class="req">*</span></label>
+        <input id="f_realName" type="text" maxlength="32" />
+      </div>
+      <div class="item">
+        <label>昵称</label>
+        <input id="f_nickname" type="text" maxlength="32" placeholder="聊天时展示的昵称" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="item">
+        <label>工号</label>
+        <input id="f_employeeNo" type="text" maxlength="32" placeholder="客服工号" />
+        <div class="hint">用于访客端聊天时展示，便于客户识别</div>
+      </div>
+      <div class="item">
+        <label>最大同时接待数</label>
+        <input id="f_max" type="number" min="1" max="50" disabled />
+        <div class="hint">由超管配置，不可自行修改</div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="item">
+        <label>手机</label>
+        <input id="f_phone" type="tel" placeholder="11 位手机号" maxlength="20" />
+      </div>
+      <div class="item">
+        <label>邮箱</label>
+        <input id="f_email" type="email" placeholder="工作邮箱" maxlength="128" />
+      </div>
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr;">
+      <div class="item">
+        <label>个人简介</label>
+        <textarea id="f_bio" maxlength="200" placeholder="一句话介绍自己..."></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="k-btn k-btn-ghost" onclick="resetForm()">重置</button>
+      <button class="k-btn k-btn-primary" onclick="saveProfile()">保存</button>
+    </div>
+  </div>
+
+  <!-- 右侧：只读信息 -->
+  <div>
+    <div class="stat-card">
+      <div class="card-title">🔒 账号信息</div>
+      <div class="stat-row"><span class="label">用户名</span><span class="value" id="s_username">-</span></div>
+      <div class="stat-row"><span class="label">账号 ID</span><span class="value" id="s_id">-</span></div>
+      <div class="stat-row"><span class="label">租户</span><span class="value" id="s_tenant">-</span></div>
+      <div class="stat-row"><span class="label">账号状态</span><span class="value" id="s_status">-</span></div>
+      <div class="stat-row"><span class="label">在线状态</span><span class="value" id="s_work">-</span></div>
+      <div class="stat-row"><span class="label">技能等级</span><span class="value" id="s_skill">-</span></div>
+    </div>
+
+    <div class="stat-card" style="margin-top: 16px;">
+      <div class="card-title">🔧 修改密码</div>
+      <div style="margin-bottom: 12px;">
+        <label style="font-size:12px;color:#475569;display:block;margin-bottom:6px;">旧密码</label>
+        <input id="pwd_old" type="password" class="k-input" placeholder="请输入旧密码" style="width:100%;padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;" />
+      </div>
+      <div style="margin-bottom: 12px;">
+        <label style="font-size:12px;color:#475569;display:block;margin-bottom:6px;">新密码</label>
+        <input id="pwd_new" type="password" class="k-input" placeholder="≥ 6 位" style="width:100%;padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;" />
+      </div>
+      <button class="k-btn k-btn-primary" style="width:100%;" onclick="changePwd()">修改密码</button>
+    </div>
+  </div>
+</div>
+
+<script src="/agent/common.js?v=2026"></script>
+<script>
+if (!KefuAgent.requireLogin()) throw new Error('not logged in');
+const A = KefuAgent;
+let _profile = {};
+
+function escapeHtml(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function renderHero() {
+  const u = _profile;
+  document.getElementById('h_realName').textContent = u.real_name || u.username || '-';
+  document.getElementById('h_empNo').textContent = u.employee_no || '-';
+  document.getElementById('h_role').textContent = u.role_name || '-';
+  document.getElementById('h_dept').textContent = u.dept_name || '-';
+  document.getElementById('h_loginAt').textContent = u.last_login_at ? A.fmtDate(u.last_login_at) : '-';
+  // 头像
+  const avBox = document.getElementById('avatarImg');
+  if (u.avatar) {
+    avBox.style.backgroundImage = 'url(' + u.avatar + ')';
+    avBox.textContent = '';
+  } else {
+    const initial = (u.real_name || u.username || '客').slice(0, 1).toUpperCase();
+    avBox.style.backgroundImage = '';
+    avBox.style.background = 'linear-gradient(135deg, #0891B2, #155E75)';
+    avBox.textContent = initial;
+  }
+}
+
+function fillForm() {
+  const u = _profile;
+  document.getElementById('f_realName').value = u.real_name || '';
+  document.getElementById('f_nickname').value = u.nickname || '';
+  document.getElementById('f_employeeNo').value = u.employee_no || '';
+  document.getElementById('f_max').value = u.max_sessions || 5;
+  document.getElementById('f_phone').value = u.phone || '';
+  document.getElementById('f_email').value = u.email || '';
+  document.getElementById('f_bio').value = u.bio || '';
+
+  document.getElementById('s_username').textContent = u.username || '-';
+  document.getElementById('s_id').textContent = u.id || '-';
+  document.getElementById('s_tenant').textContent = u.tenant_id || '-';
+  document.getElementById('s_status').innerHTML = u.status == 1 ? '<span class="k-tag k-tag-success">启用</span>' : '<span class="k-tag k-tag-danger">禁用</span>';
+  document.getElementById('s_work').innerHTML = {
+    online:  '<span class="k-tag k-tag-success">在线</span>',
+    busy:    '<span class="k-tag k-tag-warning">忙碌</span>',
+    away:    '<span class="k-tag k-tag-warning">离开</span>',
+    offline: '<span class="k-tag">离线</span>'
+  }[u.work_status] || u.work_status || '-';
+  document.getElementById('s_skill').textContent = u.skill_level != null ? u.skill_level : '-';
+}
+
+function resetForm() {
+  fillForm();
+  A.toast('已重置', 'info');
+}
+
+async function saveProfile() {
+  const data = {
+    real_name:   document.getElementById('f_realName').value.trim(),
+    nickname:    document.getElementById('f_nickname').value.trim(),
+    employee_no: document.getElementById('f_employeeNo').value.trim(),
+    phone:       document.getElementById('f_phone').value.trim(),
+    email:       document.getElementById('f_email').value.trim(),
+    bio:         document.getElementById('f_bio').value.trim(),
+  };
+  if (!data.real_name) { A.toast('请填写姓名', 'warning'); return; }
+  if (data.phone && !/^[0-9+\-\s]{5,20}$/.test(data.phone)) { A.toast('手机号格式不正确', 'error'); return; }
+  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) { A.toast('邮箱格式不正确', 'error'); return; }
+  const r = await A.api('POST', '/api/agent/profile/update', data);
+  if (r.code === 0) {
+    Object.assign(_profile, r.data);
+    // 同步更新 KefuAgent.user
+    if (A.user && r.data) {
+      Object.keys(r.data).forEach(k => { A.user[k] = r.data[k]; });
+      localStorage.setItem('kefu_user', JSON.stringify(A.user));
+    }
+    renderHero();
+    A.toast('已保存', 'success');
+  } else {
+    A.toast('保存失败：' + r.msg, 'error');
+  }
+}
+
+async function uploadAvatar(file) {
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) { A.toast('图片不能超过 3MB', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = async function (e) {
+    const dataUrl = e.target.result;
+    document.getElementById('avatarImg').classList.add('saving');
+    const r = await A.api('POST', '/api/agent/profile/avatar', { data: dataUrl });
+    document.getElementById('avatarImg').classList.remove('saving');
+    if (r.code === 0) {
+      _profile.avatar = r.data.avatar;
+      if (A.user) A.user.avatar = r.data.avatar;
+      localStorage.setItem('kefu_user', JSON.stringify(A.user));
+      renderHero();
+      A.toast('头像已更新', 'success');
+    } else {
+      A.toast('上传失败：' + r.msg, 'error');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function changePwd() {
+  const oldPwd = document.getElementById('pwd_old').value;
+  const newPwd = document.getElementById('pwd_new').value;
+  if (!oldPwd || !newPwd) { A.toast('请填写完整', 'warning'); return; }
+  if (newPwd.length < 6) { A.toast('新密码至少 6 位', 'error'); return; }
+  const r = await A.api('POST', '/api/admin/employee/update', { id: A.user.id || A.user.employee_id, password: newPwd });
+  if (r.code === 0) {
+    document.getElementById('pwd_old').value = '';
+    document.getElementById('pwd_new').value = '';
+    A.toast('密码已修改', 'success');
+  } else {
+    A.toast('修改失败：' + r.msg, 'error');
+  }
+}
+
+(async () => {
+  const r = await A.api('GET', '/api/agent/profile');
+  if (r.code === 0) {
+    _profile = r.data;
+    renderHero();
+    fillForm();
+  } else {
+    A.toast('加载失败：' + r.msg, 'error');
+  }
+})();
+</script>
+</body>
+</html>

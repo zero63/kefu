@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>角色权限分配 · kefu 管理后台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+  body { margin: 0; padding: 0; }
+  .rp-layout { display: grid; grid-template-columns: 240px 1fr; gap: 16px; }
+  @media (max-width: 768px) { .rp-layout { grid-template-columns: 1fr; } }
+  .rp-role-list { background: #fff; border-radius: 10px; padding: 8px; border: 1px solid var(--color-border); }
+  .rp-role-list .item {
+    padding: 10px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+    transition: background .15s;
+  }
+  .rp-role-list .item:hover { background: var(--color-bg-2); }
+  .rp-role-list .item.active { background: var(--color-primary-light, #E0F2FE); color: var(--color-primary); font-weight: 600; }
+  .rp-role-list .item .badge { margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #F1F5F9; color: #64748B; }
+  .rp-role-list .item .badge.sys { background: #FEF3C7; color: #B45309; }
+
+  .rp-tree { background: #fff; border-radius: 10px; padding: 20px; border: 1px solid var(--color-border); }
+  .rp-tree-header { display: flex; align-items: center; gap: 10px; padding-bottom: 16px; border-bottom: 1px solid var(--color-border-light); margin-bottom: 16px; }
+  .rp-tree-header .ttl { font-size: 16px; font-weight: 700; }
+  .rp-tree-header .desc { font-size: 12px; color: var(--color-text-3); }
+
+  .rp-grp { margin-bottom: 18px; }
+  .rp-grp-title { font-size: 13px; font-weight: 700; color: var(--color-text-2); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 2px solid var(--color-primary); }
+  .rp-grp-title .ico { font-size: 16px; }
+  .rp-children { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; padding-left: 8px; }
+  .rp-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--color-bg-2);
+    border-radius: 8px; cursor: pointer; transition: all .15s; user-select: none;
+  }
+  .rp-item:hover { background: #E0F2FE; }
+  .rp-item.checked { background: #DBEAFE; color: var(--color-primary); font-weight: 600; }
+  .rp-item input[type="checkbox"] { margin: 0; width: 16px; height: 16px; }
+  .rp-item .type {
+    margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 999px; background: #fff; color: #64748B;
+  }
+  .rp-item .type.button { background: #FEF3C7; color: #B45309; }
+  .rp-item .type.menu { background: #DBEAFE; color: #1D4ED8; }
+  .rp-item .type.api { background: #FCE7F3; color: #BE185D; }
+
+  .rp-parent { background: #F0F9FF; }
+  .rp-parent input[type="checkbox"] { transform: scale(1.2); }
+
+  .rp-toolbar {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #FEF3C7; border-radius: 8px; margin-bottom: 14px; font-size: 13px; color: #92400E;
+  }
+
+  .rp-loading { padding: 60px; text-align: center; color: var(--color-text-3); }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-title">
+    <span style="display:inline-flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#8B5CF6"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      角色权限分配
+    </span>
+    <div class="extra">
+      <button class="k-btn k-btn-mini" onclick="selectAll()">全选</button>
+      <button class="k-btn k-btn-mini" onclick="selectNone()">清空</button>
+      <button class="k-btn k-btn-primary k-btn-mini" id="save-btn" onclick="savePermissions()">💾 保存权限</button>
+    </div>
+  </div>
+
+  <div class="rp-toolbar">
+    <span>💡</span>
+    <span>提示：勾选权限后，点击「💾 保存权限」即可生效。系统内置角色的权限可单独调整（仅当前租户）。勾选父项可一键全选其下子项。</span>
+  </div>
+
+  <div class="rp-layout">
+    <div class="rp-role-list" id="role-list"><div class="rp-loading">加载中…</div></div>
+    <div class="rp-tree" id="rp-tree"><div class="rp-loading">请选择左侧角色</div></div>
+  </div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+
+let roles = [];
+let permTree = [];
+let selectedRoleId = 0;
+let selectedPermIds = new Set();
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+const ICONS = {
+  dashboard: '📊', employee: '👥', session: '💬', customer: '🧑',
+  knowledge: '📚', ai: '🤖', evaluate: '⭐', quality: '🔍',
+  report: '📈', system: '⚙️', inbox: '✉️',
+};
+
+async function loadAll() {
+  await loadRoles();
+  await loadTree();
+}
+
+async function loadRoles() {
+  const r = await A.api('GET', '/api/admin/role/list');
+  if (r.code === 0) {
+    roles = r.data.list || [];
+    renderRoles();
+    if (roles.length && !selectedRoleId) selectRole(roles[0].id);
+  }
+}
+
+async function loadTree() {
+  const r = await A.api('GET', '/api/admin/permission/tree');
+  if (r.code === 0) permTree = r.data.list || [];
+  if (selectedRoleId) renderTree();
+}
+
+function renderRoles() {
+  const box = document.getElementById('role-list');
+  box.innerHTML = roles.map(r => `
+    <div class="item ${r.id == selectedRoleId ? 'active' : ''}" onclick="selectRole(${r.id})">
+      <span>${r.is_system == 1 ? '🔒' : '🏷️'}</span>
+      <span>${escapeHtml(r.role_name)}</span>
+      <span class="badge ${r.is_system == 1 ? 'sys' : ''}">${r.is_system == 1 ? '系统' : '自定义'}</span>
+      <span class="badge">${r.emp_count || 0}人</span>
+    </div>
+  `).join('');
+}
+
+async function selectRole(id) {
+  selectedRoleId = id;
+  renderRoles();
+  // 加载已分配权限
+  const r = await A.api('GET', '/api/admin/permission/role-permissions?role_id=' + id);
+  if (r.code === 0) {
+    selectedPermIds = new Set((r.data.permission_ids || []).map(Number));
+  } else {
+    selectedPermIds = new Set();
+  }
+  renderTree();
+}
+
+function renderTree() {
+  const box = document.getElementById('rp-tree');
+  if (!permTree.length) {
+    box.innerHTML = '<div class="rp-loading">权限数据为空</div>';
+    return;
+  }
+  const role = roles.find(r => r.id == selectedRoleId);
+  const roleName = role ? role.role_name : '?';
+
+  let html = `
+    <div class="rp-tree-header">
+      <div>
+        <div class="ttl">${escapeHtml(roleName)} 的权限</div>
+        <div class="desc">已选 ${selectedPermIds.size} 项 · <a onclick="copyCode()" style="cursor:pointer;color:var(--color-primary)">复制权限码</a></div>
+      </div>
+    </div>
+  `;
+  html += permTree.map(parent => {
+    // 修复：PDO 可能返回字符串 id，统一转 Number 再比较（否则 has() 严格类型匹配失败导致勾选状态不显示）
+    const pid = Number(parent.id);
+    const parentChecked = selectedPermIds.has(pid);
+    const childrenHtml = (parent.children || []).map(child => {
+      const cid = Number(child.id);
+      const checked = selectedPermIds.has(cid);
+      return `
+        <div class="rp-item ${checked ? 'checked' : ''}" onclick="togglePerm(${cid}, this)">
+          <input type="checkbox" ${checked ? 'checked' : ''} onclick="event.stopPropagation();togglePerm(${cid}, this.parentElement)" />
+          <span>${escapeHtml(child.permission_name)}</span>
+          <span class="type ${child.type}">${({menu:'菜单',button:'按钮',api:'接口'})[child.type] || child.type}</span>
+        </div>
+      `;
+    }).join('');
+    return `
+      <div class="rp-grp">
+        <div class="rp-grp-title">
+          <span class="ico">${ICONS[parent.permission_code] || '📁'}</span>
+          <span>${escapeHtml(parent.permission_name)}</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--color-text-3);font-weight:normal">${parent.code || parent.permission_code || ''}</span>
+        </div>
+        <div class="rp-children">
+          <div class="rp-item rp-parent ${parentChecked ? 'checked' : ''}" onclick="toggleParentPerm(${pid}, this)">
+            <input type="checkbox" ${parentChecked ? 'checked' : ''} onclick="event.stopPropagation();toggleParentPerm(${pid}, this.parentElement)" />
+            <span>${escapeHtml(parent.permission_name)} 全部</span>
+            <span class="type menu">菜单</span>
+          </div>
+          ${childrenHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+  box.innerHTML = html;
+}
+
+function togglePerm(id, el) {
+  id = Number(id);
+  if (selectedPermIds.has(id)) selectedPermIds.delete(id);
+  else selectedPermIds.add(id);
+  // 重渲染当前角色树
+  renderTree();
+}
+
+function toggleParentPerm(id, el) {
+  id = Number(id);
+  const parent = permTree.find(p => Number(p.id) === id);
+  if (!parent) return;
+  const has = selectedPermIds.has(id);
+  // 修复：子项 id 统一转 Number，与 selectedPermIds 内类型一致
+  const childIds = (parent.children || []).map(c => Number(c.id));
+  // 修复：原三态逻辑在子项为空时 [].every() 返回 true，导致永远走"取消"分支勾不上
+  // 改为简单二态：未勾 → 勾选自身+全部子项；已勾 → 全部取消
+  if (has) {
+    selectedPermIds.delete(id);
+    childIds.forEach(cid => selectedPermIds.delete(cid));
+  } else {
+    selectedPermIds.add(id);
+    childIds.forEach(cid => selectedPermIds.add(cid));
+  }
+  renderTree();
+}
+
+function selectAll() {
+  selectedPermIds.clear();
+  permTree.forEach(p => {
+    selectedPermIds.add(p.id);
+    (p.children || []).forEach(c => selectedPermIds.add(c.id));
+  });
+  renderTree();
+}
+function selectNone() {
+  selectedPermIds.clear();
+  renderTree();
+}
+
+async function savePermissions() {
+  if (!selectedRoleId) { A.toast('请先选择角色', 'warning'); return; }
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '保存中…';
+  try {
+    const r = await A.api('POST', '/api/admin/permission/save-role-permissions', {
+      role_id: selectedRoleId,
+      permission_ids: Array.from(selectedPermIds),
+    });
+    if (r.code === 0) {
+      A.toast('已保存 ' + r.data.count + ' 项权限', 'success');
+    } else {
+      A.toast('保存失败：' + r.msg, 'error');
+    }
+  } catch (e) {
+    A.toast('保存异常：' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+async function copyCode() {
+  // 把所有勾选的权限编码复制到剪贴板
+  const codes = [];
+  function walk(nodes) {
+    nodes.forEach(n => {
+      if (selectedPermIds.has(n.id)) codes.push(n.permission_code);
+      if (n.children) walk(n.children);
+    });
+  }
+  walk(permTree);
+  const text = codes.join(',');
+  try {
+    await navigator.clipboard.writeText(text);
+    A.toast('已复制 ' + codes.length + ' 个权限码', 'success');
+  } catch (e) {
+    A.toast('复制失败', 'error');
+  }
+}
+
+(async () => { await loadAll(); })();
+</script>
+</body>
+</html>

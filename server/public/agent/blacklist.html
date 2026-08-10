@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>黑名单 · kefu 客服工作台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+  body { margin: 0; padding: 24px; background: #F8FAFC; font-family: -apple-system, "PingFang SC", sans-serif; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .head h1 { font-size: 22px; margin: 0; font-weight: 700; color: #0F172A; display: flex; align-items: center; gap: 8px; }
+  .head h1 .ic { color: #EF4444; }
+
+  /* 添加区 */
+  .add-bar { background: white; padding: 14px 20px; border-radius: 12px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(15,23,42,.04); }
+  .add-bar select, .add-bar input { padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; outline: none; background: white; }
+  .add-bar input:focus, .add-bar select:focus { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
+
+  /* 过滤 */
+  .filter-bar { background: white; padding: 14px 20px; border-radius: 12px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(15,23,42,.04); }
+  .filter-bar select, .filter-bar input { padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 13px; outline: none; background: white; }
+  .filter-bar input:focus, .filter-bar select:focus { border-color: #7C3AED; box-shadow: 0 0 0 3px rgba(124,58,237,0.08); }
+
+  /* 列表 */
+  .list { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(15,23,42,.04); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead { background: #F8FAFC; }
+  th { padding: 12px 14px; text-align: left; color: #475569; font-weight: 600; font-size: 12px; border-bottom: 1px solid #E2E8F0; }
+  td { padding: 12px 14px; border-bottom: 1px solid #F1F5F9; color: #334155; vertical-align: middle; }
+  tbody tr:hover { background: #FAFAFA; }
+
+  .k-pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .k-pill-customer { background: #DBEAFE; color: #1D4ED8; }
+  .k-pill-ip { background: #FEF3C7; color: #B45309; }
+  .k-pill-phone { background: #FCE7F3; color: #BE185D; }
+  .k-pill-expired { background: #FEE2E2; color: #B91C1C; text-decoration: line-through; }
+
+  .code-cell { font-family: ui-monospace, monospace; font-size: 12px; color: #0F172A; }
+  .empty-state { padding: 60px 20px; text-align: center; color: #94A3B8; }
+  .pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: #FAFAFA; border-top: 1px solid #F1F5F9; }
+  .pagination .info { font-size: 12px; color: #64748B; }
+  .pagination .pager { display: flex; gap: 4px; }
+  .pagination .pager button { padding: 4px 10px; font-size: 12px; }
+  .pagination .pager button.active { background: #7C3AED; color: white; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="head">
+    <h1><span class="ic">🚫</span> 黑名单管理</h1>
+    <div style="font-size:12px;color:#64748B;">屏蔽客户/IP/手机号，防止恶意骚扰</div>
+  </div>
+
+  <div class="add-bar">
+    <select id="add-type" style="width:130px;">
+      <option value="customer">客户 ID</option>
+      <option value="ip">IP</option>
+      <option value="phone">手机号</option>
+    </select>
+    <input id="add-value" placeholder="输入要屏蔽的值" style="width:240px;" />
+    <input id="add-reason" placeholder="原因（选填）" style="width:240px;" />
+    <input id="add-expire" type="datetime-local" style="width:200px;" title="过期时间（留空=永久）" />
+    <button class="k-btn k-btn-danger" onclick="addBlack()">➕ 加入黑名单</button>
+  </div>
+
+  <div class="filter-bar">
+    <select id="f-type" style="width:120px;">
+      <option value="">全部类型</option>
+      <option value="customer">客户</option>
+      <option value="ip">IP</option>
+      <option value="phone">手机号</option>
+    </select>
+    <input id="f-keyword" placeholder="值 / 原因关键词" style="width:240px;" />
+    <button class="k-btn k-btn-primary" onclick="loadList(1)">查询</button>
+    <button class="k-btn" onclick="resetFilter()">重置</button>
+  </div>
+
+  <div class="list">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:90px;">类型</th>
+          <th>屏蔽值</th>
+          <th>原因</th>
+          <th style="width:110px;">添加人</th>
+          <th style="width:130px;">过期时间</th>
+          <th style="width:130px;">添加时间</th>
+          <th style="width:80px;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"><tr><td colspan="7" class="empty-state">加载中...</td></tr></tbody>
+    </table>
+    <div class="pagination">
+      <div class="info" id="pageInfo">共 0 条</div>
+      <div class="pager" id="pager"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/agent/common.js?v=2026"></script>
+<script>
+if (!KefuAgent.requireLogin()) throw new Error('not logged in');
+const A = KefuAgent;
+let _page = 1, _size = 20, _total = 0;
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const TYPE_LABEL = { customer: '客户', ip: 'IP', phone: '手机号' };
+
+async function loadList(p) {
+  _page = p || 1;
+  const params = new URLSearchParams({
+    page: _page, size: _size,
+    target_type: document.getElementById('f-type').value,
+    keyword: document.getElementById('f-keyword').value,
+  });
+  const r = await A.api('GET', '/api/admin/blacklist/list?' + params.toString());
+  const tb = document.getElementById('tbody');
+  if (r.code !== 0) { tb.innerHTML = '<tr><td colspan="7" class="empty-state">加载失败：' + (r.msg || '') + '</td></tr>'; return; }
+  const list = (r.data && r.data.list) || [];
+  _total = (r.data && r.data.total) || 0;
+  if (!list.length) { tb.innerHTML = '<tr><td colspan="7" class="empty-state">暂无黑名单</td></tr>'; renderPager(); return; }
+  tb.innerHTML = list.map(b => {
+    const expired = b.expire_at && new Date(b.expire_at.replace(/-/g, '/')) < new Date();
+    return '<tr>' +
+      '<td><span class="k-pill k-pill-' + esc(b.target_type) + '">' + esc(TYPE_LABEL[b.target_type] || b.target_type) + '</span></td>' +
+      '<td><span class="code-cell' + (expired ? ' k-pill-expired' : '') + '">' + esc(b.target_value) + '</span>' + (expired ? ' <span class="k-pill k-pill-expired">已过期</span>' : '') + '</td>' +
+      '<td>' + esc(b.reason || '-') + '</td>' +
+      '<td>' + esc(b.added_by_name || '-') + '</td>' +
+      '<td style="font-size:12px;color:#64748B;">' + esc(b.expire_at || '永久') + '</td>' +
+      '<td style="font-size:12px;color:#64748B;">' + esc(b.created_at || '-') + '</td>' +
+      '<td><button class="k-btn k-btn-mini k-btn-danger" onclick="removeBl(' + b.id + ', \'' + esc(b.target_value).replace(/'/g, "\\'") + '\')">移出</button></td>' +
+    '</tr>';
+  }).join('');
+  renderPager();
+}
+
+function renderPager() {
+  const tp = Math.max(1, Math.ceil(_total / _size));
+  const pager = document.getElementById('pager');
+  pager.innerHTML = '';
+  const items = [];
+  items.push({ p: Math.max(1, _page - 1), label: '‹', disabled: _page <= 1 });
+  for (let i = 1; i <= tp && i <= 8; i++) items.push({ p: i, label: i });
+  items.push({ p: Math.min(tp, _page + 1), label: '›', disabled: _page >= tp });
+  items.forEach(it => {
+    const b = document.createElement('button');
+    b.className = 'k-btn ' + (it.p === _page ? 'k-btn-primary active' : 'k-btn-ghost');
+    b.textContent = it.label;
+    b.disabled = it.disabled;
+    b.onclick = () => loadList(it.p);
+    pager.appendChild(b);
+  });
+  document.getElementById('pageInfo').textContent = '共 ' + _total + ' 条 / 第 ' + _page + ' / ' + tp + ' 页';
+}
+
+function resetFilter() {
+  document.getElementById('f-type').value = '';
+  document.getElementById('f-keyword').value = '';
+  loadList(1);
+}
+
+async function addBlack() {
+  const type = document.getElementById('add-type').value;
+  const value = document.getElementById('add-value').value.trim();
+  if (!value) { A.toast('请输入屏蔽值', 'warning'); return; }
+  const r = await A.api('POST', '/api/admin/blacklist/add', {
+    target_type: type,
+    target_value: value,
+    reason: document.getElementById('add-reason').value.trim(),
+    expire_at: document.getElementById('add-expire').value
+      ? document.getElementById('add-expire').value.replace('T', ' ') + ':00'
+      : '',
+  });
+  if (r.code === 0) {
+    A.toast('已加入黑名单', 'success');
+    document.getElementById('add-value').value = '';
+    document.getElementById('add-reason').value = '';
+    document.getElementById('add-expire').value = '';
+    loadList(1);
+  } else {
+    A.toast('添加失败：' + r.msg, 'error');
+  }
+}
+
+async function removeBl(id, value) {
+  if (!confirm('确认将「' + value + '」移出黑名单？')) return;
+  const r = await A.api('POST', '/api/admin/blacklist/remove', { id: id });
+  if (r.code === 0) { A.toast('已移出', 'success'); loadList(_page); }
+  else A.toast('移出失败：' + r.msg, 'error');
+}
+
+loadList(1);
+</script>
+</body>
+</html>

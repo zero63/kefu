@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>访客端样式 · kefu 管理后台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+  body { margin: 0; padding: 0; background: #F8FAFC; }
+  /* 主布局：左侧表单 + 右侧预览 */
+  .vs-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 16px;
+  }
+  @media (max-width: 1024px) { .vs-layout { grid-template-columns: 1fr; } }
+
+  .vs-form { background: #fff; border-radius: 10px; padding: 18px; border: 1px solid var(--color-border); }
+  .vs-preview {
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+    border-radius: 10px; padding: 20px; position: sticky; top: 16px;
+    min-height: 600px; display: flex; align-items: center; justify-content: center;
+  }
+  .vs-section {
+    margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px dashed var(--color-border-light);
+  }
+  .vs-section:last-child { border-bottom: 0; }
+  .vs-section-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .vs-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+  .vs-row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .vs-row.full { grid-template-columns: 1fr; }
+  @media (max-width: 640px) { .vs-row, .vs-row.three { grid-template-columns: 1fr; } }
+  .vs-row label { display: block; font-size: 12px; color: var(--color-text-3); margin-bottom: 4px; font-weight: 600; }
+  .vs-row input, .vs-row select, .vs-row textarea {
+    width: 100%; padding: 7px 10px; border: 1px solid var(--color-border); border-radius: 6px;
+    font-size: 13px; box-sizing: border-box; font-family: inherit;
+  }
+  .vs-row input[type="color"] { padding: 2px; height: 32px; cursor: pointer; }
+  .vs-row input[type="checkbox"] { width: 16px; height: 16px; }
+  .vs-color-group { display: flex; gap: 4px; align-items: center; }
+  .vs-color-group input[type="color"] { width: 40px; flex-shrink: 0; }
+
+  /* 预览窗口：模拟访客端 widget */
+  .kw-preview-wrap {
+    width: 380px; max-width: 100%;
+    background: #fff; border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.15);
+    overflow: hidden; display: flex; flex-direction: column; height: 580px;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .kwp-head {
+    padding: 14px 16px; color: #fff;
+    display: flex; align-items: center; gap: 10px;
+    background: var(--pv-primary, #0EA5E9);
+  }
+  .kwp-head .av {
+    width: 36px; height: 36px; border-radius: 50%;
+    background-size: cover; background-position: center; background-color: rgba(255,255,255,.25);
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+  .kwp-head .info { flex: 1; }
+  .kwp-head .info .name { font-size: 14px; font-weight: 600; }
+  .kwp-head .info .status { font-size: 11px; opacity: .85; margin-top: 3px; }
+  .kwp-head .info .status .dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10B981;
+    margin-right: 4px;
+  }
+  .kwp-body { flex: 1; overflow-y: auto; padding: 14px; background: #F8FAFC; display: flex; flex-direction: column; gap: 10px; }
+  .kwp-sys { align-self: center; background: rgba(148,163,184,.15); color: #64748B; padding: 4px 12px; border-radius: 999px; font-size: 11px; }
+  .kwp-msg { display: flex; gap: 8px; align-items: flex-start; }
+  .kwp-msg.me { justify-content: flex-end; }
+  .kwp-msg .av { width: 28px; height: 28px; border-radius: 50%; background: #E2E8F0; background-size: cover; flex-shrink: 0; }
+  .kwp-msg .bubble {
+    padding: 8px 11px; border-radius: 10px; font-size: 13px; line-height: 1.5;
+    max-width: 70%; background: #fff; border: 1px solid #E2E8F0; color: var(--pv-text, #1F2937);
+  }
+  .kwp-msg.me .bubble { background: var(--pv-primary, #0EA5E9); color: #fff; border-color: transparent; }
+  .kwp-msg .name { font-size: 11px; color: #94A3B8; margin-bottom: 3px; }
+  .kwp-msg.me .name { text-align: right; }
+  .kwp-form {
+    padding: 10px 12px; background: #fff; border-top: 1px solid #E2E8F0;
+    display: flex; gap: 8px;
+  }
+  .kwp-form input {
+    flex: 1; padding: 8px 12px; border: 1px solid #E2E8F0; border-radius: 18px;
+    font-size: 13px; outline: none;
+  }
+  .kwp-form .send {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--pv-primary, #0EA5E9); color: #fff; border: 0;
+    cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* 嵌入代码块 */
+  .vs-embed {
+    background: #1E293B; color: #94A3B8; padding: 12px 14px; border-radius: 8px;
+    font-family: monospace; font-size: 12px; margin-top: 6px;
+    display: flex; align-items: center; gap: 10px; word-break: break-all;
+  }
+  .vs-embed code { color: #E2E8F0; flex: 1; }
+  .vs-embed button { padding: 5px 10px; background: #334155; color: #E2E8F0; border: 0; border-radius: 4px; cursor: pointer; font-size: 12px; }
+
+  /* 帮助提示 */
+  .vs-tip {
+    background: #FEF3C7; color: #92400E; padding: 10px 14px; border-radius: 8px; font-size: 12px; line-height: 1.6; margin-bottom: 16px;
+  }
+  .vs-tip strong { color: #B45309; }
+</style>
+</head>
+<body>
+
+<div class="vs-layout">
+  <!-- 左侧：配置表单 -->
+  <div class="vs-form">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <span style="font-size:18px;font-weight:700">🎨 访客端样式</span>
+      <span style="background:#D1FAE5;color:#047857;padding:2px 8px;border-radius:4px;font-size:11px">实时预览</span>
+      <span style="flex:1"></span>
+      <button class="k-btn k-btn-mini" onclick="resetStyle()">重置默认</button>
+      <button class="k-btn k-btn-primary k-btn-mini" id="save-btn" onclick="saveConfig()">💾 保存配置</button>
+    </div>
+
+    <div class="vs-tip">
+      💡 <strong>实时预览</strong>：右侧模拟访客端 widget 效果，修改任意字段会立即同步。<br>
+      📦 配置保存到租户级 <code>kefu_config.visitor_style</code>，访客端 SDK 自动拉取。
+    </div>
+
+    <!-- 基础信息 -->
+    <div class="vs-section">
+      <div class="vs-section-title">🏢 公司基础信息</div>
+      <div class="vs-row">
+        <div><label>公司名称（顶部显示）</label><input id="company_name" data-k="company_name" oninput="syncPreview()" /></div>
+        <div><label>客服默认名称</label><input id="agent_name" data-k="agent_name" oninput="syncPreview()" /></div>
+      </div>
+      <div class="vs-row">
+        <div><label>机器人名称</label><input id="robot_name" data-k="robot_name" oninput="syncPreview()" /></div>
+        <div><label>客服头像 URL</label><input id="agent_avatar" data-k="agent_avatar" oninput="syncPreview()" placeholder="https://..." /></div>
+      </div>
+      <div class="vs-row full">
+        <div><label>欢迎语</label><textarea id="welcome_text" data-k="welcome_text" rows="2" oninput="syncPreview()"></textarea></div>
+      </div>
+      <div class="vs-row full">
+        <div><label>输入框占位符</label><input id="placeholder" data-k="placeholder" oninput="syncPreview()" /></div>
+      </div>
+    </div>
+
+    <!-- 颜色主题 -->
+    <div class="vs-section">
+      <div class="vs-section-title">🎨 颜色主题</div>
+      <div class="vs-row three">
+        <div>
+          <label>主色（按钮/链接）</label>
+          <div class="vs-color-group">
+            <input id="primary_color" data-k="primary_color" type="color" onchange="syncPreview()" />
+            <input id="primary_color_t" type="text" data-k="primary_color_t" onblur="syncColor('primary_color')" placeholder="#0EA5E9" />
+          </div>
+        </div>
+        <div>
+          <label>顶栏背景</label>
+          <div class="vs-color-group">
+            <input id="header_bg_color" data-k="header_bg_color" type="color" onchange="syncPreview()" />
+            <input id="header_bg_color_t" type="text" onblur="syncColor('header_bg_color')" placeholder="#0EA5E9" />
+          </div>
+        </div>
+        <div>
+          <label>顶栏文字</label>
+          <div class="vs-color-group">
+            <input id="header_text_color" data-k="header_text_color" type="color" onchange="syncPreview()" />
+            <input id="header_text_color_t" type="text" onblur="syncColor('header_text_color')" placeholder="#FFFFFF" />
+          </div>
+        </div>
+      </div>
+      <div class="vs-row three">
+        <div>
+          <label>正文文字</label>
+          <div class="vs-color-group">
+            <input id="text_color" data-k="text_color" type="color" onchange="syncPreview()" />
+            <input id="text_color_t" type="text" onblur="syncColor('text_color')" placeholder="#1F2937" />
+          </div>
+        </div>
+        <div>
+          <label>辅色（聊天背景）</label>
+          <div class="vs-color-group">
+            <input id="accent_color" data-k="accent_color" type="color" onchange="syncPreview()" />
+            <input id="accent_color_t" type="text" onblur="syncColor('accent_color')" placeholder="#F8FAFC" />
+          </div>
+        </div>
+        <div>
+          <label>我方气泡文字</label>
+          <input id="my_text_color" data-k="my_text_color" oninput="syncPreview()" placeholder="#FFFFFF" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 位置与外观 -->
+    <div class="vs-section">
+      <div class="vs-section-title">📍 位置与外观</div>
+      <div class="vs-row">
+        <div>
+          <label>悬浮窗位置</label>
+          <select id="position" data-k="position" onchange="syncPreview()">
+            <option value="bottom-right">右下</option>
+            <option value="bottom-left">左下</option>
+            <option value="top-right">右上</option>
+            <option value="top-left">左上</option>
+          </select>
+        </div>
+        <div>
+          <label>悬浮图标风格</label>
+          <select id="icon_style" data-k="icon_style" onchange="syncPreview()">
+            <option value="chat">💬 聊天气泡</option>
+            <option value="headset">🎧 耳麦</option>
+            <option value="robot">🤖 机器人</option>
+            <option value="support">🛟 支持</option>
+            <option value="text">文字</option>
+          </select>
+        </div>
+      </div>
+      <div class="vs-row">
+        <div>
+          <label>水平偏移 (px)</label>
+          <input id="offset_x" data-k="offset_x" type="number" oninput="syncPreview()" />
+        </div>
+        <div>
+          <label>垂直偏移 (px)</label>
+          <input id="offset_y" data-k="offset_y" type="number" oninput="syncPreview()" />
+        </div>
+      </div>
+      <div class="vs-row full">
+        <div><label>悬浮窗文字（图标=文字时使用）</label><input id="icon_text" data-k="icon_text" oninput="syncPreview()" /></div>
+      </div>
+    </div>
+
+    <!-- 自动弹窗 -->
+    <div class="vs-section">
+      <div class="vs-section-title">⚡ 自动弹出</div>
+      <div class="vs-row">
+        <div>
+          <label>是否启用自动弹出</label>
+          <select id="auto_popup" data-k="auto_popup" onchange="syncPreview()">
+            <option value="0">关闭</option>
+            <option value="1">启用</option>
+          </select>
+        </div>
+        <div>
+          <label>延迟时间（秒）</label>
+          <input id="auto_popup_delay_sec" data-k="auto_popup_delay_sec" type="number" min="1" max="60" oninput="syncPreview()" />
+        </div>
+      </div>
+      <div class="vs-row full">
+        <div><label>弹出消息</label><input id="auto_popup_msg" data-k="auto_popup_msg" oninput="syncPreview()" /></div>
+      </div>
+    </div>
+
+    <!-- 功能开关 -->
+    <div class="vs-section">
+      <div class="vs-section-title">🛠 功能开关</div>
+      <div class="vs-row three">
+        <div>
+          <label>显示头像</label>
+          <select id="show_avatar" data-k="show_avatar" onchange="syncPreview()"><option value="1">开启</option><option value="0">关闭</option></select>
+        </div>
+        <div>
+          <label>显示渠道标识</label>
+          <select id="show_source_badge" data-k="show_source_badge" onchange="syncPreview()"><option value="0">关闭</option><option value="1">开启</option></select>
+        </div>
+        <div>
+          <label>"正在输入"指示</label>
+          <select id="show_typing_indicator" data-k="show_typing_indicator" onchange="syncPreview()"><option value="1">开启</option><option value="0">关闭</option></select>
+        </div>
+      </div>
+      <div class="vs-row three">
+        <div>
+          <label>允许表情</label>
+          <select id="enable_emoji" data-k="enable_emoji" onchange="syncPreview()"><option value="1">开启</option><option value="0">关闭</option></select>
+        </div>
+        <div>
+          <label>允许文件</label>
+          <select id="enable_file" data-k="enable_file" onchange="syncPreview()"><option value="1">开启</option><option value="0">关闭</option></select>
+        </div>
+        <div>
+          <label>允许语音</label>
+          <select id="enable_voice" data-k="enable_voice" onchange="syncPreview()"><option value="0">关闭</option><option value="1">开启</option></select>
+        </div>
+      </div>
+      <div class="vs-row three">
+        <div>
+          <label>显示评价</label>
+          <select id="enable_evaluate" data-k="enable_evaluate" onchange="syncPreview()"><option value="1">开启</option><option value="0">关闭</option></select>
+        </div>
+        <div>
+          <label>离线留言</label>
+          <select id="show_offline_form" data-k="show_offline_form" onchange="syncPreview()"><option value="1">开启</option><option value="0">关闭</option></select>
+        </div>
+        <div>
+          <label>整体开关</label>
+          <select id="enabled" data-k="enabled" onchange="syncPreview()"><option value="1">启用</option><option value="0">关闭</option></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 参数 -->
+    <div class="vs-section">
+      <div class="vs-section-title">⚙️ 参数</div>
+      <div class="vs-row three">
+        <div><label>输入最大长度</label><input id="max_input_length" data-k="max_input_length" type="number" oninput="syncPreview()" /></div>
+        <div><label>每分钟限速（条）</label><input id="rate_limit_msg_per_min" data-k="rate_limit_msg_per_min" type="number" oninput="syncPreview()" /></div>
+        <div><label>层级 z-index</label><input id="z_index" data-k="z_index" type="number" oninput="syncPreview()" /></div>
+      </div>
+    </div>
+
+    <!-- 嵌入代码 -->
+    <div class="vs-section">
+      <div class="vs-section-title">📋 嵌入代码（嵌入到外部网站）</div>
+      <div class="vs-row full">
+        <div>
+          <label>用户可在网页中嵌入以下代码：</label>
+          <div class="vs-embed">
+            <code id="embed-code">// 生成中…</code>
+            <button onclick="copyEmbed()">复制</button>
+          </div>
+          <div style="font-size:11px;color:var(--color-text-3);margin-top:6px;line-height:1.6">
+            💡 配置 <code>autoOpen: true</code> 可让访客进入页面立即看到对话窗口（嵌入推荐）；<br>
+            配置 <code>name</code> 和 <code>avatar</code> 可设置访客默认姓名头像（API 模式）。
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧：实时预览 -->
+  <div class="vs-preview">
+    <div class="kw-preview-wrap" id="kw-preview">
+      <div class="kwp-head">
+        <div class="av" id="pv-head-av">🧑</div>
+        <div class="info">
+          <div class="name" id="pv-head-name">在线客服</div>
+          <div class="status"><span class="dot"></span> 当前 2 位客服在线</div>
+        </div>
+        <span style="font-size:16px;opacity:.7;cursor:pointer">×</span>
+      </div>
+      <div class="kwp-body" id="pv-body">
+        <div class="kwp-sys" id="pv-welcome">您好，欢迎来到客服中心</div>
+        <div class="kwp-msg">
+          <div class="av" id="pv-av-left"></div>
+          <div>
+            <div class="name" id="pv-agent-name-left">客服小 K</div>
+            <div class="bubble" id="pv-bubble-left">您好，请问有什么可以帮您？</div>
+          </div>
+        </div>
+        <div class="kwp-msg me">
+          <div>
+            <div class="name" id="pv-my-name">我</div>
+            <div class="bubble" id="pv-bubble-right">你们的产品价格是多少？</div>
+          </div>
+          <div class="av" id="pv-av-right"></div>
+        </div>
+      </div>
+      <div class="kwp-form">
+        <input placeholder="请输入..." id="pv-input" disabled />
+        <button class="send">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+
+// 字段定义（同步到表单和预览）
+const DEFAULTS = {
+  company_name: '在线客服',
+  welcome_text: '您好，欢迎来到客服中心',
+  placeholder: '请输入您的问题...',
+  agent_name: '客服小K',
+  robot_name: '智能助手',
+  agent_avatar: '',
+  primary_color: '#0EA5E9',
+  accent_color: '#F8FAFC',
+  header_bg_color: '#0EA5E9',
+  header_text_color: '#FFFFFF',
+  text_color: '#1F2937',
+  my_text_color: '#FFFFFF',
+  position: 'bottom-right',
+  icon_style: 'chat',
+  icon_text: '',
+  offset_x: 24,
+  offset_y: 24,
+  auto_popup: 0,
+  auto_popup_delay_sec: 5,
+  auto_popup_msg: '欢迎光临，请问有什么可以帮您？',
+  show_avatar: 1,
+  show_source_badge: 0,
+  show_typing_indicator: 1,
+  enable_emoji: 1,
+  enable_file: 1,
+  enable_voice: 0,
+  enable_evaluate: 1,
+  show_offline_form: 1,
+  enabled: 1,
+  max_input_length: 500,
+  rate_limit_msg_per_min: 60,
+  z_index: 99999,
+};
+
+let config = { ...DEFAULTS };
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function genAvatar(name) {
+  const initial = (name || '客').slice(0,1).toUpperCase();
+  const colors = ['#0EA5E9','#10B981','#F59E0B','#8B5CF6','#EC4899','#EF4444'];
+  const c = colors[(name||'').charCodeAt(0) % colors.length];
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect width="40" height="40" rx="20" fill="${c}"/><text x="20" y="26" font-size="18" fill="white" text-anchor="middle" font-family="sans-serif" font-weight="600">${escapeHtml(initial)}</text></svg>`
+  );
+}
+
+function fillForm(c) {
+  Object.keys(c).forEach(function (k) {
+    const el = document.getElementById(k);
+    if (!el) return;
+    const v = c[k];
+    if (el.type === 'checkbox') el.checked = !!v;
+    else el.value = v !== undefined && v !== null ? v : '';
+    // color text 同步
+    if (el.type === 'color') {
+      const t = document.getElementById(k + '_t');
+      if (t) t.value = v;
+    }
+  });
+}
+
+function collectForm() {
+  const c = {};
+  Object.keys(DEFAULTS).forEach(function (k) {
+    const el = document.getElementById(k);
+    if (!el) return;
+    let v;
+    if (el.type === 'checkbox') v = el.checked ? 1 : 0;
+    else v = el.value;
+    if (el.type === 'number') v = parseInt(v) || 0;
+    c[k] = v;
+  });
+  return c;
+}
+
+function syncPreview() {
+  config = collectForm();
+  // 1. 同步颜色变量
+  const preview = document.getElementById('kw-preview');
+  preview.style.setProperty('--pv-primary', config.primary_color);
+  preview.style.setProperty('--pv-text', config.text_color);
+
+  // 2. 头部样式
+  const head = preview.querySelector('.kwp-head');
+  head.style.background = config.header_bg_color;
+  head.style.color = config.header_text_color;
+
+  // 3. 头部内容
+  document.getElementById('pv-head-name').textContent = config.company_name || '在线客服';
+  document.getElementById('pv-welcome').textContent = config.welcome_text;
+  document.getElementById('pv-agent-name-left').textContent = config.agent_name || '客服小K';
+  document.getElementById('pv-bubble-left').textContent = '您好，请问有什么可以帮您？';
+
+  // 4. 客服头像
+  const headAv = document.getElementById('pv-head-av');
+  if (config.agent_avatar) {
+    headAv.style.backgroundImage = 'url(' + config.agent_avatar + ')';
+    headAv.textContent = '';
+  } else {
+    headAv.style.backgroundImage = 'url(' + genAvatar(config.company_name) + ')';
+    headAv.textContent = '';
+  }
+
+  // 5. 客服侧气泡头像
+  const leftAv = document.getElementById('pv-av-left');
+  if (config.agent_avatar) leftAv.style.backgroundImage = 'url(' + config.agent_avatar + ')';
+  else leftAv.style.backgroundImage = 'url(' + genAvatar(config.agent_name) + ')';
+
+  // 6. 访客侧头像
+  const rightAv = document.getElementById('pv-av-right');
+  rightAv.style.backgroundImage = 'url(' + genAvatar('我') + ')';
+
+  // 7. 我方气泡颜色
+  const rightBubble = document.getElementById('pv-bubble-right');
+  rightBubble.style.background = config.primary_color;
+  rightBubble.style.color = config.my_text_color;
+
+  // 8. 输入框占位符
+  document.getElementById('pv-input').placeholder = config.placeholder;
+}
+
+function syncColor(k) {
+  const t = document.getElementById(k + '_t');
+  const c = document.getElementById(k);
+  if (!t || !c) return;
+  let val = t.value.trim();
+  if (/^[0-9A-Fa-f]{6}$/.test(val)) val = '#' + val;
+  if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+    c.value = val;
+    t.value = val;
+    syncPreview();
+  } else {
+    t.value = c.value;
+    A.toast && A.toast('颜色格式错误（需 #RRGGBB）', 'warning');
+  }
+}
+
+async function loadConfig() {
+  const r = await A.api('GET', '/api/admin/visitor-style/get');
+  if (r.code === 0 && r.data) {
+    if (r.data.config) config = Object.assign({}, DEFAULTS, r.data.config);
+    if (r.data.tenantId) config.tenantId = r.data.tenantId;
+    // 后端返回当前服务地址（最可靠）
+    if (r.data.baseUrl) config.baseUrl = r.data.baseUrl;
+  }
+  if (!config.tenantId) config.tenantId = 1;
+  fillForm(config);
+  syncPreview();
+  renderEmbedCode();
+}
+
+async function saveConfig() {
+  const btn = document.getElementById('save-btn');
+  const oldText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '保存中…';
+  try {
+    const body = collectForm();
+    const r = await A.api('POST', '/api/admin/visitor-style/save', body);
+    if (r.code === 0) {
+      A.toast && A.toast('保存成功', 'success');
+    } else {
+      A.toast && A.toast('保存失败：' + r.msg, 'error');
+    }
+  } catch (e) {
+    A.toast && A.toast('异常：' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = oldText;
+  }
+}
+
+async function resetStyle() {
+  if (!confirm('确定恢复默认样式？')) return;
+  const r = await A.api('POST', '/api/admin/visitor-style/reset', {});
+  if (r.code === 0) {
+    config = { ...DEFAULTS };
+    fillForm(config);
+    syncPreview();
+    A.toast && A.toast('已恢复默认', 'success');
+  } else {
+    A.toast && A.toast('失败：' + r.msg, 'error');
+  }
+}
+
+function copyEmbed() {
+  const text = buildEmbedCode();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      () => A.toast && A.toast('嵌入代码已复制', 'success'),
+      () => fallbackCopy(text)
+    );
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+/**
+ * 生成嵌入代码：根据当前服务地址自动拼出 widget URL
+ *  - 本地部署：http://localhost:8787/widget/kefu.js
+ *  - 线上部署：https://your-domain.com/widget/kefu.js
+ *  - 优先级：后端返回的 baseUrl > meta 标签 > top.location > 当前 location
+ */
+function buildEmbedCode() {
+  let base = (config && config.baseUrl) || '';
+  // 兼容旧逻辑：优先使用 meta[name=kefu-base-url]
+  if (!base) base = (document.querySelector('meta[name="kefu-base-url"]') || {}).content || '';
+  // 如果在 iframe 内（管理后台），取 top.location
+  if (!base) {
+    try {
+      if (top && top.location && top.location.host) base = top.location.origin;
+    } catch (e) { /* cross-origin, ignore */ }
+  }
+  // 最后回退到当前 host
+  if (!base) base = location.origin;
+  base = base.replace(/\/+$/, '');
+  const tenantId = (config && config.tenantId) ? config.tenantId : 1;
+  return '<script src="' + base + '/widget/kefu.js" async><\/script>\n<script>\n  KefuWidget.init({ tenantId: ' + tenantId + ', autoOpen: false });\n<\/script>';
+}
+
+function renderEmbedCode() {
+  const el = document.getElementById('embed-code');
+  if (!el) return;
+  // 把换行符转为 <br> 显示
+  el.innerHTML = buildEmbedCode().replace(/</g, '&lt;').replace(/\n/g, '<br>');
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); A.toast && A.toast('嵌入代码已复制', 'success'); }
+  catch (e) { A.toast && A.toast('复制失败', 'error'); }
+  document.body.removeChild(ta);
+}
+
+(async () => { await loadConfig(); })();
+</script>
+</body>
+</html>

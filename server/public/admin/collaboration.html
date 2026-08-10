@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>团队协作 · kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+.mentions-badge { background: var(--color-danger); color: white; font-size: 10px; padding: 1px 6px; border-radius: 999px; margin-left: 4px; }
+.note-item { padding: 12px; background: var(--color-primary-bg); border-radius: 10px; margin-bottom: 10px; }
+.note-item .author { font-weight: 600; font-size: 13px; }
+.note-item .time { font-size: 11px; color: var(--color-text-3); margin-left: 8px; }
+.note-item .body { font-size: 13px; margin-top: 6px; }
+.mention-item { padding: 12px; background: var(--color-warning-bg); border-radius: 10px; margin-bottom: 8px; border-left: 3px solid var(--color-warning); }
+.mention-item.read { opacity: 0.5; background: var(--color-muted); border-left-color: var(--color-border-strong); }
+</style>
+</head>
+<body style="background:var(--color-bg);padding:24px;">
+
+<div class="k-toolbar">
+  <div style="font-size:18px;font-weight:600;">👥 团队协作</div>
+  <div class="spacer"></div>
+  <button class="k-btn k-btn-primary" onclick="openNote()">+ 添加备注</button>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+  <div class="k-card">
+    <div class="k-card-title">📨 我的 @提醒 <span class="extra" id="unread-info"></span></div>
+    <div id="mention-list" style="max-height:500px;overflow-y:auto;"></div>
+  </div>
+
+  <div class="k-card">
+    <div class="k-card-title">💬 会话备注</div>
+    <div class="k-form-row" style="margin-bottom:8px;">
+      <div class="item flex"><input id="note-sid" class="k-input" placeholder="输入 session_id 查询备注"></div>
+      <button class="k-btn k-btn-secondary k-btn-mini" onclick="loadNotes()">查询</button>
+    </div>
+    <div id="note-list" style="max-height:400px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<div class="k-card" style="margin-top:16px;">
+  <div class="k-card-title">👨‍👩‍👧 会话协作者</div>
+  <div class="k-form-row" style="margin-bottom:8px;">
+    <div class="item flex"><input id="collab-sid" class="k-input" placeholder="输入 session_id 查询协作者"></div>
+    <button class="k-btn k-btn-secondary k-btn-mini" onclick="loadCollabs()">查询</button>
+  </div>
+  <div id="collab-list"></div>
+</div>
+
+<script src="/admin/common.js"></script>
+<script src="/ui.js"></script>
+<script>
+if (!KefuAdmin.token) KefuAdmin.token = localStorage.getItem('kefu_token');
+if (!UI.token) UI.token = localStorage.getItem('kefu_token');
+
+async function loadMentions() {
+  const j = await UI.api('GET', '/api/admin/collab/mentions');
+  const list = (j.data && j.data.list) || [];
+  const unread = (j.data && j.data.unread) || 0;
+  document.getElementById('unread-info').innerHTML =
+    unread > 0 ? `<span class="mentions-badge">${unread} 未读</span>` : '';
+  const box = document.getElementById('mention-list');
+  if (!list.length) { box.innerHTML = '<div class="k-empty">暂无提醒</div>'; return; }
+  box.innerHTML = list.map(m => `
+    <div class="mention-item ${m.read_at ? 'read' : ''}">
+      <div><b>${UI.escapeHtml(m.from_real_name || m.from_username || '匿名')}</b>
+        <span class="text-muted" style="font-size:11px;margin-left:6px;">${UI.fmtDate(m.created_at)}</span>
+      </div>
+      <div style="margin-top:4px;font-size:13px;">${UI.escapeHtml(m.content || '')}</div>
+      ${m.read_at ? '' : `<button class="k-btn-text" onclick="markRead(${m.id})" style="margin-top:4px;">标记已读</button>`}
+    </div>
+  `).join('');
+}
+
+async function markRead(id) {
+  await UI.api('POST', '/api/admin/collab/mark-read', { id });
+  loadMentions();
+}
+
+async function loadNotes() {
+  const sid = document.getElementById('note-sid').value.trim();
+  if (!sid) return UI.warn('请输入 session_id');
+  const j = await UI.api('GET', '/api/admin/collab/notes?session_id=' + encodeURIComponent(sid));
+  const list = (j.data && j.data.list) || [];
+  const box = document.getElementById('note-list');
+  if (!list.length) { box.innerHTML = '<div class="k-empty">该会话暂无备注</div>'; return; }
+  box.innerHTML = list.map(n => `
+    <div class="note-item">
+      <div>
+        <span class="author">${UI.escapeHtml(n.author_name || '匿名')}</span>
+        <span class="time">${UI.fmtDate(n.created_at)}</span>
+        ${n.is_internal == 1 ? '<span class="k-tag k-tag-gray" style="margin-left:6px;">仅内部</span>' : ''}
+      </div>
+      <div class="body">${UI.escapeHtml(n.content)}</div>
+      ${n.mentioned_ids ? `<div style="margin-top:6px;font-size:11px;color:var(--color-text-3);">提及：@${n.mentioned_ids}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function openNote() {
+  UI.modal('添加会话备注',
+    `<div class="k-form-row">
+      <div class="item flex"><label>会话 ID</label><input id="n-s" class="k-input"></div>
+    </div>
+    <div class="k-form-row">
+      <div class="item flex"><label>备注内容（用 @用户名 提及同事）</label>
+        <textarea id="n-c" class="k-textarea" rows="4" placeholder="客户反馈问题已解决。@admin 请帮忙复核"></textarea>
+      </div>
+    </div>
+    <div class="k-form-row">
+      <div class="item"><label>仅内部可见</label>
+        <select id="n-i" class="k-select"><option value="1">是</option><option value="0">否</option></select>
+      </div>
+    </div>`,
+    async ok => {
+      if (!ok) return false;
+      const data = {
+        session_id: document.getElementById('n-s').value,
+        content: document.getElementById('n-c').value,
+        is_internal: document.getElementById('n-i').value,
+      };
+      const j = await UI.api('POST', '/api/admin/collab/note/create', data);
+      if (j.code !== 0) { UI.error(j.msg); return false; }
+      UI.success('已保存');
+      document.getElementById('note-sid').value = data.session_id;
+      loadNotes();
+      if ((j.data.mentioned || []).length > 0) UI.info('已提醒 ' + j.data.mentioned.length + ' 位同事');
+    }
+  );
+}
+
+async function loadCollabs() {
+  const sid = document.getElementById('collab-sid').value.trim();
+  if (!sid) return UI.warn('请输入 session_id');
+  const j = await UI.api('GET', '/api/admin/collab/list?session_id=' + encodeURIComponent(sid));
+  const list = (j.data && j.data.list) || [];
+  const box = document.getElementById('collab-list');
+  if (!list.length) { box.innerHTML = '<div class="k-empty">该会话暂无协作者</div>'; return; }
+  box.innerHTML = list.map(c => `
+    <div style="display:flex;align-items:center;padding:10px;border-bottom:1px solid var(--color-muted);">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--color-primary-bg);color:var(--color-primary);display:flex;align-items:center;justify-content:center;font-weight:600;margin-right:12px;">
+        ${(c.real_name || c.username || '?').slice(0, 1)}
+      </div>
+      <div style="flex:1;">
+        <div style="font-weight:500;">${UI.escapeHtml(c.real_name || c.username)}</div>
+        <div class="text-muted" style="font-size:12px;">@${UI.escapeHtml(c.username || '')} · ${UI.escapeHtml(c.role || 'collaborator')}</div>
+      </div>
+      <button class="k-btn-text" onclick="removeCollab(${c.id})" style="color:var(--color-danger);">移除</button>
+    </div>
+  `).join('');
+}
+
+async function removeCollab(id) {
+  if (!UI.confirm('确认移除？')) return;
+  await UI.api('POST', '/api/admin/collab/remove', { id });
+  loadCollabs();
+}
+
+loadMentions();
+setInterval(loadMentions, 30000);
+</script>
+</body>
+</html>

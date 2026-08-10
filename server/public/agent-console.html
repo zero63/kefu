@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>客服工作台 — Kefu v1.0</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; background: #f3f4f6; color: #1f2937; }
+  .topbar { background: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .topbar h1 { font-size: 16px; margin: 0; }
+  .topbar-info { font-size: 13px; color: #6b7280; }
+  .topbar button { padding: 6px 12px; border: 1px solid #1f7aff; background: #fff; color: #1f7aff; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .topbar button:hover { background: #1f7aff; color: #fff; }
+  .main { display: flex; height: calc(100vh - 56px); }
+  .sidebar { width: 280px; background: #fff; border-right: 1px solid #e5e7eb; overflow-y: auto; }
+  .sidebar-section { padding: 12px 16px; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: .8px; border-bottom: 1px solid #f3f4f6; }
+  .tab-bar { display: flex; }
+  .tab-bar button { flex: 1; background: #f9fafb; border: none; padding: 10px; cursor: pointer; font-size: 12px; color: #6b7280; border-bottom: 2px solid transparent; }
+  .tab-bar button.active { background: #fff; color: #1f7aff; border-bottom-color: #1f7aff; }
+  .session-list { padding: 0; }
+  .session-item { padding: 12px 16px; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+  .session-item.active { background: #ecf5ff; }
+  .session-item:hover { background: #f3f4f6; }
+  .session-item .name { font-weight: 600; font-size: 14px; }
+  .session-item .preview { color: #6b7280; font-size: 12px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .session-item .meta { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px; color: #9ca3af; }
+  .badge { display: inline-block; padding: 2px 6px; border-radius: 8px; font-size: 11px; }
+  .badge-waiting { background: #fdf6ec; color: #e6a23c; }
+  .badge-active { background: #f0f9eb; color: #67c23a; }
+  .badge-closed { background: #f4f4f5; color: #909399; }
+  .badge-mine { background: #ecfeff; color: #0e7490; }
+  .btn-takeover { margin-left: 8px; padding: 2px 10px; background: #3b82f6; color: #fff; border: none; border-radius: 10px; font-size: 11px; cursor: pointer; }
+  .btn-takeover:hover { background: #1d4ed8; }
+  .main-area { flex: 1; display: flex; flex-direction: column; background: #fff; }
+  .empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: #9ca3af; font-size: 14px; }
+  .chat-header { padding: 14px 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; }
+  .chat-info h3 { margin: 0; font-size: 14px; }
+  .chat-info p { margin: 2px 0 0; font-size: 12px; color: #6b7280; }
+  .chat-actions button { padding: 6px 12px; border: 1px solid #d1d5db; background: #fff; border-radius: 4px; cursor: pointer; font-size: 12px; margin-left: 6px; }
+  .chat-actions button:hover { background: #f3f4f6; }
+  .messages { flex: 1; overflow-y: auto; padding: 16px; background: #f9fafb; }
+  .msg-row { display: flex; margin-bottom: 12px; }
+  .msg-row.from-customer { justify-content: flex-start; }
+  .msg-row.from-agent { justify-content: flex-end; }
+  .msg-row.from-system { justify-content: center; }
+  .msg-bubble { max-width: 65%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; word-break: break-word; }
+  .msg-row.from-customer .msg-bubble { background: #fff; border: 1px solid #e5e7eb; border-bottom-left-radius: 4px; }
+  .msg-row.from-agent .msg-bubble { background: #1f7aff; color: #fff; border-bottom-right-radius: 4px; }
+  .msg-row.from-system .msg-bubble { background: #fdf6ec; color: #e6a23c; font-size: 12px; }
+  .msg-meta { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+  .chat-input { padding: 12px 16px; border-top: 1px side #e5e7eb; display: flex; gap: 12px; align-items: flex-end; background: #fff; }
+  .chat-input textarea { flex: 1; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 6px; resize: none; outline: none; font-size: 14px; min-height: 60px; max-height: 120px; font-family: inherit; }
+  .chat-input textarea:focus { border-color: #1f7aff; }
+  .chat-input button { padding: 0 18px; height: 36px; background: #1f7aff; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+  .dashboard { padding: 20px; overflow-y: auto; }
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+  .stat-card { background: #fff; padding: 18px 20px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .stat-card .label { color: #6b7280; font-size: 13px; }
+  .stat-card .value { font-size: 26px; font-weight: 700; margin-top: 8px; color: #1f7aff; }
+  .stat-card .delta { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+  .panel { background: #fff; padding: 18px 20px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,.05); margin-bottom: 16px; }
+  .panel h2 { font-size: 14px; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 1px solid #f3f4f6; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px 12px; text-align: left; font-size: 13px; }
+  th { color: #6b7280; border-bottom: 1px solid #f3f4f6; font-weight: 600; }
+  tbody tr { border-bottom: 1px solid #f9fafb; }
+  tbody tr:hover { background: #f9fafb; }
+  .login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; background: linear-gradient(135deg,#1f7aff,#4c8dff); }
+  .login-card { background: #fff; padding: 32px; border-radius: 8px; width: 360px; box-shadow: 0 10px 40px rgba(0,0,0,.18); }
+  .login-card h1 { text-align: center; margin: 0 0 24px; font-size: 22px; }
+  .login-card input { width: 100%; padding: 10px 14px; margin-bottom: 14px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; outline: none; box-sizing: border-box; }
+  .login-card button { width: 100%; padding: 12px; background: #1f7aff; color: #fff; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+  .login-card button:hover { background: #1865dc; }
+  .login-card .hint { text-align: center; font-size: 12px; color: #6b7280; margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <h1>🎧 客服工作台</h1>
+    <input id="username" type="text" placeholder="用户名" value="agent01" />
+    <input id="password" type="password" placeholder="密码" value="admin123" />
+    <button onclick="App.login()">登录</button>
+    <p class="hint">演示账号: agent01 / admin123</p>
+  </div>
+</div>
+
+<div id="main-ui" style="display:none;">
+  <div class="topbar">
+    <div>
+      <h1 id="agent-name">客服工作台</h1>
+      <div class="topbar-info" id="agent-info"></div>
+    </div>
+    <div>
+      <button onclick="App.refreshDashboard()">🔄 刷新看板</button>
+      <button onclick="App.logout()">退出</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="tab-bar">
+        <button class="active" onclick="App.switchTab(this, 'sessions')">会话</button>
+        <button onclick="App.switchTab(this, 'dashboard')">数据</button>
+        <button onclick="App.switchTab(this, 'knowledge')">知识库</button>
+      </div>
+
+      <div id="tab-sessions" class="session-list"></div>
+
+      <div id="tab-dashboard" style="display:none;">
+        <div class="dashboard">
+          <div class="stat-grid" id="stats-grid"></div>
+          <div class="panel">
+            <h2>今日会话趋势</h2>
+            <div id="trend-chart" style="height:200px;display:flex;align-items:flex-end;gap:8px;padding:10px 0;"></div>
+          </div>
+          <div class="panel">
+            <h2>客服排行</h2>
+            <table>
+              <thead><tr><th>客服</th><th>会话</th><th>消息</th><th>评分</th></tr></thead>
+              <tbody id="agent-rank-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-knowledge" style="display:none;">
+        <div style="padding:14px;">
+          <input id="k-query" type="text" placeholder="搜索知识..." style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:4px;margin-bottom:8px;" />
+          <button onclick="App.testKnowledge()" style="width:100%;">测试问答</button>
+          <div id="k-result" style="margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chat-area" class="main-area">
+      <div class="empty-state">👋 选择左侧会话，或使用 H5 演示页发起会话</div>
+    </div>
+  </div>
+</div>
+
+<script>
+var App = (function() {
+  var token = localStorage.getItem('kefu_token');
+  var currentUser = null;
+  var currentTab = 'sessions';
+  var sessions = [];
+  var currentSessionId = null;
+  var messages = {};
+
+  function api(method, url, data) {
+    var opt = {
+      method: method,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    };
+    if (data) opt.body = JSON.stringify(data);
+    return fetch(url, opt).then(function (r) { return r.json(); });
+  }
+
+  function show(id) { document.getElementById(id).style.display = 'block'; }
+  function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+  function escape(s) { return (s || '').toString().replace(/[&<>"]/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+  }); }
+
+  return {
+    currentEmployeeId: 0,
+    login: function() {
+      var u = document.getElementById('username').value;
+      var p = document.getElementById('password').value;
+      fetch('/api/common/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p, tenant_code: 'demo' }),
+      }).then(function(r) { return r.json(); }).then(function(j) {
+        if (j.code === 0) {
+          token = j.data.token;
+          currentUser = j.data.user;
+          App.currentEmployeeId = currentUser.employee_id || currentUser.id || 0;
+          localStorage.setItem('kefu_token', token);
+          document.getElementById('login-screen').style.display = 'none';
+          document.getElementById('main-ui').style.display = 'block';
+          document.getElementById('agent-name').textContent = '客服: ' + currentUser.real_name;
+          document.getElementById('agent-info').textContent = 'ID: ' + currentUser.id + ' · 角色: ' + currentUser.role_id;
+          App.loadSessions();
+        } else {
+          alert('登录失败: ' + j.msg);
+        }
+      });
+    },
+    logout: function() {
+      localStorage.removeItem('kefu_token');
+      location.reload();
+    },
+
+    switchTab: function(btn, tab) {
+      document.querySelectorAll('.tab-bar button').forEach(function(b) { b.className = ''; });
+      btn.className = 'active';
+      currentTab = tab;
+      show('tab-' + tab);
+      ['sessions', 'dashboard', 'knowledge'].forEach(function (t) {
+        if (t !== tab) hide('tab-' + t);
+      });
+      if (tab === 'dashboard') App.loadDashboard();
+      if (tab === 'knowledge') App.loadKnowledge();
+    },
+
+    loadSessions: function() {
+      if (!token) return;
+      var self = this;
+      // 默认拉所有会话（不限制 mine_only），便于人工接管分配
+      api('GET', '/api/agent/session/list?size=50').then(function(j) {
+        if (j.code === 0) {
+          sessions = j.data.list || [];
+          self.renderSessions();
+        }
+      });
+    },
+    renderSessions: function() {
+      var html = '';
+      var myEmployeeId = App.currentEmployeeId;
+      sessions.forEach(function(s) {
+        var badgeClass = s.status === 'active' ? 'badge-active' :
+                          s.status === 'waiting' ? 'badge-waiting' : 'badge-closed';
+        // s.agent_id 是 int；myEmployeeId 可能 null
+        var isMine = (myEmployeeId && parseInt(s.agent_id || 0) === parseInt(myEmployeeId));
+        var takeOverBtn = '';
+        if (!isMine && s.status !== 'closed') {
+          takeOverBtn = '<button class="btn-takeover" onclick="App.takeOver(\'' + s.session_id + '\')">接管</button>';
+        }
+        html += '<div class="session-item ' + (currentSessionId === s.session_id ? 'active' : '') + '" onclick="App.openSession(\'' + s.session_id + '\')">';
+        html += '  <div class="name">' + escape(s.customer_name || s.session_id) + ' <span class="badge ' + badgeClass + '">' + s.status + '</span>' + (isMine ? ' <span class="badge badge-mine">我</span>' : '') + '</div>';
+        html += '  <div class="preview">会话: ' + s.session_id + '</div>';
+        html += '  <div class="meta">';
+        if (s.channel) html += '<span>' + s.channel + '</span>';
+        if (s.message_count) html += '<span>' + s.message_count + ' 消息</span>';
+        html += '<span>' + (s.created_at ? s.created_at.substring(0, 16) : '') + '</span>';
+        html += takeOverBtn;
+        html += '  </div>';
+        html += '</div>';
+      });
+      document.getElementById('tab-sessions').innerHTML = html || '<div style="padding:20px;color:#9ca3af;text-align:center;">暂无会话</div>';
+    },
+    takeOver: function(sid) {
+      if (!token || !App.currentEmployeeId) return;
+      api('POST', '/api/agent/session/assign', {
+        session_id: sid,
+        employee_id: App.currentEmployeeId,
+      }).then(function(j) {
+        if (j.code === 0) {
+          alert('已接管会话');
+          App.loadSessions();
+          App.openSession(sid);
+        } else {
+          alert('接管失败：' + j.msg);
+        }
+      });
+    },
+
+    openSession: function(sid) {
+      currentSessionId = sid;
+      App.renderSessions();
+      App.renderChat();
+      // 加载历史
+      api('GET', '/api/agent/message/history?session_id=' + sid + '&limit=100').then(function(j) {
+        if (j.code === 0) {
+          messages[sid] = j.data.messages || [];
+          App.renderChat();
+        }
+      });
+    },
+
+    renderChat: function() {
+      var ca = document.getElementById('chat-area');
+      if (!currentSessionId) {
+        ca.innerHTML = '<div class="empty-state">👋 选择左侧会话</div>';
+        return;
+      }
+      var s = sessions.find(function(x) { return x.session_id === currentSessionId; }) || {};
+      var html = '<div class="chat-header">';
+      html += '  <div class="chat-info">';
+      html += '    <h3>' + escape(s.customer_name || '客户') + ' <span class="badge ' + (s.status === 'active' ? 'badge-active' : 'badge-waiting') + '">' + s.status + '</span></h3>';
+      html += '    <p>' + escape(s.customer_id || '') + ' · 渠道: ' + escape(s.channel || '') + '</p>';
+      html += '  </div>';
+      html += '  <div class="chat-actions">';
+      html += '    <button onclick="App.transfer()">转接</button>';
+      html += '    <button onclick="App.closeSession()">关闭</button>';
+      html += '    <button onclick="App.createTicket()">建工单</button>';
+      html += '  </div>';
+      html += '</div>';
+      html += '<div class="messages" id="chat-messages"></div>';
+      html += '<div class="chat-input">';
+      html += '  <textarea id="msg-input" placeholder="输入消息..." onkeydown="if(event.key === \'Enter\' && !event.shiftKey){event.preventDefault();App.send();}"></textarea>';
+      html += '  <button onclick="App.send()">发送</button>';
+      html += '</div>';
+      ca.innerHTML = html;
+
+      // render messages
+      var list = document.getElementById('chat-messages');
+      list.innerHTML = '';
+      (messages[currentSessionId] || []).forEach(function(m) {
+        var row = document.createElement('div');
+        var isFromMe = m.sender_type === 'agent';
+        row.className = 'msg-row from-' + (isFromMe ? 'agent' : (m.sender_type === 'system' ? 'system' : 'customer'));
+        var senderName = m.sender_type === 'customer' ? (s.customer_name || '客户') : (m.sender_type === 'agent' ? '我' : '系统');
+        row.innerHTML = '<div><div class="msg-bubble">' + escape(m.content) + '</div>'
+                       + '<div class="msg-meta">' + (m.created_at || '').substring(0, 16) + ' · ' + senderName + '</div></div>';
+        list.appendChild(row);
+      });
+      list.scrollTop = list.scrollHeight;
+    },
+
+    send: function() {
+      var input = document.getElementById('msg-input');
+      var text = input.value.trim();
+      if (!text || !currentSessionId) return;
+      input.value = '';
+      api('POST', '/api/agent/message/send', {
+        session_id: currentSessionId,
+        content: text,
+        type: 'text',
+      }).then(function(j) {
+        if (j.code === 0) {
+          messages[currentSessionId] = messages[currentSessionId] || [];
+          messages[currentSessionId].push({
+            sender_type: 'agent', content: text, created_at: j.data.created_at,
+          });
+          App.renderChat();
+          setTimeout(function() { App.openSession(currentSessionId); }, 500); // refresh
+        } else {
+          alert('发送失败: ' + j.msg);
+        }
+      });
+    },
+
+    transfer: function() {
+      var toId = prompt('请输入目标客服 ID:', '3');
+      if (!toId) return;
+      api('POST', '/api/agent/session/transfer', {
+        session_id: currentSessionId,
+        to_employee_id: parseInt(toId),
+        reason: '主动转接',
+      }).then(function(j) {
+        alert('转接: ' + j.msg);
+        App.loadSessions();
+      });
+    },
+
+    closeSession: function() {
+      if (!confirm('确定关闭此会话?')) return;
+      api('POST', '/api/agent/session/close', {
+        session_id: currentSessionId,
+        reason: 'resolved',
+      }).then(function(j) {
+        alert('关闭: ' + j.msg);
+        App.loadSessions();
+      });
+    },
+
+    createTicket: function() {
+      var title = prompt('工单标题:', '客户问题升级');
+      if (!title) return;
+      api('POST', '/api/ticket/create', {
+        session_id: currentSessionId,
+        title: title,
+        content: '从工作台升级',
+        category: 'from_session',
+        priority: 3,
+        customer_id: (sessions.find(function(x) { return x.session_id === currentSessionId; }) || {}).customer_id || 0,
+      }).then(function(j) {
+        alert('工单: ' + j.msg);
+      });
+    },
+
+    loadDashboard: function() {
+      api('GET', '/api/admin/report/overview').then(function(j) {
+        if (j.code !== 0) return;
+        var d = j.data;
+        var grid = document.getElementById('stats-grid');
+        grid.innerHTML = '';
+        [['今日新建', d.today.new_sessions, '#1f7aff'],
+         ['今日关闭', d.today.closed_sessions, '#67c23a'],
+         ['今日消息', d.today.total_messages, '#9c5fff'],
+         ['新访客',   d.today.new_visitors, '#e6a23c'],
+         ['新工单',   d.today.new_tickets, '#f56c6c'],
+         ['进行中',   d.active.active_sessions, '#1f7aff'],
+         ['等待中',   d.active.waiting_sessions, '#e6a23c'],
+         ['在线访客', d.active.online_customers, '#67c23a']].forEach(function(s) {
+          grid.innerHTML += '<div class="stat-card"><div class="label">' + s[0] + '</div><div class="value" style="color:' + s[2] + ';">' + s[1] + '</div></div>';
+        });
+      });
+
+      api('GET', '/api/admin/report/trend/sessions?start_date=' + daysAgo(7) + '&end_date=' + today()).then(function(j) {
+        if (j.code !== 0) return;
+        var data = j.data;
+        var max = Math.max.apply(null, data.map(function(x) { return x.v; }).concat([1]));
+        var chart = document.getElementById('trend-chart');
+        chart.innerHTML = '';
+        data.forEach(function(row) {
+          var h = (row.v / max) * 180;
+          var bar = document.createElement('div');
+          bar.style.cssText = 'flex:1;background:linear-gradient(180deg,#1f7aff,#4c8dff);border-radius:4px 4px 0 0;height:' + h + 'px;position:relative;display:flex;align-items:flex-end;justify-content:center;color:#fff;font-size:11px;padding-bottom:4px;';
+          bar.title = row.d + ': ' + row.v + ' 会话';
+          bar.textContent = row.v;
+          chart.appendChild(bar);
+        });
+      });
+
+      api('GET', '/api/admin/report/agent-rank?start_date=' + daysAgo(30) + '&end_date=' + today()).then(function(j) {
+        if (j.code !== 0) return;
+        var tb = document.getElementById('agent-rank-tbody');
+        tb.innerHTML = '';
+        (j.data.list || []).forEach(function(a) {
+          tb.innerHTML += '<tr><td>' + escape(a.real_name) + '</td><td>' + (a.session_count || 0) + '</td><td>' + (a.message_count || 0) + '</td><td>' + (a.avg_score || '-') + '</td></tr>';
+        });
+      });
+    },
+
+    loadKnowledge: function() {
+      // 简单搜索
+    },
+    testKnowledge: function() {
+      var q = document.getElementById('k-query').value;
+      if (!q) return;
+      fetch('/api/robot/answer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: 1, q: q }),
+      }).then(function(r) { return r.json(); }).then(function(j) {
+        if (j.code === 0) {
+          var html = '<div style="padding:10px;background:#f0f9eb;border-radius:4px;margin-bottom:8px;">';
+          html += '<strong>匹配: </strong>' + (j.data.matched ? '✅' : '❌') + '<br/>';
+          html += '<strong>答案: </strong>' + escape(j.data.answer);
+          html += '</div>';
+          document.getElementById('k-result').innerHTML = html;
+        }
+      });
+    },
+
+    refreshDashboard: function() {
+      App.loadSessions();
+      if (currentTab === 'dashboard') App.loadDashboard();
+    },
+
+    // 30 秒轮询一次会话列表，模拟实时刷新
+    poll: function() {
+      if (this._polling) return;
+      this._polling = true;
+      this._lastSeq = 0;
+      var self = this;
+      var run = function () {
+        if (!token) { setTimeout(run, 500); return; }
+        fetch('/api/poll/agent?watch_session=' + encodeURIComponent(currentSessionId || '')
+            + '&after_seq=' + self._lastSeq, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        }).then(function (r) { return r.json(); }).then(function (j) {
+          if (j.code === 0 && j.data) {
+            (j.data.events || []).forEach(function (e) {
+              self._lastSeq = Math.max(self._lastSeq, e.seq);
+              self.handleEvent(e.payload);
+            });
+          }
+        }).catch(function () {}).finally(function () {
+          setTimeout(run, 1500); // 1.5s poll
+        });
+      };
+      run();
+    },
+    handleEvent: function (p) {
+      if (!p || !p.type) return;
+      if (p.type === 'new_session') {
+        // 新会话弹窗
+        if (window.confirm('新会话！客户 ' + (p.customer_id || '?') + ' 已接入。打开吗？')) {
+          App.loadSessions();
+          setTimeout(function() { App.openSession(p.session_id); }, 600);
+        }
+      } else if (p.type === 'message') {
+        // 如果当前聊天是这条消息所属的会话，追加到界面
+        if (currentSessionId === p.session_id) {
+          messages[currentSessionId] = messages[currentSessionId] || [];
+          messages[currentSessionId].push(p);
+          App.renderChat();
+          // 滚动到底
+          var list = document.getElementById('chat-messages');
+          if (list) list.scrollTop = list.scrollHeight;
+        } else {
+          // session 红点提示
+          var item = document.querySelector('[onclick="App.openSession(\'' + p.session_id + '\')"]');
+          if (item) {
+            item.style.background = '#fff5e6';
+            item.title = '有新消息！';
+          }
+        }
+      } else if (p.type === 'session_closed') {
+        App.loadSessions();
+        if (currentSessionId === p.session_id) {
+          currentSessionId = null;
+          App.renderChat();
+        }
+      } else if (p.type === 'status_change') {
+        // 客服状态变化
+      } else if (p.type === 'system') {
+        alert('系统通知：' + (p.event || '') + '\n' + JSON.stringify(p.data || {}, null, 2));
+      }
+    },
+  };
+
+  function today() { return new Date().toISOString().split('T')[0]; }
+  function daysAgo(n) {
+    var d = new Date(); d.setDate(d.getDate() - n);
+    return d.toISOString().split('T')[0];
+  }
+})();
+
+// 自动登录（如果 token 已存在）
+window.onload = function() {
+  var t = localStorage.getItem('kefu_token');
+  if (t) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-ui').style.display = 'block';
+    // 从 token 解 employee_id（JWT payload）
+    try {
+      var p = JSON.parse(atob(t.split('.')[1] || ''));
+      if (p && p.employee_id) App.currentEmployeeId = p.employee_id;
+    } catch (e) {}
+    App.poll();
+    document.getElementById('username').value = 'agent01';
+    document.getElementById('password').value = 'admin123';
+    fetch('/api/agent/dashboard/realtime', {
+      method: 'GET', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t }
+    }).then(function(r) { return r.json(); }).then(function(j) {
+      if (j.code === 0) {
+        document.getElementById('agent-name').textContent = '客服: ' + (j.data && j.data.my_sessions ? 'online' : '');
+        App.loadSessions();
+      } else {
+        localStorage.removeItem('kefu_token');
+        location.reload();
+      }
+    });
+  }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>坐席报表 · kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+.qf-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--color-muted); margin-bottom: 16px; }
+.qf-tabs .tab { padding: 10px 20px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--color-text-2); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.qf-tabs .tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+.qf-tabs .tab:hover { color: var(--color-primary); }
+.qf-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.qf-summary { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.qf-summary .item { padding: 10px 18px; border-radius: var(--r-md); background: linear-gradient(135deg, var(--color-primary-bg), #F5F3FF); min-width: 130px; }
+.qf-summary .item .label { font-size: 11px; color: var(--color-text-2); }
+.qf-summary .item .value { font-size: 20px; font-weight: 700; color: var(--color-primary); }
+.qf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.qf-table th { background: #F8FAFC; color: var(--color-text-2); font-weight: 600; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--color-muted); }
+.qf-table td { padding: 8px 10px; border-bottom: 1px solid var(--color-muted); }
+.qf-table tr:hover { background: var(--color-primary-bg); }
+.qf-page { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--color-muted); font-size: 13px; color: var(--color-text-2); }
+.qf-col-pick { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 9000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.qf-col-pick-box { background: var(--color-card); border-radius: var(--r-md); box-shadow: 0 24px 60px rgba(0,0,0,0.25); width: 520px; max-width: 92vw; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; }
+.qf-col-pick-header { padding: 14px 18px; border-bottom: 1px solid var(--color-muted); font-weight: 600; }
+.qf-col-pick-body { padding: 16px 18px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.qf-col-pick-footer { padding: 10px 18px; border-top: 1px solid var(--color-muted); display: flex; justify-content: flex-end; gap: 8px; }
+.qf-col-item { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 8px; border-radius: var(--r-sm); }
+.qf-col-item:hover { background: var(--color-primary-bg); }
+.qf-sort-cursor { cursor: pointer; user-select: none; }
+.qf-sort-cursor:hover { color: var(--color-primary); }
+.rank-bar { display: inline-block; width: 18px; height: 18px; border-radius: 50%; text-align: center; line-height: 18px; font-size: 11px; color: white; font-weight: 600; margin-right: 4px; }
+.rank-1 { background: #FFD700; }
+.rank-2 { background: #C0C0C0; }
+.rank-3 { background: #CD7F32; }
+</style>
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="card">
+  <div class="card-title">👥 坐席报表
+    <span class="extra">
+      <button class="k-btn k-btn-mini" onclick="openColPicker()">⚙ 自定义列</button>
+      <button class="k-btn k-btn-mini" onclick="exportCsv()">📥 导出 CSV</button>
+    </span>
+  </div>
+
+  <!-- 坐席报表 Tabs -->
+  <div class="qf-tabs">
+    <div class="tab active" data-tab="workload" onclick="switchTab('workload')">📋 工作量</div>
+    <div class="tab" data-tab="quality" onclick="switchTab('quality')">🎯 工作质量</div>
+    <div class="tab" data-tab="attendance" onclick="switchTab('attendance')">🕐 考勤报表</div>
+    <div class="tab" data-tab="dept" onclick="switchTab('dept')">🏢 部门汇总</div>
+  </div>
+
+  <!-- 时间工具条 -->
+  <div class="qf-toolbar">
+    <input id="fromDate" type="date" class="k-input" style="width:140px" />
+    <span class="k-text-muted">~</span>
+    <input id="toDate" type="date" class="k-input" style="width:140px" />
+    <select id="preset" class="k-select" style="width:120px" onchange="onPresetChange()">
+      <option value="">— 选预设 —</option>
+      <option value="0">今日</option>
+      <option value="1">昨日</option>
+      <option value="3">最近 3 天</option>
+      <option value="7" selected>最近 7 天</option>
+      <option value="14">最近 14 天</option>
+      <option value="30">最近 30 天</option>
+    </select>
+    <select id="dept" class="k-select" style="width:140px" onchange="loadCurrent()">
+      <option value="">🏢 全部部门</option>
+    </select>
+    <input id="kw" class="k-input" placeholder="坐席名称" style="width:140px" onkeydown="if(event.key==='Enter')loadCurrent()" />
+    <button class="k-btn k-btn-primary" onclick="loadCurrent()">查询</button>
+  </div>
+
+  <!-- 摘要区 -->
+  <div class="qf-summary" id="summary"></div>
+
+  <!-- 表格 -->
+  <div id="table-box" style="overflow-x:auto;"></div>
+
+  <div class="qf-page">
+    <span id="page-info">共 0 条</span>
+    <span>
+      每页显示
+      <select id="page-size" class="k-select" style="width:80px;display:inline-block" onchange="loadCurrent()">
+        <option>10</option>
+        <option selected>20</option>
+        <option>50</option>
+        <option>100</option>
+      </select>
+      <button class="k-btn k-btn-mini" onclick="changePage(-1)">上一页</button>
+      <button class="k-btn k-btn-mini" onclick="changePage(1)">下一页</button>
+    </span>
+  </div>
+</div>
+
+<!-- 列选择弹窗 -->
+<div id="col-modal" class="qf-col-pick" style="display:none;">
+  <div class="qf-col-pick-box">
+    <div class="qf-col-pick-header">
+      选择需要展示的数据项
+      <button onclick="closeColPicker()" style="float:right;background:transparent;border:0;font-size:22px;color:var(--color-text-3);cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div id="col-pick-body" class="qf-col-pick-body"></div>
+    <div class="qf-col-pick-footer">
+      <button class="k-btn k-btn-mini k-btn-secondary" onclick="selectAllCols()">全选</button>
+      <button class="k-btn k-btn-mini k-btn-secondary" onclick="resetColDefault()">默认</button>
+      <button class="k-btn k-btn-mini k-btn-primary" onclick="applyColPicker()">应用</button>
+      <button class="k-btn k-btn-mini" onclick="closeColPicker()">取消</button>
+    </div>
+  </div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+
+// 坐席报表的列定义
+const COL_DEFS = {
+  workload: {
+    label: '工作量',
+    metrics: [
+      { key: 'rank',          label: '排名', type: 'rank' },
+      { key: 'dept_name',     label: '部门', type: 'tag', default: true },
+      { key: 'real_name',     label: '坐席', type: 'name', default: true },
+      { key: 'total_sessions',label: '会话总量', type: 'num', default: true },
+      { key: 'new_sessions',  label: '接入会话量', type: 'num', default: true },
+      { key: 'msg_count',     label: '消息总量', type: 'num', default: true },
+      { key: 'avg_session_duration', label: '平均会话时长', type: 'sec' },
+      { key: 'avg_response',  label: '平均响应时长', type: 'sec', default: true },
+      { key: 'avg_first_response', label: '平均首次响应时长', type: 'sec', default: true },
+      { key: 'online_time',   label: '在线时长', type: 'sec', default: true },
+      { key: 'active_time',   label: '有效工时', type: 'sec' },
+      { key: 'busy_pct',      label: '繁忙率', type: 'pct' },
+      { key: 'sessions_per_hour', label: '每小时会话量', type: 'num' },
+    ],
+  },
+  quality: {
+    label: '工作质量',
+    metrics: [
+      { key: 'rank',              label: '排名', type: 'rank' },
+      { key: 'dept_name',         label: '部门', type: 'tag', default: true },
+      { key: 'real_name',         label: '坐席', type: 'name', default: true },
+      { key: 'satisfaction_rate', label: '满意度', type: 'pct', default: true },
+      { key: 'satisfied_count',   label: '好评数', type: 'num' },
+      { key: 'neutral_count',     label: '中评数', type: 'num' },
+      { key: 'bad_count',         label: '差评数', type: 'num' },
+      { key: 'avg_score',         label: '平均评分', type: 'num', default: true },
+      { key: 'resolve_rate',      label: '问题解决率', type: 'pct' },
+      { key: 'one_problem_rate',  label: '一次解决率', type: 'pct' },
+      { key: 'transfer_rate',     label: '转接率', type: 'pct' },
+      { key: 'review_score',      label: '质检平均分', type: 'num' },
+      { key: 'review_count',      label: '抽检数', type: 'num' },
+      { key: 'review_pass',       label: '抽检通过数', type: 'num' },
+      { key: 'review_pass_rate',  label: '抽检通过率', type: 'pct' },
+    ],
+  },
+  attendance: {
+    label: '考勤报表',
+    metrics: [
+      { key: 'rank',         label: '排名', type: 'rank' },
+      { key: 'dept_name',    label: '部门', type: 'tag', default: true },
+      { key: 'real_name',    label: '姓名', type: 'name', default: true },
+      { key: 'date',         label: '日期', type: 'date', default: true },
+      { key: 'first_login',  label: '首次登录时间', type: 'time', default: true },
+      { key: 'last_logout',  label: '最后退出时间', type: 'time' },
+      { key: 'login_count',  label: '登录次数', type: 'num' },
+      { key: 'online_time',  label: '在线时长', type: 'sec', default: true },
+      { key: 'busy_time',    label: '繁忙时长', type: 'sec' },
+      { key: 'away_time',    label: '离开时长', type: 'sec' },
+      { key: 'active_time',  label: '有效工时', type: 'sec', default: true },
+      { key: 'attend_rate',  label: '出勤率', type: 'pct', default: true },
+      { key: 'idle_rate',    label: '空闲率', type: 'pct' },
+      { key: 'sessions_handled', label: '接待会话数', type: 'num' },
+    ],
+  },
+  dept: {
+    label: '部门汇总',
+    metrics: [
+      { key: 'rank',          label: '排名', type: 'rank' },
+      { key: 'dept_name',     label: '部门', type: 'tag', default: true },
+      { key: 'emp_count',     label: '坐席数', type: 'num', default: true },
+      { key: 'total_sessions',label: '会话总量', type: 'num', default: true },
+      { key: 'msg_count',     label: '消息总量', type: 'num', default: true },
+      { key: 'sessions_per_emp', label: '人均会话', type: 'num' },
+      { key: 'avg_session_duration', label: '平均会话时长', type: 'sec' },
+      { key: 'satisfaction_rate', label: '满意度', type: 'pct', default: true },
+      { key: 'avg_score',     label: '平均评分', type: 'num' },
+      { key: 'online_time',   label: '总在线时长', type: 'sec' },
+    ],
+  },
+};
+
+let _activeTab = 'workload';
+let _page = 1, _pageSize = 20, _sortBy = null, _sortDir = 'desc';
+let _visibleCols = {};
+let _allRows = [];
+
+function getDefaultVisible(tab) {
+  const def = {};
+  COL_DEFS[tab].metrics.forEach(m => { if (m.default) def[m.key] = true; });
+  return def;
+}
+
+function onPresetChange() {
+  const v = document.getElementById('preset').value;
+  if (v === '') return;
+  const days = parseInt(v, 10);
+  let start, end;
+  if (days === 0) { start = end = A.today(); }
+  else if (days === 1) { start = end = A.daysAgo(1); }
+  else { start = A.daysAgo(days - 1); end = A.today(); }
+  document.getElementById('fromDate').value = start;
+  document.getElementById('toDate').value = end;
+  loadCurrent();
+}
+
+function switchTab(tab) {
+  _activeTab = tab;
+  _page = 1;
+  document.querySelectorAll('.qf-tabs .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  if (!_visibleCols[tab]) _visibleCols[tab] = getDefaultVisible(tab);
+  loadCurrent();
+}
+
+// ===== 列选择 =====
+function openColPicker() {
+  const def = COL_DEFS[_activeTab];
+  if (!def) return;
+  const body = document.getElementById('col-pick-body');
+  body.innerHTML = def.metrics.map(m => {
+    const checked = _visibleCols[_activeTab][m.key] ? 'checked' : '';
+    return '<label class="qf-col-item"><input type="checkbox" data-key="' + m.key + '" ' + checked + '/> ' + m.label + '</label>';
+  }).join('');
+  document.getElementById('col-modal').style.display = 'flex';
+}
+function closeColPicker() { document.getElementById('col-modal').style.display = 'none'; }
+function selectAllCols() {
+  document.querySelectorAll('#col-pick-body input[type=checkbox]').forEach(c => c.checked = true);
+}
+function resetColDefault() {
+  const def = getDefaultVisible(_activeTab);
+  document.querySelectorAll('#col-pick-body input[type=checkbox]').forEach(c => { c.checked = !!def[c.dataset.key]; });
+}
+function applyColPicker() {
+  const map = {};
+  document.querySelectorAll('#col-pick-body input[type=checkbox]').forEach(c => { map[c.dataset.key] = c.checked; });
+  _visibleCols[_activeTab] = map;
+  closeColPicker();
+  loadCurrent();
+}
+
+function loadCurrent() {
+  _page = 1;
+  const start = document.getElementById('fromDate').value;
+  const end = document.getElementById('toDate').value;
+  const kw = document.getElementById('kw').value.trim();
+  _pageSize = parseInt(document.getElementById('page-size').value, 10);
+  if (!start || !end) { A.toast('请选择时间范围', 'error'); return; }
+  loadTableData(start, end, kw);
+}
+
+async function loadTableData(start, end, kw) {
+  const deptId = document.getElementById('dept').value || 0;
+  const params = new URLSearchParams({ start_date: start, end_date: end });
+  if (deptId) params.set('dept_id', deptId);
+  const r = await A.api('GET', '/api/admin/report/agent-rank?' + params);
+  if (r.code !== 0) { document.getElementById('table-box').innerHTML = '<div class="k-empty">加载失败</div>'; return; }
+  const rawList = (r.data && r.data.list) || [];
+
+  if (_activeTab === 'dept') {
+    // 按部门聚合
+    const groupMap = {};
+    rawList.forEach(r => {
+      const key = r.dept_id || 0;
+      const name = r.dept_name || '未分配';
+      if (!groupMap[key]) groupMap[key] = {
+        dept_id: key, dept_name: name, _emps: [],
+        total_sessions: 0, msg_count: 0, online_time: 0,
+        _sat_sum: 0, _score_sum: 0, _score_cnt: 0, _dur_sum: 0, _sess_dur_cnt: 0,
+      };
+      const g = groupMap[key];
+      g._emps.push(r);
+      g.total_sessions += +r.session_count || 0;
+      g.msg_count += +r.message_count || 0;
+      g.online_time += +r.online_seconds || 0;
+      g._dur_sum += +r.avg_session_duration || 0;
+      g._sess_dur_cnt += 1;
+      // 满意度 / 平均评分：聚合所有 rawList 评价（这里简化用 emp_count 加权）
+    });
+    _allRows = Object.values(groupMap).map((g, i) => {
+      const emp_count = g._emps.length;
+      // 部门的满意度 = 部门内客服满意度按评价数加权（后端 stats 接口已有 by_agent；这里采用近似平均）
+      const rates = g._emps.map(e => +e.satisfaction_rate || 0);
+      const avgRate = rates.length ? rates.reduce((a,b)=>a+b,0)/rates.length : 0;
+      const scores = g._emps.map(e => +e.avg_score || 0).filter(v => v > 0);
+      const avgScore = scores.length ? scores.reduce((a,b)=>a+b,0)/scores.length : 0;
+      return {
+        rank: i + 1,
+        dept_id: g.dept_id,
+        dept_name: g.dept_name,
+        emp_count: emp_count,
+        total_sessions: g.total_sessions,
+        msg_count: g.msg_count,
+        sessions_per_emp: emp_count ? Math.round(g.total_sessions / emp_count) : 0,
+        avg_session_duration: g._sess_dur_cnt ? Math.round(g._dur_sum / g._sess_dur_cnt) : 0,
+        satisfaction_rate: Math.round(avgRate),
+        avg_score: avgScore,
+        online_time: g.online_time,
+      };
+    });
+  } else {
+    // 工作量/质量/考勤 tab：按坐席
+    _allRows = rawList.map((r, i) => {
+      const total_msg = +r.message_count || 0;
+      const total_sess = +r.session_count || 0;
+      return {
+        rank: i + 1,
+        dept_name: r.dept_name || '未分配',
+        real_name: r.real_name || r.username || '-',
+        total_sessions: total_sess,
+        new_sessions: total_sess,
+        msg_count: total_msg,
+        avg_session_duration: r.avg_session_duration || 0,
+        avg_response: r.avg_response_sec || 0,
+        avg_first_response: r.avg_first_sec || 0,
+        online_time: r.online_seconds || 0,
+        active_time: r.active_seconds || 0,
+        busy_pct: r.busy_pct || 0,
+        sessions_per_hour: r.online_seconds ? total_sess / (r.online_seconds / 3600) : 0,
+        satisfaction_rate: r.satisfaction_rate || 0,
+        satisfied_count: r.satisfied_count || 0,
+        neutral_count: r.neutral_count || 0,
+        bad_count: r.bad_count || 0,
+        avg_score: r.avg_score || 0,
+        resolve_rate: r.resolve_rate || 0,
+        one_problem_rate: r.one_problem_rate || 0,
+        transfer_rate: r.transfer_rate || 0,
+        review_score: r.review_score || 0,
+        review_count: r.review_count || 0,
+        review_pass: r.review_pass || 0,
+        review_pass_rate: r.review_count ? Math.round(r.review_pass / r.review_count * 100) : 0,
+        date: end,  // 考勤日期：显示查询范围的截止日期（每人每天一行，当前数据源按人汇总）
+        first_login: r.first_login || '',
+        last_logout: r.last_logout || '',
+        login_count: r.login_count || 0,
+        busy_time: r.busy_time || 0,
+        away_time: r.away_time || 0,
+        attend_rate: r.online_seconds ? Math.min(100, r.online_seconds / 28800 * 100) : 0,
+        idle_rate: r.online_seconds ? Math.max(0, 100 - (r.busy_pct || 0)) : 100,
+        sessions_handled: total_sess,
+      };
+    });
+  }
+
+  if (kw) _allRows = _allRows.filter(r => (r.real_name || '').includes(kw));
+  renderTable();
+}
+
+function renderTable() {
+  if (_sortBy) {
+    _allRows.sort((a, b) => {
+      const va = a[_sortBy], vb = b[_sortBy];
+      const cmp = (typeof va === 'string' ? va.localeCompare(vb) : (va > vb ? 1 : va < vb ? -1 : 0));
+      return _sortDir === 'asc' ? cmp : -cmp;
+    });
+    // 重排 rank
+    _allRows.forEach((r, i) => r.rank = i + 1);
+  }
+  const total = _allRows.length;
+  const totalPages = Math.max(1, Math.ceil(total / _pageSize));
+  if (_page > totalPages) _page = totalPages;
+  const pageRows = _allRows.slice((_page - 1) * _pageSize, _page * _pageSize);
+  document.getElementById('page-info').textContent = '共 ' + total + ' 条 · 第 ' + _page + '/' + totalPages + ' 页';
+
+  // 摘要
+  const sumSess = _allRows.reduce((a, r) => a + (+r.total_sessions || 0), 0);
+  const sumMsg  = _allRows.reduce((a, r) => a + (+r.msg_count || 0), 0);
+  const sumOnline = _allRows.reduce((a, r) => a + (+r.online_time || 0), 0);
+  document.getElementById('summary').innerHTML =
+    '<div class="item"><div class="label">坐席数</div><div class="value">' + total + '</div></div>' +
+    '<div class="item"><div class="label">会话总量</div><div class="value">' + sumSess + '</div></div>' +
+    '<div class="item"><div class="label">消息总量</div><div class="value">' + sumMsg + '</div></div>' +
+    '<div class="item"><div class="label">在线总时长</div><div class="value">' + Math.round(sumOnline / 3600) + 'h</div></div>';
+
+  const def = COL_DEFS[_activeTab];
+  const visible = Object.keys(_visibleCols[_activeTab] || {}).filter(k => _visibleCols[_activeTab][k]);
+  const colDefs = def.metrics.filter(m => visible.includes(m.key));
+
+  if (!pageRows.length) {
+    document.getElementById('table-box').innerHTML = '<div class="k-empty">该范围暂无数据</div>';
+    return;
+  }
+
+  const thead = '<tr>' + colDefs.map(m => {
+    let label = m.label;
+    if (_sortBy === m.key) label += ' ' + (_sortDir === 'asc' ? '↑' : '↓');
+    return '<th class="qf-sort-cursor" onclick="sortBy(\'' + m.key + '\')">' + label + '</th>';
+  }).join('') + '</tr>';
+
+  const tbody = pageRows.map(r => '<tr>' + colDefs.map(m => '<td>' + formatCell(m, r[m.key]) + '</td>').join('') + '</tr>').join('');
+  document.getElementById('table-box').innerHTML = '<table class="qf-table">' + thead + tbody + '</table>';
+}
+
+function formatCell(col, val) {
+  if (val === null || val === undefined || val === '') return '-';
+  if (col.type === 'sec') {
+    const sec = +val;
+    if (sec < 60) return sec + 's';
+    if (sec < 3600) return Math.floor(sec / 60) + 'min';
+    return (sec / 3600).toFixed(1) + 'h';
+  }
+  if (col.type === 'pct') return (+val).toFixed(1) + '%';
+  if (col.type === 'rank') {
+    const r = +val;
+    let cls = '';
+    if (r === 1) cls = 'rank-1';
+    else if (r === 2) cls = 'rank-2';
+    else if (r === 3) cls = 'rank-3';
+    return '<span class="rank-bar ' + cls + '">' + r + '</span>';
+  }
+  if (col.type === 'time') return String(val).substring(0, 19);
+  if (col.type === 'name') return '<strong>' + val + '</strong>';
+  if (col.type === 'tag') return '<span style="padding:2px 8px;border-radius:10px;background:#EEF2FF;color:#4338CA;font-size:11px;font-weight:600;">' + val + '</span>';
+  return val;
+}
+
+function sortBy(key) {
+  if (_sortBy === key) _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+  else { _sortBy = key; _sortDir = 'desc'; }
+  renderTable();
+}
+
+function changePage(delta) {
+  const totalPages = Math.max(1, Math.ceil(_allRows.length / _pageSize));
+  _page = Math.max(1, Math.min(totalPages, _page + delta));
+  renderTable();
+}
+
+function exportCsv() {
+  if (!_allRows.length) { A.toast('请先查询数据', 'warning'); return; }
+  const def = COL_DEFS[_activeTab];
+  const visible = Object.keys(_visibleCols[_activeTab] || {}).filter(k => _visibleCols[_activeTab][k]);
+  const colDefs = def.metrics.filter(m => visible.includes(m.key));
+  const lines = ['\uFEFF' + colDefs.map(c => c.label).join(',')];
+  _allRows.forEach(r => lines.push(colDefs.map(c => r[c.key] ?? '').join(',')));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'agent-report-' + _activeTab + '-' + (document.getElementById('fromDate').value || '') + '.csv';
+  a.click();
+  A.toast('已导出 CSV', 'success');
+}
+
+// init
+document.getElementById('fromDate').value = A.daysAgo ? A.daysAgo(6) : '';
+document.getElementById('toDate').value = A.today ? A.today() : '';
+// 支持 URL ?tab=quality
+const urlTab = new URLSearchParams(location.search).get('tab');
+if (urlTab && COL_DEFS[urlTab]) {
+  _activeTab = urlTab;
+  document.querySelectorAll('.qf-tabs .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === urlTab));
+}
+_visibleCols[_activeTab] = getDefaultVisible(_activeTab);
+(async () => {
+  await loadDeptList();
+  loadCurrent();
+})();
+
+// 加载部门列表到下拉
+async function loadDeptList() {
+  try {
+    const r = await A.api('GET', '/api/admin/dept/list');
+    const list = (r.data && r.data.list) || [];
+    const sel = document.getElementById('dept');
+    list.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      // 顶级部门（parent_id=0）直接显示名字；子部门加缩进
+      const indent = d.parent_id && d.parent_id > 0 ? '　└─ ' : '';
+      opt.textContent = indent + (d.dept_name || '-') + ' (' + (d.emp_count || 0) + '人)';
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    console.warn('loadDeptList failed', e);
+  }
+}
+</script>
+</body>
+</html>

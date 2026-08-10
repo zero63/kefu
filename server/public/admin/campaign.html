@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>营销活动 · kefu 管理后台</title>
+<link rel="stylesheet" href="/design-system.css" />
+<style>
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+.stat-card { background: white; border-radius: 14px; padding: 18px; border: 1px solid var(--color-border); }
+.stat-card .v { font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono'; }
+.stat-card .l { font-size: 12px; color: var(--color-text-3); }
+</style>
+</head>
+<body style="background:var(--color-bg);padding:24px;">
+
+<div class="k-toolbar">
+  <div style="font-size:18px;font-weight:600;">📣 营销活动</div>
+  <div class="spacer"></div>
+  <button class="k-btn k-btn-primary" onclick="openCreate()">+ 新建活动</button>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card"><div class="l">进行中</div><div class="v" id="s-running">-</div></div>
+  <div class="stat-card"><div class="l">已发送</div><div class="v" id="s-sent">-</div></div>
+  <div class="stat-card"><div class="l">已读</div><div class="v" id="s-opened">-</div></div>
+  <div class="stat-card"><div class="l">已回复</div><div class="v" id="s-replied">-</div></div>
+</div>
+
+<div class="k-card">
+  <div class="k-card-title">活动列表</div>
+  <table class="k-table">
+    <thead><tr><th>名称</th><th>类型</th><th>状态</th><th>发送</th><th>已读</th><th>回复</th><th>时间</th><th style="text-align:right;">操作</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script src="/admin/common.js"></script>
+<script src="/ui.js"></script>
+<script>
+if (!KefuAdmin.token) KefuAdmin.token = localStorage.getItem('kefu_token');
+if (!UI.token) UI.token = localStorage.getItem('kefu_token');
+
+const TYPE_LABEL = { push: 'Push', mass: '群发', survey: '调研' };
+const STATUS_TAG = {
+  draft:     '<span class="k-tag k-tag-gray">草稿</span>',
+  scheduled: '<span class="k-tag k-tag-blue">已排期</span>',
+  running:   '<span class="k-tag k-tag-orange">进行中</span>',
+  done:      '<span class="k-tag k-tag-green">已完成</span>',
+};
+
+async function loadStats() {
+  const j = await UI.api('GET', '/api/admin/campaign/stats');
+  const rows = (j.data || []);
+  let running = 0, sent = 0, opened = 0;
+  rows.forEach(r => {
+    running += parseInt(r.running || 0);
+    sent += parseInt(r.sent || 0);
+    opened += parseInt(r.opened || 0);
+  });
+  document.getElementById('s-running').textContent = running;
+  document.getElementById('s-sent').textContent = sent.toLocaleString();
+  document.getElementById('s-opened').textContent = opened.toLocaleString();
+  document.getElementById('s-replied').textContent = '-';
+}
+
+async function loadList() {
+  const j = await UI.api('GET', '/api/admin/campaign/list');
+  const list = (j.data && j.data.list) || [];
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = list.length ? list.map(c =>
+    `<tr>
+      <td><b>${UI.escapeHtml(c.name)}</b></td>
+      <td><span class="k-tag k-tag-blue">${TYPE_LABEL[c.type] || c.type}</span></td>
+      <td>${STATUS_TAG[c.status] || c.status}</td>
+      <td>${c.sent_count || 0}</td>
+      <td>${c.opened_count || 0}</td>
+      <td>${c.replied_count || 0}</td>
+      <td class="text-muted">${UI.fmtDate(c.created_at)}</td>
+      <td style="text-align:right;">
+        ${c.status === 'draft' ? `<button class="k-btn-text" onclick="launchC(${c.id})">启动</button>` : ''}
+        <button class="k-btn-text" onclick="removeC(${c.id})" style="color:var(--color-danger);">删除</button>
+      </td>
+    </tr>`
+  ).join('') : '<tr><td colspan="8" class="k-empty">暂无活动</td></tr>';
+}
+
+function openCreate() {
+  UI.modal('新建营销活动',
+    `<div class="k-form-row">
+      <div class="item"><label>活动名称</label><input id="c-n" class="k-input" placeholder="夏季新品推送"></div>
+      <div class="item"><label>类型</label>
+        <select id="c-t" class="k-select">
+          <option value="push">Push 推送</option>
+          <option value="mass">群发消息</option>
+          <option value="survey">调研问卷</option>
+        </select>
+      </div>
+    </div>
+    <div class="k-form-row">
+      <div class="item"><label>定时发送（可选）</label><input id="c-s" class="k-input" type="datetime-local"></div>
+    </div>
+    <div class="k-form-label">目标客户</div>
+    <textarea id="c-tg" class="k-textarea" rows="2" placeholder='{"all":true} 或 {"tag":"vip"} 或 {"ids":["c001"]}'></textarea>
+    <div class="k-form-label">活动内容</div>
+    <textarea id="c-ct" class="k-textarea" rows="4" placeholder='{"title":"","body":"","url":""}'></textarea>`,
+    async ok => {
+      if (!ok) return false;
+      let target = {}, content = {};
+      try { target = JSON.parse(document.getElementById('c-tg').value || '{}'); } catch (e) {}
+      try { content = JSON.parse(document.getElementById('c-ct').value || '{}'); } catch (e) {}
+      const data = {
+        name: document.getElementById('c-n').value,
+        type: document.getElementById('c-t').value,
+        target,
+        content,
+        schedule_at: document.getElementById('c-s').value || '',
+      };
+      const j = await UI.api('POST', '/api/admin/campaign/create', data);
+      if (j.code !== 0) { UI.error(j.msg); return false; }
+      UI.success('已创建');
+      loadList();
+    }
+  );
+}
+
+async function launchC(id) {
+  const j = await UI.api('POST', '/api/admin/campaign/launch', { id });
+  if (j.code !== 0) return UI.error(j.msg);
+  UI.success('已启动');
+  loadList();
+}
+
+async function removeC(id) {
+  if (!UI.confirm('确认删除？')) return;
+  const j = await UI.api('POST', '/api/admin/campaign/delete', { id });
+  if (j.code !== 0) return UI.error(j.msg);
+  UI.success('已删除');
+  loadList();
+}
+
+loadStats();
+loadList();
+</script>
+</body>
+</html>

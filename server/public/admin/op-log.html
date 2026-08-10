@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>操作日志 · kefu 管理后台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="stylesheet" href="/design-system.css" />
+<link rel="stylesheet" href="/admin/admin2.css" />
+<style>
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;padding:12px;background:var(--color-bg-2);border-radius:8px}
+.filter-bar select,.filter-bar input{padding:6px 10px;border:1px solid var(--color-border);border-radius:6px;font-size:13px;background:#fff}
+.filter-bar .group{display:flex;align-items:center;gap:4px}
+.filter-bar label{font-size:12px;color:var(--color-text-3)}
+.log-row{padding:10px 14px;border-bottom:1px solid var(--color-border-light);font-size:13px}
+.log-row:hover{background:var(--color-primary-bg)}
+.log-row .lr-time{color:var(--color-text-3);font-size:11px;font-family:'Fira Code',monospace;min-width:160px}
+.log-row .lr-user{font-weight:600;color:var(--color-primary);min-width:100px;display:inline-block}
+.log-row .lr-action{display:inline-block;padding:2px 8px;border-radius:4px;background:#EEF2FF;color:#4F46E5;font-size:11px;margin:0 6px}
+.log-row .lr-desc{color:var(--color-text-2)}
+.log-row .lr-ip{color:var(--color-text-3);font-size:11px;font-family:'Fira Code',monospace;margin-left:8px}
+.k-pill{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.k-pill-gray{background:#F1F5F9;color:#475569}
+</style>
+</head>
+<body style="margin:0;padding:0;">
+
+<div class="card">
+  <div class="card-title">
+    <span style="display:inline-flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-primary)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      操作日志
+    </span>
+    <div class="extra" style="font-size:12px;color:var(--color-text-3)">
+      保留所有管理员操作记录，仅超管可清理
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="group"><label>模块</label>
+      <select id="f-module">
+        <option value="">全部</option>
+        <option value="employee">员工</option>
+        <option value="dept">部门</option>
+        <option value="role">角色</option>
+        <option value="tenant">企业</option>
+        <option value="config">配置</option>
+      </select>
+    </div>
+    <div class="group"><label>关键词</label>
+      <input id="f-keyword" placeholder="操作人/描述" />
+    </div>
+    <div class="group"><label>开始</label><input id="f-start" type="date" /></div>
+    <div class="group"><label>结束</label><input id="f-end" type="date" /></div>
+    <button class="k-btn k-btn-primary" onclick="loadList(1)">查询</button>
+    <button class="k-btn" onclick="reset()">重置</button>
+    <button class="k-btn k-btn-danger" onclick="clearOld()" style="margin-left:auto">清理 90 天前</button>
+  </div>
+
+  <div id="log-list" class="k-loading">加载中…</div>
+  <div id="pager" style="margin-top:14px;display:flex;justify-content:space-between;align-items:center"></div>
+</div>
+
+<script src="/admin/common.js?v=2026"></script>
+<script>
+if (!KefuAdmin.token) {
+  if (parent && parent.KefuAdmin && parent.KefuAdmin.token) KefuAdmin.token = parent.KefuAdmin.token;
+  else if (parent && parent.UI && parent.UI.token) KefuAdmin.token = parent.UI.token;
+  else KefuAdmin.token = localStorage.getItem('kefu_token');
+}
+if (!KefuAdmin.token) { top.location.href = '/admin/login.html'; throw new Error('not logged in'); }
+const A = KefuAdmin;
+let page = 1, size = 20, total = 0;
+
+function escapeHtml(s) { return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function loadList(p) {
+  page = p || 1;
+  const box = document.getElementById('log-list');
+  box.classList.add('k-loading');
+  const params = new URLSearchParams({
+    page, size,
+    module: document.getElementById('f-module').value,
+    keyword: document.getElementById('f-keyword').value,
+    start: document.getElementById('f-start').value,
+    end: document.getElementById('f-end').value,
+  });
+  const r = await A.api('GET', '/api/admin/op-log/list?' + params.toString());
+  box.classList.remove('k-loading');
+  if (r.code !== 0) { box.innerHTML = '<div class="k-empty">加载失败：' + (r.msg||'') + '</div>'; return; }
+  const list = (r.data && r.data.list) || [];
+  total = (r.data && r.data.total) || 0;
+  if (!list.length) { box.innerHTML = '<div class="k-empty">暂无日志</div>'; document.getElementById('pager').innerHTML = ''; return; }
+  box.innerHTML = list.map(l => `
+    <div class="log-row">
+      <span class="lr-time">${escapeHtml(l.created_at)}</span>
+      <span class="lr-user">${escapeHtml(l.operator_name || '-')}</span>
+      <span class="lr-action">${escapeHtml(l.module || '-')} / ${escapeHtml(l.action || '-')}</span>
+      <span class="lr-desc">${escapeHtml(l.description || '')}</span>
+      ${l.ip ? `<span class="lr-ip">IP: ${escapeHtml(l.ip)}</span>` : ''}
+    </div>
+  `).join('');
+  renderPager();
+}
+
+function renderPager() {
+  const tp = Math.max(1, Math.ceil(total / size));
+  document.getElementById('pager').innerHTML = `
+    <span style="font-size:12px;color:var(--color-text-3)">共 ${total} 条 / 第 ${page} / ${tp} 页</span>
+    <div>
+      <button class="k-btn k-btn-mini" ${page<=1?'disabled':''} onclick="loadList(${page-1})">上一页</button>
+      <button class="k-btn k-btn-mini" ${page>=tp?'disabled':''} onclick="loadList(${page+1})">下一页</button>
+    </div>
+  `;
+}
+
+function reset() {
+  document.getElementById('f-module').value = '';
+  document.getElementById('f-keyword').value = '';
+  document.getElementById('f-start').value = '';
+  document.getElementById('f-end').value = '';
+  loadList(1);
+}
+
+async function clearOld() {
+  if (!confirm('确认清理 90 天前的操作日志？此操作不可恢复')) return;
+  const r = await A.api('POST', '/api/admin/op-log/clear', { days: 90 });
+  if (r.code === 0) {
+    A.toast('已清理 ' + (r.data && r.data.affected || 0) + ' 条', 'success');
+    loadList(1);
+  } else {
+    A.toast('清理失败：' + r.msg, 'error');
+  }
+}
+
+loadList(1);
+</script>
+</body>
+</html>
