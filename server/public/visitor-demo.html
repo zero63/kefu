@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<title>访客 Demo · kefu</title>
+<title>访客 Demo 7 kefu</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
@@ -166,7 +166,7 @@ body { margin: 0; background: linear-gradient(135deg, #FAF5FF 0%, #F5F3FF 50%, #
       <div class="avatar" id="mode-avatar">AI</div>
       <div class="info">
         <div class="name" id="mode-name">智能客服 小e</div>
-        <div class="role"><span class="k-dot"></span><span id="mode-role">AI 智能体 · 在线</span></div>
+        <div class="role"><span class="k-dot"></span><span id="mode-role">AI 智能体 7 在线</span></div>
       </div>
     </div>
     <button class="handoff-btn" id="btn-handoff" style="display:none" onclick="H5.handoff()">🔁 转人工</button>
@@ -174,7 +174,7 @@ body { margin: 0; background: linear-gradient(135deg, #FAF5FF 0%, #F5F3FF 50%, #
 
   <div class="chat-card">
     <div class="messages" id="messages">
-      <div class="sys-event">对话开始 · <span id="upd"></span></div>
+      <div class="sys-event">对话开始 7 <span id="upd"></span></div>
     </div>
     <div class="input-area">
       <div class="input-row-tools">
@@ -216,7 +216,7 @@ body { margin: 0; background: linear-gradient(135deg, #FAF5FF 0%, #F5F3FF 50%, #
 
       <div class="input-row-meta">
         <span class="quick-toggle" id="v-quick-toggle" onclick="vToggleQuickPanel()">＋ 常用短语</span>
-        <span class="muted-tip">Enter 发送 · Shift+Enter 换行</span>
+        <span class="muted-tip">Enter 发送 7 Shift+Enter 换行</span>
       </div>
 
       <div class="input-row-main">
@@ -393,7 +393,7 @@ const H5 = {
     if (isAI) {
       av.innerHTML = 'AI';
       name.textContent = '智能客服 小e';
-      document.getElementById('mode-role').textContent = 'AI 智能体 · 在线';
+      document.getElementById('mode-role').textContent = 'AI 智能体 7 在线';
     } else if (A.currentAgent && A.currentAgent.name) {
       if (A.currentAgent.avatar) {
         av.innerHTML = '<img src="' + A.escapeHtml(A.currentAgent.avatar) + '" onerror="this.style.display=\'none\';this.parentNode.textContent=\'' + A.escapeHtml(A.currentAgent.name.slice(0,1)) + '\'"/>';
@@ -522,7 +522,7 @@ function showModal(title, html, buttons) {
   _evalModalOverlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:9000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
   _evalModalOverlay.innerHTML = '<div style="background:#fff;border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,0.25);width:420px;max-width:92vw;overflow:hidden;">' +
     '<div style="padding:16px 20px;border-bottom:1px solid #E5E7EB;font-weight:600;font-size:15px;display:flex;justify-content:space-between;align-items:center;">' +
-      title + '<button onclick="closeEvalModal()" style="background:transparent;border:0;font-size:22px;color:#6B7280;cursor:pointer;line-height:1;">×</button>' +
+      title + '<button onclick="closeEvalModal()" style="background:transparent;border:0;font-size:22px;color:#6B7280;cursor:pointer;line-height:1;">�</button>' +
     '</div>' +
     '<div style="padding:20px;">' + html + '</div>' +
     '<div style="padding:12px 20px;border-top:1px solid #E5E7EB;display:flex;justify-content:flex-end;gap:8px;" id="_ev_footer"></div>' +
@@ -583,12 +583,12 @@ function appendMsg(sender, content, opts) {
   } else if (mt === 'audio' && mediaUrl) {
     bubbleHtml = '<audio src="' + A.escapeHtml(mediaUrl) + '" controls preload="metadata"></audio>';
   } else if (mt === 'file' && mediaUrl) {
-    const sizeText = opts.file_size ? ' · ' + vFormatSize(opts.file_size) : '';
+    const sizeText = opts.file_size ? ' 7 ' + vFormatSize(opts.file_size) : '';
     const fileName = opts.file_name || content || '文件';
     bubbleHtml = '<div class="file-card">' +
       '<span class="file-icon">📎</span>' +
       '<div class="file-info"><div class="file-name">' + A.escapeHtml(fileName) + '</div>' +
-      '<div class="file-size">' + A.escapeHtml(sizeText.trim('·').trim()) + '</div></div>' +
+      '<div class="file-size">' + A.escapeHtml(sizeText.trim('7').trim()) + '</div></div>' +
       '<a class="file-download" href="' + A.escapeHtml(mediaUrl) + '" target="_blank" download>下载</a>' +
     '</div>';
   } else if (mt === 'emoji') {
